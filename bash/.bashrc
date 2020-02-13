@@ -4,6 +4,7 @@ case $- in
       *) return;;
 esac
 
+# these exports don't get cleaned up as they are relied upon elsewhere
 export BASHRC_HOME_DIR="$HOME/.configs/dotfiles/bash" ;
 export BASHRC_STORED_VARS="$HOME/.bash_stored_vars" ;
 
@@ -33,3 +34,6 @@ for bashrc_file in $(ls -a $BASHRC_HOME_DIR/.bashrc.d/.*\.bashrc);
 do
     source "$(bashrc_file)"
 done
+
+# Respect user configs in $HOME/.bash_profile
+[ -f ~/.bash_profile ] && source ~/.bash_profile
