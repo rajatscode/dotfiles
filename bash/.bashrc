@@ -8,11 +8,16 @@ esac
 export BASHRC_HOME_DIR="$HOME/.configs/dotfiles/bash" ;
 export BASHRC_STORED_VARS="$HOME/.bash_stored_vars" ;
 
-# create stored vars file if it doesn't exist
+# create stored vars file if it doesn't exist, and source it
 mkdir -p `dirname -- $BASHRC_STORED_VARS`;
 touch $BASHRC_STORED_VARS;
 
 source $BASHRC_STORED_VARS;
+
+# method for storing a variable (with its _current_ value) in stored vars file
+function store_dotfile_var() {
+    eval "declare -p $""$1" | cut -d '' -f 3- >> $BASHRC_STORED_VARS ;
+}
 
 # keep dotfiles in sync
 function sync_and_adopt_dotfiles() {
