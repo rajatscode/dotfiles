@@ -21,6 +21,7 @@ function adopt_dotfiles() {
     local DOTFILE_SYNC_DIR=$1;
 
     ln -sf "$DOTFILE_SYNC_DIR/bash/.bashrc" $HOME/.bashrc ;
+    ln -sf "$DOTFILE_SYNC_DIR/git/.gitconfig" $HOME/.gitconfig ;
 }
 
 DOTFILE_SYNC_DIR="${HOME}/.configs/dotfiles" ;

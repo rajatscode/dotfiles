@@ -1,0 +1,33 @@
+[include]
+	path = ~/.gituser
+[alias]
+	amend = commit -a --amend --no-edit
+	refer = !git --no-pager show -s --abbrev=12 --pretty='tformat:%h (\"%s\")'
+	clog = log --date=format-local:'%a %b %d %H:%M:%S %Y' --pretty='%C(auto) %h %cd %d %C(red)(%aN)%C(reset) %<(200,trunc)%s'
+	glog = !git clog --graph
+	alog = !git glog $(git branch --list | sed -e 's/^[ *]*//' | tr '\n' ' ')
+[color]
+	ui = true
+[color "diff-highlight"]
+	oldNormal = red
+	newNormal = green
+	oldHighlight = red 224
+	newHighlight = green 194
+[interactive]
+	diffFilter = "if command -v diff-highlight >/dev/null 2>&1; then diff-highlight; else cat; fi"
+[pager]
+	log = "if command -v diff-highlight >/dev/null 2>&1; then diff-highlight | \"${PAGER:-less}\"; else \"${PAGER:-less}\"; fi"
+	show = "if command -v diff-highlight >/dev/null 2>&1; then diff-highlight | \"${PAGER:-less}\"; else \"${PAGER:-less}\"; fi"
+	diff = "if command -v diff-highlight >/dev/null 2>&1; then diff-highlight | \"${PAGER:-less}\"; else \"${PAGER:-less}\"; fi"
+[tag]
+	sort = version:refname
+[versionsort]
+	prereleaseSuffix = -rc
+[pull]
+	rebase = true
+[grep]
+	lineNumber = true
+[merge]
+	ff = only
+[format]
+	pretty = fuller
