@@ -11,6 +11,11 @@ function sync_dotfiles() {
 
     git clone $DOTFILE_SRC_REPO "$DOTFILE_SYNC_DIR" &> /dev/null ||
         git -C $DOTFILE_SYNC_DIR pull &> /dev/null ;
+
+    # also install any necessary dependencies, silently
+    ## Vundle is used by vim dotfiles for package management
+    git clone https://github.com/VundleVim/Vundle.vim.git ~/.vim/bundle/Vundle.vim &> /dev/null ||
+        git -C ~/.vim/bundle/Vundle.vim pull &> /dev/null ;
 }
 
 ## convenience function to adopt the dotfiles in a directory
@@ -23,6 +28,7 @@ function adopt_dotfiles() {
     ln -sf "$DOTFILE_SYNC_DIR/bash/.bashrc" $HOME/.bashrc ;
     ln -sf "$DOTFILE_SYNC_DIR/git/.gitconfig" $HOME/.gitconfig ;
     ln -sf "$DOTFILE_SYNC_DIR/tmux/.tmux.conf" $HOME/.tmux.conf ;
+    ln -sf "$DOTFILE_SYNC_DIR/vim/.vimrc" $HOME/.vimrc ;
 }
 
 DOTFILE_SYNC_DIR="${HOME}/.configs/dotfiles" ;

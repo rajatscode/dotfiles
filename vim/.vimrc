@@ -13,6 +13,9 @@ Plugin 'ardagnir/united-front'
 " use TabNine for autocompletion
 Plugin 'zxqfl/tabnine-vim'
 
+" install peaksea colorscheme
+Plugin 'calincru/peaksea.vim'
+
 call vundle#end()
 filetype plugin indent on " re-enable after final Vundle plugin installation
 
