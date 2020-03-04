@@ -5,7 +5,8 @@ case $- in
 esac
 
 # these exports don't get cleaned up as they are relied upon elsewhere
-export BASHRC_HOME_DIR="$HOME/.configs/dotfiles/bash" ;
+export DOTFILES_HOME_DIR="$HOME/.configs/dotfiles" ;
+export BASHRC_HOME_DIR="$DOTFILES_HOME_DIR/bash" ;
 export BASHRC_STORED_VARS="$HOME/.bash_stored_vars" ;
 
 # create stored vars file if it doesn't exist, and source it
