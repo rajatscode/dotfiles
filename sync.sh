@@ -22,6 +22,7 @@ function adopt_dotfiles() {
 
     ln -sf "$DOTFILE_SYNC_DIR/bash/.bashrc" $HOME/.bashrc ;
     ln -sf "$DOTFILE_SYNC_DIR/git/.gitconfig" $HOME/.gitconfig ;
+    ln -sf "$DOTFILE_SYNC_DIR/tmux/.tmux.conf" $HOME/.tmux.conf ;
 }
 
 DOTFILE_SYNC_DIR="${HOME}/.configs/dotfiles" ;
