@@ -22,3 +22,11 @@ filetype plugin indent on " re-enable after final Vundle plugin installation
 for fpath in split(glob('$DOTFILES_HOME_DIR/vim/.vimrc.d/*.vim'), '\n')
   exe 'source' fpath
 endfor
+
+" Respect user configs in $VIM_PERSONAL_PROFILE
+function! SourceFileIfExists(filepath)
+    if filereadable(expand(a:filepath))
+        exe 'source' a:filepath
+    endif
+endfunction
+call SourceFileIfExists($VIM_PERSONAL_PROFILE)
