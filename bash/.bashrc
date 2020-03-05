@@ -40,5 +40,9 @@ do
     source "$(bashrc_file)"
 done
 
-# Respect user configs in $HOME/.bash_profile
-[ -f ~/.bash_profile ] && source ~/.bash_profile
+# Respect user configs in $BASH_PERSONAL_PROFILE
+[ -f $BASH_PERSONAL_PROFILE ] &&
+    source $BASH_PERSONAL_PROFILE
+
+# Include $GIT_PERSONAL_PROFILE here since .gitconfig doesn't support env vars
+git config --global include.path $GIT_PERSONAL_PROFILE
