@@ -4,10 +4,9 @@ case $- in
       *) return;;
 esac
 
-# these exports don't get cleaned up as they are relied upon elsewhere
 export DOTFILES_HOME_DIR="$HOME/.configs/dotfiles" ;
 export BASHRC_HOME_DIR="$DOTFILES_HOME_DIR/bash" ;
-export BASHRC_STORED_VARS="$HOME/.bash_stored_vars" ;
+source "$DOTFILES_HOME_DIR/vars.sh" ;
 
 # create stored vars file if it doesn't exist, and source it
 mkdir -p `dirname -- $BASHRC_STORED_VARS`;
@@ -30,7 +29,7 @@ function sync_and_adopt_dotfiles() {
     fi
 }
 
-if [ "$DOTFILE_AUTOSYNC" = "1" ]
+if [ "$DOTFILES_AUTOSYNC" = "1" ]
 then
     sync_and_adopt_dotfiles ;
 fi
