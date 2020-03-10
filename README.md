@@ -23,9 +23,10 @@ To get started with these dotfiles:
 ## Customization
 All dotfiles in this repository will include/source other files (if they exist) where you can extend or override this repository's dotfiles. The naming convention for these filenames will be to end with `profile`. You can find a list of these filenames in `vars.sh` or below:
 
-* for bash: `~/.bash_profile`
+* for bash: `~/.bash_profile` and `~/.bash_aliases`
 * for git: `~/.gitprofile`
 * for tmux: `~/.tmux.profile`
 * for vi(m): `~/.vim_profile`
 
 Of course, you can source other dotfiles *from* these profile files. You can even just move your existing dotfiles to these new locations, where they'll override dotfiles in this repository in case of conflict.
+
