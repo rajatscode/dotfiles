@@ -8,18 +8,18 @@ export DOTFILES_HOME_DIR="$HOME/.configs/dotfiles" ;
 export BASHRC_HOME_DIR="$DOTFILES_HOME_DIR/bash" ;
 source "$DOTFILES_HOME_DIR/vars.sh" ;
 
-# create stored vars file if it doesn't exist, and source it
+# Create stored vars file if it doesn't exist, and source it
 mkdir -p `dirname -- $BASHRC_STORED_VARS`;
 touch $BASHRC_STORED_VARS;
 
 source $BASHRC_STORED_VARS;
 
-# method for storing a variable (with its _current_ value) in stored vars file
+# Method for storing a variable (with its _current_ value) in stored vars file
 function store_dotfile_var() {
     eval "declare -p $""$1" | cut -d '' -f 3- >> $BASHRC_STORED_VARS ;
 }
 
-# keep dotfiles in sync
+# Keep dotfiles in sync (if enabled)
 function sync_and_adopt_dotfiles() {
     local SCRIPT_LOC=$BASHRC_HOME_DIR'/../sync.sh' ;
     if [ - e $SCRIPT_LOC ]
