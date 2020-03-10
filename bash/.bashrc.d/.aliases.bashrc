@@ -6,35 +6,22 @@ aliases sudo="sudo "
 ## plz: re-run the last command as root.
 alias plz="fc -l -1 | cut -d' ' -f2- | xargs sudo"
 
-## convenient variants of ls
-alias l="ls -CF"
-alias la="ls -A"
-alias ll="ls -alF"
-alias lsm="ls -hlAFG"
-
-## `dir` is wasted - use it for ls'ing only directories
-dir() {
-    ls -F -- $1 | grep /
-}
-
-## enable color for ls
-if [ "$(uname -s)" == "Darwin" ]; then
-    alias ls="ls -G"
-else
-    alias ls="ls --color=auto"
-fi
-
-## enable autocd (in lieu of "<target> is a directory")
-if [ "$(uname -s)" != "Darwin" ]; then
-    shopt -s autocd
-fi
-
 ## go `up` or down (`dn`) a directory
 alias up="cd .."
 function dn() {
     # pick first directory; fail if no directories
     # suppress stderr for `ls` and just go back to `pwd`
     cd `(ls -d */ 2> /dev/null || echo ".") | head -1` ;
+}
+
+## `dir` is wasted on `ls -C -b` - use it for ls'ing only directories
+dir() {
+    ls -F -- $1 | grep /
+}
+
+## mkdir + cd
+function mkcd() {
+    mkdir -p -- "$@" && command cd -P "$@"
 }
 
 ## cls: clear, with listed directories
@@ -68,7 +55,6 @@ alias ports="netstat -tulpn"
 
 ## space: gets space left on disk
 alias space="df -h"
-
 ## used: recursively gets how much space is used in the current (or given) directory
 alias used="du -ch -d 1"
 
@@ -99,20 +85,8 @@ if [ "$(uname -s)" == "Darwin" ]; then
   alias reveal="open ."
 fi
 
-## git aliases
-### gpom: git push origin master
-alias gpom="git push origin master"
-alias add="git add"
-alias commit="git commit"
-alias push="git push"
-alias status="git status"
-alias stash="git stash"
-
 ### restart: refresh the shell
 alias restart="source ~/.bashrc"
-
-### push-please: force push with lease (don't overwrite remote branch commits)
-alias push-please="git push --force-with-lease"
 
 ## source ~/.bash_aliases if it exists
 if [ -f ~/.bash_aliases ]; then
