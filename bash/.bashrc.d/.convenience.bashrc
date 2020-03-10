@@ -23,11 +23,12 @@ if ! shopt -oq posix; then
     fi
 fi
 
+## enable autocd (in lieu of "<target> is a directory")
+if [ "$(uname -s)" != "Darwin" ]; then
+    shopt -s autocd
+fi
+
 ## print previous command's return value if non-zero
 export PROMPT_COMMAND="
 __=\$?; history -a; if [[ \$__ != 0 ]]; then echo \$'\033p01;31mReturn value = ' \$__ ; fi"
 
-## mkdir + cd
-function mkcd() {
-    mkdir -p -- "$@" && command cd -P "$@"
-}
