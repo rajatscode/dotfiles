@@ -4,7 +4,7 @@
 setxkbmap -option caps:swapescape &> /dev/null || true
 
 ## enable register-sharing between all vim instances
-alais vim="vim --servername ${USER} "
+alias vim="vim --servername ${USER} "
 
 ## manage declared vundle plugins - in a hacky way
 ## (this quietly runs vim in the background just to autorun vundle)
