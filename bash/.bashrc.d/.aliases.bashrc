@@ -6,22 +6,9 @@ aliases sudo="sudo "
 ## plz: re-run the last command as root.
 alias plz="fc -l -1 | cut -d' ' -f2- | xargs sudo"
 
-## go `up` or down (`dn`) a directory
-alias up="cd .."
-function dn() {
-    # pick first directory; fail if no directories
-    # suppress stderr for `ls` and just go back to `pwd`
-    cd `(ls -d */ 2> /dev/null || echo ".") | head -1` ;
-}
-
 ## `dir` is wasted on `ls -C -b` - use it for ls'ing only directories
 dir() {
     ls -F -- $1 | grep /
-}
-
-## mkdir + cd
-function mkcd() {
-    mkdir -p -- "$@" && command cd -P "$@"
 }
 
 ## cls: clear, with listed directories
