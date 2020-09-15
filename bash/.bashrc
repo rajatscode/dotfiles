@@ -14,6 +14,9 @@ touch $BASHRC_STORED_VARS;
 
 source $BASHRC_STORED_VARS;
 
+# Create symlink directory if it doesn't exist
+mkdir -p $ALIAS_SYMLINK_DIR;
+
 # Method for storing a variable (with its _current_ value) in stored vars file
 function store_dotfile_var() {
     eval "declare -p $""$1" | cut -d '' -f 3- >> $BASHRC_STORED_VARS ;
