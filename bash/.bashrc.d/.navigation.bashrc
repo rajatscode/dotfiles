@@ -38,9 +38,9 @@ function al() {
     ln -sf "$(realpath $alias_target)" "$ALIAS_SYMLINK_DIR"/"$alias_name";
 }
 
-## `dal` - de-alias; use aliases created by al
+## `fal` - follow alias; use aliases created by al
 ## reads path from symlink so we go to the real directory/file
-function dal() {
+function fal() {
     local full_symlink="$ALIAS_SYMLINK_DIR"/"$@";
     if [[ ! -L $full_symlink ]]
     then
@@ -55,3 +55,37 @@ function dal() {
         vim "$actual_target";
     fi
 }
+
+## `xal` - removes aliases
+## if no arguments are given, clears all aliases
+function xal() {
+    if [ "$#" -eq 0 ];
+    then
+        rm $ALIAS_SYMLINK_DIR/* ;
+    else
+        rm "$ALIAS_SYMLINK_DIR/$@" 2> /dev/null ;
+    fi
+}
+
+## `xn` - eXpanded Navigation, combining vcd, al, and fal
+function xn() {
+    case $1 in
+
+        "-a")
+            shift;
+            al "$@" ;
+            ;;
+
+        *)
+            if [[ "$1" == @* ]];
+            then
+                # cut out the leading "@" and call `fal`
+                local input_args="${@:(1)}";
+                fal "${input_args:(1)}" ;
+            else
+                vcd "$@" ;
+            fi
+        ;;
+    esac
+}
+alias fj="xn "
