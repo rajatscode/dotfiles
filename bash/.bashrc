@@ -35,7 +35,7 @@ function sync_and_adopt_dotfiles() {
     fi
 }
 
-if [ -n "$DOTFILES_AUTOSYNC" ]
+if [ "$DOTFILES_AUTOSYNC" = true ]
 then
     sync_and_adopt_dotfiles ;
 fi

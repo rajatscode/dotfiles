@@ -18,7 +18,7 @@ To get started with these dotfiles:
 
 1. Using these dotfiles **will overwrite** your `.bashrc`, `.vimrc`, `.gitconfig`, and `.tmux.conf`. If you want to preserve your existing dotfiles, see [Customization](#customization).
 2. Download and source `sync.sh`. This will install the repository (at `master`) in `~/.configs/dotfiles`.
-3. Consider whether you want to enable autosync (which will automatically keep your dotfiles in line with `master`). This is controlled by the `$DOTFILES_AUTOSYNC` environment variable; set it to a true value (e.g., "1") to enable autosync. To keep autosync disabled, either leave `$DOTFILES_AUTOSYNC` unset or set it to a false value (e.g., "0").
+3. Consider whether you want to enable autosync (which will automatically keep your dotfiles in line with `master`). This is controlled by the `$DOTFILES_AUTOSYNC` environment variable; set it to true to enable autosync. To keep autosync disabled, either leave `$DOTFILES_AUTOSYNC` unset or set it to false.
 
 ## Customization
 All dotfiles in this repository will include/source other files (if they exist) where you can extend or override this repository's dotfiles. The naming convention for these filenames will be to end with `profile`. You can find a list of these filenames in `vars.sh` or below:
