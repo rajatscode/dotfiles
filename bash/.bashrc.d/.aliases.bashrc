@@ -6,6 +6,12 @@ aliases sudo="sudo "
 ## plz: re-run the last command as root.
 alias plz="fc -l -1 | cut -d' ' -f2- | xargs sudo"
 
+## convenient variants of ls
+alias l="ls -CF"
+alias la="ls -A"
+alias ll="ls -alF"
+alias lsm="ls -hlAFG"
+
 ## `dir` is wasted on `ls -C -b` - use it for ls'ing only directories
 dir() {
     ls -F -- $1 | grep /
@@ -71,6 +77,9 @@ fi
 if [ "$(uname -s)" == "Darwin" ]; then
   alias reveal="open ."
 fi
+
+## alert: alert for long-running commands; e.g., `sleep 10; alert`
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
 ### restart: refresh the shell
 alias restart="source ~/.bashrc"

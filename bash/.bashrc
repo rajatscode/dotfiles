@@ -32,7 +32,7 @@ function sync_and_adopt_dotfiles() {
     fi
 }
 
-if [ "$DOTFILES_AUTOSYNC" = "1" ]
+if [ -n "$DOTFILES_AUTOSYNC" ]
 then
     sync_and_adopt_dotfiles ;
 fi
