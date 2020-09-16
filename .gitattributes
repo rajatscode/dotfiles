@@ -1,0 +1,2 @@
+*.bashrc linguist-language=bash
+*.vimrc linguist-language=vim
