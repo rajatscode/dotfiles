@@ -16,8 +16,8 @@ fi
 case "$TERM" in
     xterm-color|*-256color) color_prompt=yes;;
 esac
-## set FORCE_COLOR_PROMPT to yes to force color
-if [ -n "$FORCE_COLOR_PROMPT" ]; then
+## set FORCE_COLOR_PROMPT to true to force color
+if [ "$FORCE_COLOR_PROMPT" = true ]; then
     if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
 	# We have color support; assume it's compliant with Ecma-48
 	# (ISO/IEC-6429). (Lack of such support is extremely rare, and such
