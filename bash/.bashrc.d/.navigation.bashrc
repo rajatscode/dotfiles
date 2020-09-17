@@ -89,3 +89,28 @@ function xn() {
     esac
 }
 alias fj="xn "
+
+## `pushloc` - push a location (default $PWD) onto a stack to visit later
+function pushloc() {
+    local path_to_push=$(readlink -f "${1:-$PWD}");
+    read_dotfile_vars; # keep SAVED_PATHS_STACK consistent
+    SAVED_PATHS_STACK=("$path_to_push" "${SAVED_PATHS_STACK[@]}");
+    store_dotfile_var SAVED_PATHS_STACK;
+}
+alias pl="pushloc "
+
+## `gotoloc` - go to the last location saved onto the stack, without deletion
+function gotoloc() {
+    read_dotfile_vars; # keep SAVED_PATHS_STACK consistent
+    test -n "$SAVED_PATHS_STACK" && vcd "$SAVED_PATHS_STACK";
+}
+alias gl="gotoloc "
+
+## `poploc` - go back to the last location you saved onto the stack
+## removes the location from the stack as well
+function poploc() {
+    gotoloc;
+    SAVED_PATHS_STACK=("${SAVED_PATHS_STACK[@]:1}");
+    store_dotfile_var SAVED_PATHS_STACK;
+}
+alias ol="poploc "
