@@ -13,12 +13,12 @@ function install_from_github_repo() {
 }
 
 ## install google-java-format, which is useful for vim-codefmt
-if stat --printf='' $DOTFILES_INSTALLS_DIR/*google-java-format*jar
+if stat --printf='' $DOTFILES_INSTALLS_DIR/*google-java-format*all-deps*jar
 then : ;
 else
     install_from_github_repo "google/google-java-format" "all-deps.jar";
 fi
-GOOGLE_JAVA_FMT_PATH=$(ls "$DOTFILES_INSTALLS_DIR""/*google-java-fmt*all-deps*jar" | head -n 1);
+GOOGLE_JAVA_FMT_PATH=$(ls "$DOTFILES_INSTALLS_DIR""/*google-java-format*all-deps*jar" | head -n 1);
 store_dotfile_var GOOGLE_JAVA_FMT_PATH ;
 
 ## make sure stored dotfile envs are all up to date in current session
