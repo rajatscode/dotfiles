@@ -4,7 +4,10 @@ case $- in
       *) return;;
 esac
 
-export DOTFILES_HOME_DIR="$HOME/.configs/dotfiles" ;
+if [[-z "${DOTFILES_HOME_DIR}"]]
+    then export DOTFILES_HOME_DIR="$HOME/.configs/dotfiles";
+fi
+
 export BASHRC_HOME_DIR="$DOTFILES_HOME_DIR/bash" ;
 source "$DOTFILES_HOME_DIR/vars.sh" ;
 
