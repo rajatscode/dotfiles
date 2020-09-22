@@ -5,6 +5,7 @@ filetype off " for Vundle purposes
 set rtp+=~/.vim/bundle/Vundle.vim
 call vundle#begin()
 
+" for Vundle help, see :h vundle
 " required by Vundle
 Plugin 'VundleVim/Vundle.vim'
 
