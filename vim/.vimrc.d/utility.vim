@@ -1,8 +1,15 @@
 " general configurations to make life easier
-
 set autochdir
-
+set colorcolumn=80
+set hlsearch
+set ignorecase
+set incsearch
 set mouse=a
+set number
+set shiftround
+set showmatch
+set smartcase
+set smarttab
 
 " persistent undo functionality
 let vimDir = '$HOME/.vim'
