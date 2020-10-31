@@ -1,16 +1,4 @@
-" configurations and basic settings (non-aesthetic)
-
-" Persistent undo functionality
-let vimDir = '$HOME/.vim'
-let &runtimepath.=','.vimDir
-
-if has('persistent_undo')
-  let myUndoDir = expand(vimDir . '/undodir')
-  call system('mkdir ' . vimDir)
-  call system('mkdir ' . myUndoDir)
-  let &undodir = myUndoDir
-  set undofile
-endif
+" configurations and basic settings (to change vim behavior)
 
 " Auto-indent (default)
 set ai
@@ -125,6 +113,13 @@ try
 catch
 endtry
 
+" Persistent undo functionality & a vim dir in runtimepath
+try
+    set undodir=~/.vim/tmp/undodir
+    set undofile
+catch
+endtry
+
 " Return to last edit position when opening files
 au BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g'\"" | endif
 
@@ -139,4 +134,9 @@ endfun
 
 if has("autocmd")
     autocmd BufWritePre *.txt,*.js,*.py,*.wiki,*.sh,*.coffee :call CleanExtraSpaces()
+endif
+
+" Use the the_silver_searcher if possible, in place of Ack
+if executable('ag')
+  let g:ackprg = 'ag --vimgrep --smart-case'
 endif
