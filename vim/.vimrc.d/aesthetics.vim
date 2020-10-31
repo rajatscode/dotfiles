@@ -41,3 +41,17 @@ colorscheme peaksea
 
 " Turn on syntax highlighting
 syntax enable
+
+" Always show the status line
+set laststatus=2
+
+" Format the status line
+" HasPaste() is true if paste mode is enabled
+function! HasPaste()
+    if &paste
+        return 'PASTE MODE  '
+    endif
+    return ''
+endfunction
+
+set statusline=\ %{HasPaste()}%F%m%r%h\ %w\ \ CWD:\ %r%{getcwd()}%h\ \ \ Line:\ %l\ \ Column:\ %c
