@@ -9,8 +9,13 @@ nmap <leader>w :w!<cr>
 " Sudo saving (:W)
 command W w !sudo tee % > /dev/null
 
+" Navigation
+" Map <Space> to / (search) and Ctrl-<Space> to ? (backwards search)
+map <space> /
+map <c-space> ?  
+
 " Visual mode
-" Search shortcut (* or # searches for current selection)
+" Search shortcut (* or # searches for current selection, fwd or backwards)
 " (credit to amix/vimrc who got it from Michael Naumann)
 function! CmdLine(str)
     call feedkeys(":" . a:str)
@@ -34,12 +39,7 @@ function! VisualSelection(direction, extra_filter) range
 endfunction
 
 vnoremap <silent> * :<C-u>call VisualSelection('', '')<CR>/<C-R>=@/<CR><CR>
-vnoremap <silent> # :<C-u>call VisualSelection('', '')<CR>/<C-R>=@/<CR><CR>
-
-" Navigation
-" Map <Space> to / (search) and Ctrl-<Space> to ? (backwards search)
-map <space> /
-map <c-space> ?  
+vnoremap <silent> # :<C-u>call VisualSelection('', '')<CR>?<C-R>=@/<CR><CR>
 
 " Move between windows with fewer keypresses
 " Swap h/l & j/k semantics to make vertical splits easier to navigate
@@ -133,3 +133,97 @@ map <leader>x :e ~/buffer.md<cr>
 
 " Toggle paste mode on and off
 map <leader>pp :setlocal paste!<cr>
+
+" Fast editing of personal vim configs
+map <leader>e :e! ~/.vim_profile<cr>
+autocmd! bufwritepost ~/.vim_profile source ~/.vim_profile
+
+" Shortcut mappings for the command line (type "$h" and it expands to "e ~/")
+cno $h e ~/
+cno $d e ~/Desktop/
+cno $j e ./
+func! CurrentFileDir(cmd)
+    return a:cmd . " " . expand("%:p:h") . "/"
+endfunc
+cno $c e <C-\>eCurrentFileDir("e")<cr>
+" Delete everything until the last slash
+func! DeleteTillSlash()
+    let g:cmd = getcmdline()
+
+    if has("win16") || has("win32")
+        let g:cmd_edited = substitute(g:cmd, "\\(.*\[\\\\]\\).*", "\\1", "")
+    else
+        let g:cmd_edited = substitute(g:cmd, "\\(.*\[/\]\\).*", "\\1", "")
+    endif
+
+    if g:cmd == g:cmd_edited
+        if has("win16") || has("win32")
+            let g:cmd_edited = substitute(g:cmd, "\\(.*\[\\\\\]\\).*\[\\\\\]", "\\1", "")
+        else
+            let g:cmd_edited = substitute(g:cmd, "\\(.*\[/\]\\).*/", "\\1", "")
+        endif
+    endif   
+
+    return g:cmd_edited
+endfunc
+cno $q <C-\>eDeleteTillSlash()<cr>
+
+" Bash like keys for the command line
+cnoremap <C-A>		<Home>
+cnoremap <C-E>		<End>
+cnoremap <C-K>		<C-U>
+
+cnoremap <C-P> <Up>
+cnoremap <C-N> <Down>
+
+" Map ½ to something useful
+map ½ $
+cmap ½ $
+imap ½ $
+
+" Use $ for parenthesis/bracket related operations
+" In visual mode, use $ to wrap current line in brackets/parens
+vnoremap $1 <esc>`>a)<esc>`<i(<esc>
+vnoremap $2 <esc>`>a]<esc>`<i[<esc>
+vnoremap $3 <esc>`>a}<esc>`<i{<esc>
+vnoremap $$ <esc>`>a"<esc>`<i"<esc>
+vnoremap $q <esc>`>a'<esc>`<i'<esc>
+vnoremap $e <esc>`>a"<esc>`<i"<esc>
+
+" In insert mode, use $ to auto-complete (, ", ', [
+inoremap $1 ()<esc>i
+inoremap $2 []<esc>i
+inoremap $3 {}<esc>i
+inoremap $4 {<esc>o}<esc>O
+inoremap $q ''<esc>i
+inoremap $e ""<esc>i
+" To make this less annoying, map $$ to $ to make it easy to type the literal
+inoremap $$ $
+
+" xdate - expands to current date and time
+iab xdate <c-r>=strftime("%d/%m/%y %H:%M:%S")<cr>
+
+" Ack-related commands for search
+" When you press gv you Ack after the selected text
+vnoremap <silent> gv :call VisualSelection('gv', '')<CR>
+
+" Open Ack and put the cursor in the right position
+map <leader>g :Ack 
+
+" Press <leader>r to search and replace the selected text
+vnoremap <silent> <leader>r :call VisualSelection('replace', '')<CR>
+
+" Cope displaying (see :help cope)
+" When you search with Ack, display your results in cope by doing:
+"   <leader>cc
+"
+" To go to the next search result do:
+"   <leader>n
+"
+" To go to the previous search results do:
+"   <leader>p
+"
+map <leader>cc :botright cope<cr>
+map <leader>co ggVGy:tabnew<cr>:set syntax=qf<cr>pgg
+map <leader>n :cn<cr>
+map <leader>p :cp<cr>

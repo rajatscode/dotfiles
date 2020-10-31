@@ -28,3 +28,8 @@ augroup python
     \ ai si et sta
     \ backspace=indent,eol,start fo=croql
 augroup END
+
+augroup css
+  au! " clear when reloading
+  autocmd FileType css set omnifunc=csscomplete#CompleteCSS
+augroup end
