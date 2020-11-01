@@ -31,7 +31,7 @@ function store_dotfile_var() {
 # Keep dotfiles in sync (if enabled)
 function sync_and_adopt_dotfiles() {
     local SCRIPT_LOC=$BASHRC_HOME_DIR'/../sync.sh' ;
-    if [ - e $SCRIPT_LOC ]
+    if [ -e $SCRIPT_LOC ]
     then
         chmod +x $SCRIPT_LOC ;
         bash $SCRIPT_LOC ;
