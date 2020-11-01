@@ -25,7 +25,7 @@ mkdir -p $ALIAS_SYMLINK_DIR;
 
 # Method for storing a variable (with its _current_ value) in stored vars file
 function store_dotfile_var() {
-    eval "declare -p $""$1" | cut -d '' -f 3- >> $BASHRC_STORED_VARS ;
+    eval "declare -p "$1 | cut -d '' -f 3- >> $BASHRC_STORED_VARS ;
 }
 
 # Keep dotfiles in sync (if enabled)
@@ -43,7 +43,7 @@ then
     sync_and_adopt_dotfiles ;
 fi
 
-# Import various configs from the ./.bashrc.d directory
+Import various configs from the ./.bashrc.d directory
 for bashrc_file in $(ls -a $BASHRC_HOME_DIR/.bashrc.d/.*\.bashrc);
 do
     source "${bashrc_file}"
