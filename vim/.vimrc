@@ -87,13 +87,17 @@ Plugin 'yegappan/grep'
 Plugin 'zxqfl/tabnine-vim'
 
 call vundle#end()
-call glaive#Install()
-
-" Enable codefmt's default mappings on the <Leader>= prefix
-Glaive codefmt plugin[mappings]
-Glaive codefmt google_java_executable="java -jar $GOOGLE_JAVA_FMT_PATH"
 
 filetype plugin indent on " re-enable after final Vundle plugin installation
+
+try
+  call glaive#Install()
+
+  " Enable codefmt's default mappings on the <Leader>= prefix
+  Glaive codefmt plugin[mappings]
+  Glaive codefmt google_java_executable="java -jar $GOOGLE_JAVA_FMT_PATH"
+catch 
+endtry
 
 for fpath in split(glob('$DOTFILES_HOME_DIR/vim/.vimrc.d/*.vim'), '\n')
   exe 'source' fpath
