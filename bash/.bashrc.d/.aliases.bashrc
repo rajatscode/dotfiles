@@ -1,7 +1,7 @@
 # handy-dandy aliases
 
 ## sudo should support bash aliases
-aliases sudo="sudo "
+alias sudo="sudo "
 
 ## plz: re-run the last command as root.
 alias plz="fc -l -1 | cut -d' ' -f2- | xargs sudo"

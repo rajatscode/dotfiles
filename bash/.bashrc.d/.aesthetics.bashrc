@@ -1,7 +1,7 @@
 # config to make things look pretty
 
 ## update LINES/COLUMNS after each command, if necessary
-shopt -c checkwinsize ;
+shopt -s checkwinsize ;
 
 ## set up a fancy prompt
 case "$TERM" in

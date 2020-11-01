@@ -30,4 +30,4 @@ fi
 
 ## print previous command's return value if non-zero
 export PROMPT_COMMAND="
-__=\$?; history -a; if [[ \$__ != 0 ]]; then echo \$'\033p01;31mReturn value = ' \$__ ; fi"
+__=\$?; history -a; if [[ \$__ != 0 ]]; then echo \$'\033[01;31mReturn value = ' \$__ ; fi"
