@@ -4,7 +4,7 @@ case $- in
       *) return;;
 esac
 
-if [[-z "${DOTFILES_HOME_DIR}"]]
+if [[ -z "${DOTFILES_HOME_DIR}" ]]
     then export DOTFILES_HOME_DIR="$HOME/.configs/dotfiles";
 fi
 
@@ -46,7 +46,7 @@ fi
 # Import various configs from the ./.bashrc.d directory
 for bashrc_file in $(ls -a $BASHRC_HOME_DIR/.bashrc.d/.*\.bashrc);
 do
-    source "$(bashrc_file)"
+    source "${bashrc_file}"
 done
 
 # Respect user configs in $BASH_PERSONAL_PROFILE
