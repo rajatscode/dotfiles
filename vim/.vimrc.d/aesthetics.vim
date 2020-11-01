@@ -57,8 +57,8 @@ endfunction
 set background=dark
 if HasColorscheme('peaksea')
   colorscheme peaksea
-elseif HasColorscheme('elflord')
-  colorscheme elflord
+elseif HasColorscheme('zellner')
+  colorscheme zellner
 endif
 
 " Turn on syntax highlighting
