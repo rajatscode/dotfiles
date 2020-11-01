@@ -45,12 +45,21 @@ set scrolloff=7
 
 " Enable 256 color palette in GNOME Terminal
 if $COLORTERM == 'gnome-terminal'
-    set t_Co=256
+  set t_Co=256
 endif
 
 " Set colorscheme to dark peaksea
+function! has#colorscheme(name) abort
+  let pat = 'colors/'.a:name.'.vim'
+  return !empty(globpath($rtp, pat))
+endfunction
+
 set background=dark
-colorscheme peaksea
+if has#colorscheme('peaksea')
+  colorscheme peaksea
+elseif has#colorscheme('elflord')
+  colorscheme elflord
+endif
 
 " Turn on syntax highlighting
 syntax enable
