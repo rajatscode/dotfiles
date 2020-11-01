@@ -69,24 +69,26 @@ function xal() {
 
 ## `xn` - eXpanded Navigation, combining vcd, al, and fal
 function xn() {
-    case $1 in
-
-        "-a")
-            shift;
-            al "$@" ;
+    if [ "$#" -ne 0 ]
+    then
+        case $1 in
+            "-a")
+                shift;
+                al "$@" ;
+                ;;
+    
+            *)
+                if [[ "$1" == @* ]];
+                then
+                    # cut out the leading "@" and call `fal`
+                    local input_args="${@:(1)}";
+                    fal "${input_args:(1)}" ;
+                else
+                    vcd "$@" ;
+                fi
             ;;
-
-        *)
-            if [[ "$1" == @* ]];
-            then
-                # cut out the leading "@" and call `fal`
-                local input_args="${@:(1)}";
-                fal "${input_args:(1)}" ;
-            else
-                vcd "$@" ;
-            fi
-        ;;
-    esac
+        esac
+    fi
 }
 alias fj="xn "
 
