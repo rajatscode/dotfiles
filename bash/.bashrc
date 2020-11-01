@@ -43,7 +43,7 @@ then
     sync_and_adopt_dotfiles ;
 fi
 
-Import various configs from the ./.bashrc.d directory
+# Import various configs from the ./.bashrc.d directory
 for bashrc_file in $(ls -a $BASHRC_HOME_DIR/.bashrc.d/.*\.bashrc);
 do
     source "${bashrc_file}"
