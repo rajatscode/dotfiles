@@ -31,10 +31,10 @@ function adopt_dotfiles() {
     ln -sf "$DOTFILE_SYNC_DIR/vim/.vimrc" $HOME/.vimrc ;
 }
 
-if [[-z "${DOTFILES_HOME_DIR}" ]]
+if [[ -z "${DOTFILES_HOME_DIR}" ]]
     then DOTFILE_SYNC_DIR="${HOME}/.configs/dotfiles" ;
     else DOTFILE_SYNC_DIR="${DOTFILES_HOME_DIR}" ;
 fi
 sync_dotfiles $DOTFILE_SYNC_DIR ;
 adopt_dotfiles $DOTFILE_SYNC_DIR ;
-unset $DOTFILE_SYNC_DIR ;
+unset DOTFILE_SYNC_DIR ;
