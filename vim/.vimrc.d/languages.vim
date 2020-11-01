@@ -1,20 +1,20 @@
 " configurations to adapt to languages
 augroup c
-  au! " clear when reloading
+  au!
   autocmd FileType c setlocal
     \ shiftwidth=2 softtabstop=2 expandtab
     \ colorcolumn=80 textwidth=80
 augroup END
 
 augroup cpp
-  au! " clear when reloading
+  au!
   autocmd FileType cpp setlocal
     \ shiftwidth=2 softtabstop=2 expandtab
     \ colorcolumn=80 textwidth=80
 augroup END
 
 augroup java
-  au! " clear when reloading
+  au!
   autocmd FileType java setlocal
     \ shiftwidth=2 softtabstop=2 expandtab
     \ colorcolumn=120 textwidth=120
@@ -25,7 +25,7 @@ au BufNewFile,BufRead *.jinja set syntax=htmljinja
 au BufNewFile,BufRead *.mako set ft=mako
 
 augroup python
-  au! " clear when reloading
+  au!
   autocmd BufNewFile,BufRead *.jinja set syntax=htmljinja
   autocmd BufNewFile,BufRead *.mako set ft=mako
   autocmd FileType python syn keyword pythonDecorator True None False self
@@ -53,7 +53,7 @@ augroup python
 augroup END
 
 augroup css
-  au! " clear when reloading
+  au!
   autocmd FileType css set omnifunc=csscomplete#CompleteCSS
 augroup end
 
@@ -69,7 +69,7 @@ function! JavaScriptFold()
 endfunction
 
 augroup javascript
-  au! " clear when reloading
+  au!
   autocmd FileType javascript call JavaScriptFold()
   autocmd FileType javascript setl fen
   autocmd FileType javascript setl nocindent
@@ -87,7 +87,7 @@ function! CoffeeScriptFold()
 endfunction
 
 augroup coffeescript
-  au! " clear when reloading
+  au!
   au FileType coffee call CoffeeScriptFold()
 augroup end
 
