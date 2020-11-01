@@ -49,7 +49,7 @@ if $COLORTERM == 'gnome-terminal'
 endif
 
 " Set colorscheme to dark peaksea (zellner as backup)
-colorscheme zellner
+silent! colorscheme zellner
 silent! colorscheme peaksea
 set background=dark
 
