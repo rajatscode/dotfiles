@@ -38,9 +38,22 @@ function sync_and_adopt_dotfiles() {
     fi
 }
 
+function ensure_dotfile_syncing() {
+    local SYNC_PERIOD_IN_DAYS=$1 ;
+    local SYNC_CUTOFF=`date -d 'now - '$SYNC_PERIOD_IN_DAYS' days' +%s` ;
+
+    if [ -z $LAST_DOTFILE_SYNC ] || [ $SYNC_CUTOFF -ge $LAST_DOTFILE_SYNC ];
+    then
+        LAST_DOTFILE_SYNC=`date +%s` ;
+        store_dotfile_var LAST_DOTFILE_SYNC ;
+        sync_and_adopt_dotfiles ;
+    fi
+}
+
+# Don't sync more than once a day, it slows down loading the terminal
 if [ "$DOTFILES_AUTOSYNC" = true ]
 then
-    sync_and_adopt_dotfiles ;
+    ensure_dotfile_syncing 1 ;
 fi
 
 # Import various configs from the ./.bashrc.d directory
