@@ -49,15 +49,15 @@ if $COLORTERM == 'gnome-terminal'
 endif
 
 " Set colorscheme to dark peaksea
-function! has#colorscheme(name) abort
+function! hascolorscheme(name) abort
   let pat = 'colors/'.a:name.'.vim'
   return !empty(globpath($rtp, pat))
 endfunction
 
 set background=dark
-if has#colorscheme('peaksea')
+if hascolorscheme('peaksea')
   colorscheme peaksea
-elseif has#colorscheme('elflord')
+elseif hascolorscheme('elflord')
   colorscheme elflord
 endif
 
