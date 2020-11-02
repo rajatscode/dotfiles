@@ -13,7 +13,7 @@ function install_from_github_repo() {
 }
 
 ## install google-java-format, which is useful for vim-codefmt
-if [ -f "$DOTFILES_INSTALLS_DIR""/*google-java-format*all-deps*jar" ];
+if compgen -G "${DOTFILES_INSTALLS_DIR}""/*google-java-format*all-deps*jar" &>> /dev/null ;
 then : ;
 else
     install_from_github_repo "google/google-java-format" "all-deps.jar";
@@ -21,3 +21,18 @@ fi
 
 GOOGLE_JAVA_FMT_PATH=$(ls $DOTFILES_INSTALLS_DIR/*google-java-format*all-deps*jar | head -n 1) ;
 export GOOGLE_JAVA_FMT_PATH=$GOOGLE_JAVA_FMT_PATH
+
+## make sure pip3 is installed
+if ! command -v pip3 &>> /dev/null
+then
+    if ! command -v python3 &>> /dev/null
+    then
+        (curl -s https://bootstrap.pypa.io/get-pip.py | python) &>> /dev/null
+    else
+        (curl -s https://bootstrap.pypa.io/get-pip.py | python3) &>> /dev/null
+    fi
+    exit
+fi
+
+## install yapf for code formatting (vim-codefmt compatible)
+python3 -m pip install yapf &>> /dev/null
