@@ -35,4 +35,8 @@ then
 fi
 
 ## install yapf for code formatting (vim-codefmt compatible)
-python3 -m pip install yapf &>> /dev/null
+if ! command -v yapf &>> /dev/null
+then
+    python3 -m pip install yapf &>> /dev/null
+    exit
+fi
