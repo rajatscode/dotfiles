@@ -5,6 +5,9 @@ filetype off " for Vundle purposes
 set rtp+=~/.vim/bundle/Vundle.vim
 call vundle#begin()
 
+" access to bash aliases & bash settings
+let $BASH_ENV = "~/.bashrc"
+
 " for Vundle help, see :h vundle
 " required by Vundle
 Plugin 'VundleVim/Vundle.vim'
@@ -95,7 +98,7 @@ try
 
   " Enable codefmt's default mappings on the <Leader>= prefix
   Glaive codefmt plugin[mappings]
-  Glaive codefmt google_java_executable="java -jar $GOOGLE_JAVA_FMT_PATH"
+  Glaive codefmt google_java_executable="google-java"
 catch 
 endtry
 
