@@ -11,6 +11,8 @@ function sync_dotfiles() {
 
     git clone $DOTFILE_SRC_REPO "$DOTFILE_SYNC_DIR" &> /dev/null ||
         git -C $DOTFILE_SYNC_DIR pull &> /dev/null ;
+    # source the new bashrc so the shell doesn't need to be restarted
+    source ~/.bashrc ;
 
     # also install any necessary dependencies, silently
     ## Vundle is used by vim dotfiles for package management
