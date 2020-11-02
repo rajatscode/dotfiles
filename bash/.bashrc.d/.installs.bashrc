@@ -20,4 +20,4 @@ else
 fi
 
 GOOGLE_JAVA_FMT_PATH=$(ls $DOTFILES_INSTALLS_DIR/*google-java-format*all-deps*jar | head -n 1) ;
-alias google-java="java -jar $GOOGLE_JAVA_FMT_PATH ";
+export GOOGLE_JAVA_FMT_PATH=$GOOGLE_JAVA_FMT_PATH
