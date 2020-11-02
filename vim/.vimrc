@@ -98,7 +98,6 @@ try
 
   " Enable codefmt's default mappings on the <Leader>= prefix
   Glaive codefmt plugin[mappings]
-  Glaive codefmt google_java_executable="google-java"
 catch 
 endtry
 
