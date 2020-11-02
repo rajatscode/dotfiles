@@ -1,5 +1,8 @@
 # handy-dandy aliases
 
+## explicitly enable alias expansion (even in non-interactive shell)
+shopt -s expand_aliases
+
 ## sudo should support bash aliases
 alias sudo="sudo "
 

@@ -20,7 +20,4 @@ else
 fi
 
 GOOGLE_JAVA_FMT_PATH=$(ls $DOTFILES_INSTALLS_DIR/*google-java-format*all-deps*jar | head -n 1) ;
-store_dotfile_var GOOGLE_JAVA_FMT_PATH ;
-
-## make sure stored dotfile envs are all up to date in current session
-read_dotfile_vars;
+alias google-java="java -jar $GOOGLE_JAVA_FMT_PATH ";
