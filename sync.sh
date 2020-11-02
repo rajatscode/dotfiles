@@ -10,7 +10,7 @@ function sync_dotfiles() {
     local DOTFILE_SYNC_DIR=$1;
 
     git clone $DOTFILE_SRC_REPO "$DOTFILE_SYNC_DIR" &> /dev/null ||
-	(git -C $DOTFILE_SYNC_DIR fetch -all &> /dev/null &&
+	(git -C $DOTFILE_SYNC_DIR fetch --all &> /dev/null &&
 	 git -C $DOTFILE_SYNC_DIR reset --hard origin/master &> /dev/null) ;
     # source the new bashrc so the shell doesn't need to be restarted
     source ~/.bashrc ;
