@@ -98,6 +98,9 @@ try
 
   " Enable codefmt's default mappings on the <Leader>= prefix
   Glaive codefmt plugin[mappings]
+  if (!empty($GOOGLE_JAVA_FMT_PATH))
+    Glaive codefmt google_java_executable=`expand("java -jar $GOOGLE_JAVA_FMT_PATH")`
+  endif
 catch 
 endtry
 
