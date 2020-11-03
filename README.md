@@ -1,5 +1,7 @@
 # dotfiles
 
+[![License](https://img.shields.io/github/license/rajatscode/dotfiles)](https://github.com/rajatscode/dotfiles/blob/master/LICENSE)
+
 These are my dotfiles. There are many like them, but these ones are mine.
 
 My dotfiles are my best friends. They are my life. I must master them as I must master my life.
