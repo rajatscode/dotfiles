@@ -69,8 +69,10 @@ function xal() {
 
 ## `xn` - eXpanded Navigation, combining vcd, al, and fal
 function xn() {
-    if [ "$#" -ne 0 ]
+    if [ "$#" -eq 0 ]
     then
+        command ls -A ;
+    else
         case $1 in
             "-a")
                 shift;
