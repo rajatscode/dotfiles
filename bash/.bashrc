@@ -23,9 +23,19 @@ read_dotfile_vars;
 # Create symlink directory if it doesn't exist
 mkdir -p $ALIAS_SYMLINK_DIR;
 
+# Method for removing a variable from the stored vars file
+function delete_dotfile_var() {
+    local VARNAME=$1 ;
+    sed -i "/declare -- "$VARNAME"=\".*/d" $BASHRC_STORED_VARS ;
+}
+
 # Method for storing a variable (with its _current_ value) in stored vars file
 function store_dotfile_var() {
-    eval "declare -p "$1 | cut -d '' -f 3- >> $BASHRC_STORED_VARS ;
+    local VARNAME=$1 ;
+    # to avoid cluttering the stored vars file, delete existing declarations
+    delete_dotfile_var $VARNAME ;
+    # then append the new declaration to the end of the file
+    eval "declare -p "$VARNAME | cut -d '' -f 3- >> $BASHRC_STORED_VARS ;
 }
 
 # Keep dotfiles in sync (if enabled)
