@@ -26,6 +26,11 @@ source <(curl -s https://raw.githubusercontent.com/rajatscode/dotfiles/master/sy
 ```
 3. Consider whether you want to enable autosync (which will automatically keep your dotfiles in line with `master`). This is controlled by the `$DOTFILES_AUTOSYNC` environment variable; set it to true to enable autosync. To keep autosync disabled, either leave `$DOTFILES_AUTOSYNC` unset or set it to false.
 
+## Usage
+These dotfiles are intended for bash, vim, git, and tmux users. If you do not use any of those four tools, you are unlikely to reap any benefit from installing these dotfiles.
+
+For now, there is no documentation of the exact features in these dotfiles. However, you can check out the files (bash and vim dotfiles are broken up by function in directories) or alternatively incrementally pick up features from these dotfiles as you run into them in your ordinary workflow.
+
 ## Customization
 All dotfiles in this repository will include/source other files (if they exist) where you can extend or override this repository's dotfiles. The naming convention for these filenames will be to end with `profile`. You can find a list of these filenames in `vars.sh` or below:
 
