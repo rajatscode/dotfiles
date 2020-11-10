@@ -69,7 +69,7 @@ function xal() {
 }
 
 ## `lal` - lists aliases
-alias lal="ls -A $ALIAS_SYMLINK_DIR "
+alias lal="stat -c%N $ALIAS_SYMLINK_DIR/* | sed 's~'\"$ALIAS_SYMLINK_DIR\"'/~~'"
 
 ## `xn` - eXpanded Navigation, combining vcd, al, and fal
 function xn() {
