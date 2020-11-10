@@ -68,6 +68,9 @@ function xal() {
     fi
 }
 
+## `lal` - lists aliases
+alias lal="ls -A $ALIAS_SYMLINK_DIR "
+
 ## `xn` - eXpanded Navigation, combining vcd, al, and fal
 function xn() {
     if [ "$#" -eq 0 ]
