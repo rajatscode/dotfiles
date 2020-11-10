@@ -29,7 +29,9 @@ life.
 So be it, until victory is GNU's and there is no technical debt, but
 maintainability!
 
-## Installation To get started with these dotfiles:
+## Installation
+
+To get started with these dotfiles:
 
 1. Using these dotfiles **will overwrite** your `.bashrc`, `.vimrc`,
    `.gitconfig`, and `.tmux.conf`. If you want to preserve your existing
@@ -45,19 +47,23 @@ maintainability!
    autosync. To keep autosync disabled, either leave `$DOTFILES_AUTOSYNC` unset
    or set it to false.
 
-## Usage These dotfiles are intended for bash, vim, git, and tmux users. If you
-do not use any of those four tools, you are unlikely to reap any benefit from
-    installing these dotfiles.
+## Usage
+
+These dotfiles are intended for bash, vim, git, and tmux users. If you do not
+use any of those four tools, you are unlikely to reap any benefit from
+installing these dotfiles.
 
 For now, there is no documentation of the exact features in these dotfiles.
 However, you can check out the files (bash and vim dotfiles are broken up by
 function in directories) or alternatively incrementally pick up features from
 these dotfiles as you run into them in your ordinary workflow.
 
-## Customization All dotfiles in this repository will include/source other
-files (if they exist) where you can extend or override this repository's
-dotfiles. The naming convention for these filenames will be to end with
-`profile`. You can find a list of these filenames in `vars.sh` or below:
+## Customization
+
+All dotfiles in this repository will include/source other files (if they exist)
+where you can extend or override this repository's dotfiles. The naming
+convention for these filenames will be to end with `profile`. You can find a
+list of these filenames in `vars.sh` or below:
 
 * for bash: `~/.bash_profile` and `~/.bash_aliases`
 * for git: `~/.gitprofile`
