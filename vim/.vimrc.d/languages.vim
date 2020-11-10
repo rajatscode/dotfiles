@@ -18,11 +18,10 @@ augroup java
   autocmd FileType java setlocal
     \ shiftwidth=2 softtabstop=2 expandtab
     \ colorcolumn=120 textwidth=120
+  autocmd FileType java AutoFormatBuffer google-java-format
 augroup END
 
 let python_highlight_all = 1
-au BufNewFile,BufRead *.jinja set syntax=htmljinja
-au BufNewFile,BufRead *.mako set ft=mako
 
 " isort config for Python, with opinionated Black-compatible config
 let g:vim_isort_map = '<C-i>'
@@ -38,6 +37,10 @@ augroup python
   au!
   autocmd BufNewFile,BufRead *.jinja set syntax=htmljinja
   autocmd BufNewFile,BufRead *.mako set ft=mako
+
+  autocmd FileType python :autocmd! BufWritePost * Isort
+  autocmd FileType python AutoFormatBuffer black
+
   autocmd FileType python syn keyword pythonDecorator True None False self
   autocmd FileType python map <buffer> F :set foldmethod=indent<cr>
   autocmd FileType python setlocal
@@ -116,11 +119,3 @@ endif
 
 " Twig
 autocmd BufRead *.twig set syntax=html filetype=html
-
-" Autoformat settings for code formatting (separated out for simplicity)
-augroup autoformat_settings
-  autocmd FileType java AutoFormatBuffer google-java-format
-  autocmd FileType python
-    \ AutoFormatBuffer black
-    \ autocmd BufWritePost * Isort
-augroup END
