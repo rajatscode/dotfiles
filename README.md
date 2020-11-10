@@ -31,17 +31,18 @@ maintainability!
 
 ## Installation
 
+Using these dotfiles **will overwrite** your `.bashrc`, `.vimrc`,
+`.gitconfig`, and `.tmux.conf`. If you want to preserve your existing
+dotfiles, see [Customization](#customization).
+
 To get started with these dotfiles:
 
-1. Using these dotfiles **will overwrite** your `.bashrc`, `.vimrc`,
-   `.gitconfig`, and `.tmux.conf`. If you want to preserve your existing
-   dotfiles, see [Customization](#customization).
-2. Download and source `sync.sh`. This will install the repository (at
+1. Download and source `sync.sh`. This will install the repository (at
    `master`) in `~/.configs/dotfiles` (you can set this using the
    `$DOTFILES_HOME_DIR` environment variable, before you run the script). To
    run the script, you can use: ``` source <(curl -s
    https://raw.githubusercontent.com/rajatscode/dotfiles/master/sync.sh) ```
-3. Consider whether you want to enable autosync (which will automatically keep
+2. Consider whether you want to enable autosync (which will automatically keep
    your dotfiles in line with `master`). This is controlled by the
    `$DOTFILES_AUTOSYNC` environment variable; set it to true to enable
    autosync. To keep autosync disabled, either leave `$DOTFILES_AUTOSYNC` unset
