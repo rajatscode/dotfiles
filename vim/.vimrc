@@ -40,6 +40,8 @@ Plugin 'calincru/peaksea.vim'
 Plugin 'ctrlpvim/ctrlp.vim'
 " Golang support for vim
 Plugin 'fatih/vim-go'
+" isort (Python imports sort) inside vim (unlike ALE, supports config)
+Plugin 'fisadev/vim-isort'
 " support for textual snippets
 Plugin 'garbas/vim-snipmate'
 " autoformat code
