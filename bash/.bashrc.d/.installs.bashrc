@@ -34,9 +34,9 @@ then
     exit
 fi
 
-## install yapf for code formatting (vim-codefmt compatible)
-if ! command -v yapf &>> /dev/null
+## install black for code formatting (vim-codefmt compatible)
+if ! command -v black &>> /dev/null
 then
-    python3 -m pip install yapf &>> /dev/null
+    python3 -m pip install black &>> /dev/null
     exit
 fi
