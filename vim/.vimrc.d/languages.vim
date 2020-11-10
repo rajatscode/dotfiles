@@ -32,7 +32,7 @@ augroup python
   autocmd FileType python map <buffer> F :set foldmethod=indent<cr>
   autocmd FileType python setlocal
     \ shiftwidth=4 softtabstop=4 expandtab
-    \ colorcolumn=80 textwidth=80
+    \ colorcolumn=88 textwidth=88
     \ ai si et sta
     \ backspace=indent,eol,start fo=croql
 
