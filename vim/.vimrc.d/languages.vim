@@ -93,6 +93,8 @@ augroup end
 
 au FileType gitcommit call setpos('.', [0, 1, 1, 0])
 
+au FileType markdown setlocal textwidth=80
+
 " Shell (set colors)
 if exists('$TMUX') 
     if has('nvim')
@@ -108,5 +110,5 @@ autocmd BufRead *.twig set syntax=html filetype=html
 " Autoformat settings for vim-codefmt (separated out for simplicity)
 augroup autoformat_settings
   autocmd FileType java AutoFormatBuffer google-java-format
-  augroup FileType python AutoFormatBuffer yapf
+  autocmd FileType python AutoFormatBuffer yapf
 augroup END
