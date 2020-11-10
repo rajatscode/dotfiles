@@ -26,7 +26,7 @@ mkdir -p $ALIAS_SYMLINK_DIR;
 # Method for removing a variable from the stored vars file
 function delete_dotfile_var() {
     local VARNAME=$1 ;
-    sed -i "/declare -- "$VARNAME"=\".*/d" $BASHRC_STORED_VARS ;
+    sed -i "/declare.*"$VARNAME"=.*/d" $BASHRC_STORED_VARS ;
 }
 
 # Method for storing a variable (with its _current_ value) in stored vars file
