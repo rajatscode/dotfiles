@@ -24,6 +24,16 @@ let python_highlight_all = 1
 au BufNewFile,BufRead *.jinja set syntax=htmljinja
 au BufNewFile,BufRead *.mako set ft=mako
 
+" isort config for Python, with opinionated Black-compatible config
+let g:vim_isort_map = '<C-i>'
+let g:vim_isort_python_version = 'python3'
+let g:vim_isort_config_overrides = {
+  \ 'multi_line_output': 3, 'include_trailing_comma': 1,
+  \ 'force_grid_wrap': 0, 'use_parentheses': 1,
+  \ 'ensure_newline_before_comments': 1, 'line_length': 88,
+  \ 'force_sort_within_sections': 1, 'lexicographical': 1,
+  \ 'group_by_package': 1, 'combine_as_imports': 1}
+
 augroup python
   au!
   autocmd BufNewFile,BufRead *.jinja set syntax=htmljinja
@@ -107,8 +117,10 @@ endif
 " Twig
 autocmd BufRead *.twig set syntax=html filetype=html
 
-" Autoformat settings for vim-codefmt (separated out for simplicity)
+" Autoformat settings for code formatting (separated out for simplicity)
 augroup autoformat_settings
   autocmd FileType java AutoFormatBuffer google-java-format
-  autocmd FileType python AutoFormatBuffer black
+  autocmd FileType python
+    \ AutoFormatBuffer black
+    \ autocmd BufWritePost * Isort
 augroup END
