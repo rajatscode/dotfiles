@@ -110,5 +110,5 @@ autocmd BufRead *.twig set syntax=html filetype=html
 " Autoformat settings for vim-codefmt (separated out for simplicity)
 augroup autoformat_settings
   autocmd FileType java AutoFormatBuffer google-java-format
-  autocmd FileType python AutoFormatBuffer yapf
+  autocmd FileType python AutoFormatBuffer black
 augroup END
