@@ -11,4 +11,4 @@ fi
 
 ## manage declared vundle plugins - in a hacky way
 ## (this quietly runs vim in the background just to autorun vundle)
-(echo | echo | vim +PluginInstall! +PluginClean +qall &> /dev/null &) || true
+(echo | echo | vim +PluginInstall! +PluginClean! +qall &> /dev/null &) || true
