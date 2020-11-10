@@ -114,6 +114,9 @@ catch
 endtry
 
 " Persistent undo functionality & a vim dir in runtimepath
+if !isdirectory($HOME."/.vim/tmp/undodir")
+    silent !mkdir -p ~/.vim/tmp/undodir > /dev/null 2>&1
+endif
 try
     set undodir=~/.vim/tmp/undodir
     set undofile
