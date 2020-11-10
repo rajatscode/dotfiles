@@ -3,6 +3,9 @@
 ## swap caps lock and escape
 setxkbmap -option caps:swapescape &> /dev/null || true
 
+## create the undodir to enable persistent undo
+mkdir -p ~/.vim/tmp/undodir
+
 ## enable register-sharing between all vim instances
 ## (only if vim was compiled with +clientserver)
 if (( $(vim --version | grep "+clientserver" | wc -l) > 0 )); then
