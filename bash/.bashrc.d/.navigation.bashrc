@@ -55,6 +55,7 @@ function fal() {
         vim "$actual_target";
     fi
 }
+alias fk="fal "
 
 ## `xal` - removes aliases
 ## if no arguments are given, clears all aliases
