@@ -88,7 +88,7 @@ let g:lightline = {
       \ }
 
 " vim-fugitive - make sure fugitive#head is set
-silent echom fugitive#head()
+au BufRead * silent echom fugitive#head()
 
 " Vimroom
 let g:goyo_width=100
