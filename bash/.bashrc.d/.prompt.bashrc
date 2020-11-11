@@ -85,7 +85,7 @@ export PS1=$Color_Off'$(git branch &>/dev/null;\
 if [ $? -eq 0 ]; then \
   echo "$(echo `git status` | grep "nothing to commit" > /dev/null 2>&1; \
   if [ "$?" -eq "0" ]; then \
-    echo "'$White'"$(__git_ps1 "(%s)"); \
+    echo "'$IGreen'"$(__git_ps1 "(%s)"); \
   else \
     echo "'$IPurple'"$(__git_ps1 "{%s}"); \
   fi) '$BYellow' git '$BBlue$PathFull$Color_Off'\$ "; \
