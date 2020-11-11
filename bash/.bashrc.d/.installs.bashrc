@@ -44,3 +44,9 @@ if ! command -v isort &>> /dev/null
 then
     python3 -m pip install isort &>> /dev/null
 fi
+
+## install flake8 for linting
+if ! command -v flake8 &>> /dev/null
+then
+    python3 -m pip install flake8 &>> /dev/null
+fi
