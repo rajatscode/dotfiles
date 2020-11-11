@@ -88,7 +88,7 @@ if [ $? -eq 0 ]; then \
     echo "'$White'"$(__git_ps1 "(%s)"); \
   else \
     echo "'$IPurple'"$(__git_ps1 "{%s}"); \
-  fi) '$BYellow' git '$BCyan$PathFull$Color_Off'\$ "; \
+  fi) '$BYellow' git '$BBlue$PathFull$Color_Off'\$ "; \
 else \
   echo "'$BGreen$PathFull$Color_Off'\$ "; \
 fi)'
