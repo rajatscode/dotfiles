@@ -68,10 +68,6 @@ au FileType mako vmap Si S"i${ _(<esc>2f"a) }<esc>
 " lightline
 let g:lightline = {
       \ 'colorscheme': 'wombat',
-      \ }
-
-let g:lightline = {
-      \ 'colorscheme': 'wombat',
       \ 'active': {
       \   'left': [ ['mode', 'paste'],
       \             ['fugitive', 'readonly', 'filename', 'modified'] ],
@@ -90,6 +86,9 @@ let g:lightline = {
       \ 'separator': { 'left': ' ', 'right': ' ' },
       \ 'subseparator': { 'left': ' ', 'right': ' ' }
       \ }
+
+" vim-fugitive - make sure fugitive#head is set
+silent echom fugitive#head()
 
 " Vimroom
 let g:goyo_width=100
