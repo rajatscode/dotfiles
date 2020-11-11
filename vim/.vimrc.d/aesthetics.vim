@@ -68,8 +68,6 @@ function! HasPaste()
     return ''
 endfunction
 
-set statusline=\ %{HasPaste()}%F%m%r%h\ %w\ \ CWD:\ %r%{getcwd()}%h\ \ \ Line:\ %l\ \ Column:\ %c
-
 " Disable scrollbars for GUI
 set guioptions-=r
 set guioptions-=R
