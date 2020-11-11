@@ -118,3 +118,10 @@ let g:ale_lint_on_enter = 0
 " Git gutter
 let g:gitgutter_enabled=0
 nnoremap <silent> <leader>d :GitGutterToggle<cr>
+
+" vim-werewolf config: peaksea/zellner by day, industry/murphy by night
+let g:werewolf_day_themes = ['peaksea', 'zellner']
+let g:werewolf_night_themes = ['industry', 'murphy']
+let g:werewolf_day_start = 6
+let g:werewolf_day_end = 18
+let g:werewolf_change_automatically = 1

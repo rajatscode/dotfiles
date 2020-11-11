@@ -49,6 +49,7 @@ if $COLORTERM == 'gnome-terminal'
 endif
 
 " Set colorscheme to dark peaksea (zellner as backup)
+" Note: vim-werewolf settings (in plugins.vim) should override these
 silent! colorscheme zellner
 silent! colorscheme peaksea
 set background=dark
