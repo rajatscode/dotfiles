@@ -1,6 +1,9 @@
 # configs to install dependencies (and track where they are)
 DOTFILES_INSTALLS_DIR="$DOTFILES_HOME_DIR/.installs" ;
 
+## install Vundle (used by vim dotfiles for package management)
+git clone https://github.com/VundleVim/Vundle.vim.git ~/.vim/bundle/Vundle.vim &> /dev/null
+
 ## simple (brittle!) function to install latest release from a repo
 function install_from_github_repo() {
     local repo_name="$1";
