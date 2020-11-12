@@ -4,5 +4,7 @@ language: minimal
 notifications:
   email: false
 
+before_install:
+  - chmod +x sync.sh
 script:
   - ./sync.sh
