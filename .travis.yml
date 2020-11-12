@@ -1,0 +1,7 @@
+sudo: required
+dist: xenial
+notifications:
+  email: false
+
+script:
+  - ./sync.sh
