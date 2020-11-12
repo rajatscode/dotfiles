@@ -1,5 +1,6 @@
-sudo: required
+os: linux
 dist: xenial
+language: minimal
 notifications:
   email: false
 
