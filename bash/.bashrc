@@ -60,12 +60,6 @@ function ensure_dotfile_syncing() {
     fi
 }
 
-# Don't sync more than once a day, it slows down loading the terminal
-if [ "$DOTFILES_AUTOSYNC" = true ]
-then
-    ensure_dotfile_syncing 1 ;
-fi
-
 # Import various configs from the ./.bashrc.d directory
 for bashrc_file in $(ls -a $BASHRC_HOME_DIR/.bashrc.d/.*\.bashrc);
 do
@@ -75,6 +69,14 @@ done
 # Respect user configs in $BASH_PERSONAL_PROFILE
 [ -f $BASH_PERSONAL_PROFILE ] &&
     source $BASH_PERSONAL_PROFILE
+
+# Don't sync more than once a day, it slows down loading the terminal
+# Do this after loading $BASH_PERSONAL_PROFILE so DOTFILES_AUTOSYNC can be set
+# in that file
+if [ "$DOTFILES_AUTOSYNC" = true ]
+then
+    ensure_dotfile_syncing 1 ;
+fi
 
 # Include $GIT_PERSONAL_PROFILE here since .gitconfig doesn't support env vars
 git config --global include.path $GIT_PERSONAL_PROFILE
