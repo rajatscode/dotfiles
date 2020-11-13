@@ -60,10 +60,10 @@ function fal() {
     vcd "$actual_target";
 }
 
-## `fk` - a convenience aliases for `fal`, but with a `mkcd` fallback
-## if the alias doesn't exist, it just creates a local directory
+## `fk` - a convenience aliases for `fal`, but with a `vcd` fallback
+## if the alias doesn't exist, tries to open it (creating if needed)
 function fk() {
-    fal "$@" || mkcd "$@" ;
+    fal "$@" || vcd "$@" ;
 }
 
 ## `xal` - removes aliases
