@@ -91,6 +91,9 @@ function xn() {
                 shift;
                 al "$@" ;
                 ;;
+            "-l")
+                lal ;
+                ;;
     
             *)
                 if [[ "$1" == @* ]];
