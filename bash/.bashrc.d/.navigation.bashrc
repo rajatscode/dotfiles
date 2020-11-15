@@ -86,7 +86,7 @@ function xal() {
 }
 
 ## `lal` - lists aliases
-alias lal="stat -c%N $ALIAS_SYMLINK_DIR/* | sed 's~'\"$ALIAS_SYMLINK_DIR\"'/~~'"
+alias lal="stat -c\"%N %Y\" $ALIAS_SYMLINK_DIR/* | sed 's~'\"$ALIAS_SYMLINK_DIR\"'/~~' | sort -nrk 4 | rev | cut -d \" \" -f 2- | rev"
 
 ## `xn` - eXpanded Navigation, combining vcd, al, and fal
 function xn() {
