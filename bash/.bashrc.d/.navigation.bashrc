@@ -2,7 +2,7 @@
 
 ## mkcd - create the directory if it doesn't exist
 function mkcd() {
-    mkdir -p -- "$@" && command cd -P "$@"
+    mkdir -p -- "$@" && command cd -P -- "$@"
 }
 
 ## vcd - tried cd'ing into a file? whoops, should vim
@@ -63,7 +63,15 @@ function fal() {
 ## `fk` - a convenience aliases for `fal`, but with a `vcd` fallback
 ## if the alias doesn't exist, tries to open it (creating if needed)
 function fk() {
-    fal "$@" || vcd "$@" ;
+    case $1 in
+        "-l")
+            lal ;
+            ;;
+    
+        *)
+            fal "$@" || vcd "$@" ;
+            ;;
+    esac
 }
 
 ## `xal` - removes aliases
