@@ -33,6 +33,9 @@ let g:vim_isort_config_overrides = {
   \ 'force_sort_within_sections': 1, 'lexicographical': 1,
   \ 'group_by_package': 1, 'combine_as_imports': 1}
 
+" syntastic config for Python, with Black-compatible config
+let g:syntastic_python_flake8_post_args = "--max-line-length 88"
+
 augroup python
   au!
   autocmd BufNewFile,BufRead *.jinja set syntax=htmljinja
