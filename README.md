@@ -1,7 +1,7 @@
 # dotfiles
 
-[![License](https://img.shields.io/github/license/rajatscode/dotfiles)](https://github.com/rajatscode/dotfiles/blob/master/LICENSE)
 [![Build Status](https://travis-ci.org/rajatscode/dotfiles.svg?branch=master)](https://travis-ci.org/rajatscode/dotfiles)
+[![License](https://img.shields.io/github/license/rajatscode/dotfiles)](https://github.com/rajatscode/dotfiles/blob/master/LICENSE)
 
 These are my dotfiles. There are many like them, but these ones are mine.
 
