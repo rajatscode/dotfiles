@@ -79,7 +79,12 @@ function fk() {
 function xal() {
     if [ "$#" -eq 0 ];
     then
-        rm $ALIAS_SYMLINK_DIR/* ;
+        read -p "You're about to delete all symlink aliases. Are you sure? [y/N]" yn
+        case $yn in
+            [Yy]* ) rm $ALIAS_SYMLINK_DIR/* ;;
+            [Nn]* ) ;;
+            * ) echo "Assuming that's a no. Not deleting any aliases.";;
+        esac
     else
         rm "$ALIAS_SYMLINK_DIR/$@" 2> /dev/null ;
     fi
