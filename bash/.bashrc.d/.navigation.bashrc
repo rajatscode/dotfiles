@@ -60,20 +60,6 @@ function fal() {
     vcd "$actual_target";
 }
 
-## `fk` - a convenience aliases for `fal`, but with a `vcd` fallback
-## if the alias doesn't exist, tries to open it (creating if needed)
-function fk() {
-    case $1 in
-        "-l")
-            lal ;
-            ;;
-    
-        *)
-            fal "$@" || vcd "$@" ;
-            ;;
-    esac
-}
-
 ## `xal` - removes aliases
 ## if no arguments are given, clears all aliases
 function xal() {
@@ -92,6 +78,20 @@ function xal() {
 
 ## `lal` - lists aliases
 alias lal="stat -c\"%N %Y\" $ALIAS_SYMLINK_DIR/* | sed 's~'\"$ALIAS_SYMLINK_DIR\"'/~~' | sort -nrk 4 | rev | cut -d \" \" -f 2- | rev"
+
+## `fk` - a convenience aliases for `lal` and `fal`, but with a `vcd` fallback
+## if the alias doesn't exist, tries to open it (creating if needed)
+function fk() {
+    case $1 in
+        "-l")
+            lal ;
+            ;;
+    
+        *)
+            fal "$@" || vcd "$@" ;
+            ;;
+    esac
+}
 
 ## `xn` - eXpanded Navigation, combining vcd, al, and fal
 function xn() {
