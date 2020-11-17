@@ -57,8 +57,10 @@ function fal() {
 
     local alias_target=$(readlink -f "$full_symlink");
     local actual_target="$alias_target"/"$target_subpath";
+    touch -h $full_symlink ;
     vcd "$actual_target";
 }
+alias fa="fal "
 
 ## `xal` - removes aliases
 ## if no arguments are given, clears all aliases
