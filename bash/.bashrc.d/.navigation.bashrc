@@ -26,7 +26,7 @@ alias up="cd .."
 function dn() {
     # pick first directory; fail if no directories
     # suppress stderr for `ls` and just go back to `pwd`
-    cd `(ls -d */ 2> /dev/null || echo ".") | head -1`;
+    cd `((command ls -d -- */ 2> /dev/null) || echo ".") | head -1`;
 }
 
 ## go `bk` between directories
