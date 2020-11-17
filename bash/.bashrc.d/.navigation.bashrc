@@ -147,3 +147,29 @@ function poploc() {
     store_dotfile_var SAVED_PATHS_STACK;
 }
 alias ol="poploc "
+
+## `deldir` - remove current directory (can do multiple levels, prompts if non-empty)
+function deldir() {
+    local confirmdel=0;
+    if [ $(ls | wc -l) -le 2 ];
+    then
+        confirmdel=1;
+    else
+        read -p "You're about to delete non-empty dir ${PWD##*/}. Are you sure? [y/N]" yn
+        case $yn in
+            [Yy]* ) confirmdel=1 ;;
+            [Nn]* ) confirmdel=0 ;;
+            * )
+                echo "Assuming that's a no. Not deleting any directory.";
+                confirmdel=0 ;;
+        esac
+    fi 
+
+    if [ $confirmdel -eq 1 ];
+    then
+        local dirtodel=$PWD ;
+        command cd .. ;
+        rm -r $dirtodel ;
+    fi
+}
+alias rd="deldir "
