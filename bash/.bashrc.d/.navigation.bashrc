@@ -163,7 +163,7 @@ function deldir() {
                 echo "Assuming that's a no. Not deleting any directory.";
                 confirmdel=0 ;;
         esac
-    fi 
+    fi
 
     if [ $confirmdel -eq 1 ];
     then
