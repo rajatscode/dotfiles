@@ -33,6 +33,7 @@ function pcd() {
     fi
 }
 alias cd="pcd "
+alias sd="command cd "
 
 ## vcd - tried cd'ing into a file? whoops, should vim
 ## if file/directory doesn't exist, then use mkcd
