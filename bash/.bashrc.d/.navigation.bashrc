@@ -5,31 +5,29 @@ function mkcd() {
     mkdir -p -- "$@" && command cd -P -- "$@"
 }
 
-## pcd (overrides cd) - partial cd - if the whole path doesn't work, just go
-## to the deepest part that is still a directory (handles cd'ing into files)
-## if file/directory doesn't exist, then fail (except for autofixing spelling)
+## pcd (overrides cd) - cd with backoff (i.e., if the whole path doesn't work,
+## go to the deepest subpath that still does); this handles cd'ing into files
+## or cd'ing into invalid directories + is compatible with spelling autofix
 function pcd() {
     command cd "$@" 2>> /dev/null ;
     if [[ "$?" == '0' ]]
     then
         :
-    elif [[ $(dirname "$@") == '.' ]]
-    then
-        command cd "$@" ;
     else
-        local topdir=$(echo "$@" | sed 's_/.*__') ;
-        local restofpath=${@##$topdir/} ;
-        # edge case for sed regex above: path begins with '/'
-        # solve this by changing topdir to '/' + part between first two /'s
-        if [[ -z "$topdir" ]]
+        local laststep=$(echo "$@" | sed 's|.*/||') ;
+        local mainpath=${@%%$laststep};
+        local mainpath=${mainpath%%/};
+        ## edge case - don't backoff into root or empty dir
+        if [[ -n $mainpath ]]
         then
-            local oldpath=$restofpath ;
-            topdir=$(echo "$oldpath" | sed 's_/.*__') ;
-            restofpath=${oldpath##$topdir/} ;
-            topdir='/'$topdir ;
+            pcd $mainpath ;
         fi
-        command cd "$topdir" || return 1 ;
-        pcd "$restofpath" ;
+        if [[ "$?" == '0' && -n $laststep ]]
+        then
+            command cd $laststep ;
+        else
+            return 1 ;
+        fi
     fi
 }
 alias cd="pcd "
