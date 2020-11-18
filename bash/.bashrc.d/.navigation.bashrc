@@ -5,12 +5,33 @@ function mkcd() {
     mkdir -p -- "$@" && command cd -P -- "$@"
 }
 
-## cdd (overrides cd) - tried cd'ing into a file? whoops, should cd to parent
-## if file/directory doesn't exist, then fail
-function cdd() {
-    test -d "$1" && command cd "$1" || command cd $(dirname "$1") ;
+## pcd (overrides cd) - partial cd - if the whole path doesn't work, just go
+## to the deepest part that is still a directory (handles cd'ing into files)
+## if file/directory doesn't exist, then fail (except for autofixing spelling)
+function pcd() {
+    if [[ -d "$@" ]]
+    then
+        command cd "$@" ;
+    elif [[ $(dirname "$@") == '.' ]]
+    then
+        command cd "$@" ;
+    else
+        local topdir=$(echo "$@" | sed 's_/.*__') ;
+        local restofpath=${@##$topdir/} ;
+        # edge case for sed regex above: path begins with '/'
+        # solve this by changing topdir to '/' + part between first two /'s
+        if [[ -z "$topdir" ]]
+        then
+            local oldpath=$restofpath ;
+            topdir=$(echo "$oldpath" | sed 's_/.*__') ;
+            restofpath=${oldpath##$topdir/} ;
+            topdir='/'$topdir ;
+        fi
+        command cd "$topdir" || return 1 ;
+        pcd "$restofpath" ;
+    fi
 }
-alias cd="cdd "
+alias cd="pcd "
 
 ## vcd - tried cd'ing into a file? whoops, should vim
 ## if file/directory doesn't exist, then use mkcd
