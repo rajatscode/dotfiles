@@ -9,9 +9,10 @@ function mkcd() {
 ## to the deepest part that is still a directory (handles cd'ing into files)
 ## if file/directory doesn't exist, then fail (except for autofixing spelling)
 function pcd() {
-    if [[ -d "$@" ]]
+    command cd "$@" 2>> /dev/null ;
+    if [[ "$?" == '0' ]]
     then
-        command cd "$@" ;
+        :
     elif [[ $(dirname "$@") == '.' ]]
     then
         command cd "$@" ;
