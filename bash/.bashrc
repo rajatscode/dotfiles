@@ -56,7 +56,7 @@ function ensure_dotfile_syncing() {
     then
         LAST_DOTFILE_SYNC=`date +%s` ;
         store_dotfile_var LAST_DOTFILE_SYNC ;
-        sync_and_adopt_dotfiles ;
+        sync_and_adopt_dotfiles &
     fi
 }
 
