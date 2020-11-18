@@ -5,6 +5,13 @@ function mkcd() {
     mkdir -p -- "$@" && command cd -P -- "$@"
 }
 
+## cdd (overrides cd) - tried cd'ing into a file? whoops, should cd to parent
+## if file/directory doesn't exist, then fail
+function cdd() {
+    test -d "$1" && command cd "$1" || command cd $(dirname "$1") ;
+}
+alias cd="cdd "
+
 ## vcd - tried cd'ing into a file? whoops, should vim
 ## if file/directory doesn't exist, then use mkcd
 function vcd() {
