@@ -10,6 +10,9 @@ shopt -u nocaseglob ;
 ### enable nullglob-esque '*' but don't back-off to empty matches
 shopt -s failglob ;
 shopt -u nullglob ;
+### catch spelling errors when using cd and in directory names
+shopt -s cdspell ;
+shopt -s dirspell ;
 
 ## lesspipe - make less work for binary/non-text input files
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
