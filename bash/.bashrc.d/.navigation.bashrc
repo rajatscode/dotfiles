@@ -18,13 +18,13 @@ function pcd() {
         local mainpath=${@%%$laststep};
         local mainpath=${mainpath%%/};
         ## edge case - don't backoff into root or empty dir
-        if [[ -n $mainpath ]]
+        if [[ -n "$mainpath" ]]
         then
-            pcd $mainpath ;
+            pcd "$mainpath" ;
         fi
-        if [[ "$?" == '0' && -n $laststep ]]
+        if [[ "$?" == '0' && -n "$laststep" ]]
         then
-            command cd $laststep ;
+            command cd "$laststep" ;
         else
             return 1 ;
         fi
