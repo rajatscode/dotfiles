@@ -6,6 +6,7 @@
 	clog = log --date=format-local:'%a %b %d %H:%M:%S %Y' --pretty='%C(auto) %h %cd %d %C(red)(%aN)%C(reset) %<(200,trunc)%s'
 	glog = !git clog --graph
 	alog = !git glog $(git branch --list | sed -e 's/^[ *]*//' | tr '\n' ' ')
+	rebranch = !git branch -m $2 $3 && git push $1 :$2 $3 -u #
 [color]
 	ui = true
 [color "diff-highlight"]
