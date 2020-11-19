@@ -106,7 +106,7 @@ function xal() {
 }
 
 ## `lal` - lists aliases
-alias lal="stat -c\"%N %Y\" $ALIAS_SYMLINK_DIR/* | sed 's~'\"$ALIAS_SYMLINK_DIR\"'/~~' | sort -nrk 4 | rev | cut -d \" \" -f 2- | rev"
+alias lal="(stat -c\"%N %Y\" $ALIAS_SYMLINK_DIR/* | sed 's~'\"$ALIAS_SYMLINK_DIR\"'/~~' | sort -nrk 4 | rev | cut -d \" \" -f 2- | rev) 2>> /dev/null"
 
 ## `fk` - a convenience alias for `lal` and `fal`, but with a `vcd` fallback
 ## if the alias doesn't exist, tries to open it (creating if needed)
