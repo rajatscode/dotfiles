@@ -11,7 +11,7 @@ function sync_dotfiles() {
 
     git clone $DOTFILE_SRC_REPO "$DOTFILE_SYNC_DIR" &> /dev/null ||
 	(git -C $DOTFILE_SYNC_DIR fetch --all &> /dev/null &&
-	 git -C $DOTFILE_SYNC_DIR reset --hard origin/master &> /dev/null) ;
+	 git -C $DOTFILE_SYNC_DIR reset --hard origin/main &> /dev/null) ;
 }
 
 ## convenience function to adopt the dotfiles in a directory
