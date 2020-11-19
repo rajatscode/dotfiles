@@ -1,6 +1,6 @@
 # config to make git more convenient
 
-alias gpom="git push origin master"
+alias gpom="git push origin main"
 alias add="git add"
 alias commit="git commit"
 alias push="git push"
