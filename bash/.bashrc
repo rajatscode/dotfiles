@@ -15,10 +15,8 @@ source "$DOTFILES_HOME_DIR/vars.sh" ;
 mkdir -p `dirname -- $BASHRC_STORED_VARS`;
 touch $BASHRC_STORED_VARS;
 
-function read_dotfile_vars() {
-    source $BASHRC_STORED_VARS;
-}
-read_dotfile_vars;
+alias read_dotfile_vars="source $BASHRC_STORED_VARS " ;
+read_dotfile_vars ;
 
 # Create symlink directory if it doesn't exist
 mkdir -p $ALIAS_SYMLINK_DIR;
