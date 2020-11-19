@@ -68,7 +68,7 @@ done
 [ -f $BASH_PERSONAL_PROFILE ] &&
     source $BASH_PERSONAL_PROFILE
 
-# Don't sync more than once a day, it slows down loading the terminal
+# Don't sync more than once a day, to avoid spawning a bunch of child shells
 # Do this after loading $BASH_PERSONAL_PROFILE so DOTFILES_AUTOSYNC can be set
 # in that file
 if [ "$DOTFILES_AUTOSYNC" = true ]
