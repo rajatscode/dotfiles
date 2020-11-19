@@ -1,7 +1,7 @@
 # dotfiles
 
-[![Build Status](https://travis-ci.org/rajatscode/dotfiles.svg?branch=master)](https://travis-ci.org/rajatscode/dotfiles)
-[![License](https://img.shields.io/github/license/rajatscode/dotfiles)](https://github.com/rajatscode/dotfiles/blob/master/LICENSE)
+[![Build Status](https://travis-ci.org/rajatscode/dotfiles.svg?branch=main)](https://travis-ci.org/rajatscode/dotfiles)
+[![License](https://img.shields.io/github/license/rajatscode/dotfiles)](https://github.com/rajatscode/dotfiles/blob/main/LICENSE)
 
 These are my dotfiles. There are many like them, but these ones are mine.
 
@@ -39,12 +39,12 @@ dotfiles, see [Customization](#customization).
 To get started with these dotfiles:
 
 1. Download and source `sync.sh`. This will install the repository (at
-   `master`) in `~/.configs/dotfiles` (you can set this using the
+   `main`) in `~/.configs/dotfiles` (you can set this using the
    `$DOTFILES_HOME_DIR` environment variable, before you run the script). To
    run the script, you can use: ``` source <(curl -s
-   https://raw.githubusercontent.com/rajatscode/dotfiles/master/sync.sh) ```
+   https://raw.githubusercontent.com/rajatscode/dotfiles/main/sync.sh) ```
 2. Consider whether you want to enable autosync (which will automatically keep
-   your dotfiles in line with `master`). This is controlled by the
+   your dotfiles in line with `main`). This is controlled by the
    `$DOTFILES_AUTOSYNC` environment variable; set it to true to enable
    autosync. To keep autosync disabled, either leave `$DOTFILES_AUTOSYNC` unset
    or set it to false.
