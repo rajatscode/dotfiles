@@ -79,6 +79,8 @@ fi
 ## reveal: what folder am I in?
 if [ "$(uname -s)" == "Darwin" ]; then
   alias reveal="open ."
+else
+  alias reveal="pwd "
 fi
 
 ## alert: alert for long-running commands; e.g., `sleep 10; alert`
