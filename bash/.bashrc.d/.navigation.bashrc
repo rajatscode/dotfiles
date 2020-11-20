@@ -68,7 +68,9 @@ alias bk="cd -"
 function al() {
     local alias_name="${1:-${PWD##*/}}";
     local alias_target="${2:-$PWD}";
-    ln -sf "$(realpath $alias_target)" "$ALIAS_SYMLINK_DIR"/"$alias_name";
+    # delete the alias, if it already exists, to avoid wonky behavior
+    xal $alias_name 2>>/dev/null ;
+    ln -sf "$(realpath $alias_target)" "$ALIAS_SYMLINK_DIR""/""$alias_name" ;
 }
 
 ## `fal` - follow alias; use aliases created by al
