@@ -86,8 +86,13 @@ fi
 ## alert: alert for long-running commands; e.g., `sleep 10; alert`
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
-### restart: refresh the shell
+## restart: refresh the shell
 alias restart="source ~/.bashrc"
+
+## freeport: kill process running on specified port
+freeport() {
+  kill -9 $(lsof -t -i:$1) 2>>/dev/null && echo "Killed process on port $1" || echo "No process on port $1" ;
+}
 
 ## source ~/.bash_aliases if it exists
 if [ -f ~/.bash_aliases ]; then
