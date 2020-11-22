@@ -41,7 +41,8 @@ function vcd() {
     else
         if [[ -f "$@" ]]
         then
-            vim "$@";
+            cd $(dirname "$@");
+            vim $(basename "$@");
         else
             mkcd "$@";
         fi
@@ -182,7 +183,7 @@ alias ol="poploc "
 ## `deldir` - remove current directory (can do multiple levels, prompts if non-empty)
 function deldir() {
     local confirmdel=0;
-    if [ $(ls | wc -l) -le 2 ];
+    if [ $(ls -a | wc -l) -le 2 ];
     then
         confirmdel=1;
     else
