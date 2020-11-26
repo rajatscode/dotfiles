@@ -47,8 +47,8 @@ function sync_and_adopt_dotfiles() {
 }
 
 function ensure_dotfile_syncing() {
-    local SYNC_PERIOD_IN_DAYS=$1 ;
-    local SYNC_CUTOFF=`date -d 'now - '$SYNC_PERIOD_IN_DAYS' days' +%s` ;
+    local SYNC_PERIOD_IN_HOURS=$1 ;
+    local SYNC_CUTOFF=`date -d 'now - '$SYNC_PERIOD_IN_HOURS' hours' +%s` ;
 
     if [ -z $LAST_DOTFILE_SYNC ] || [ $SYNC_CUTOFF -ge $LAST_DOTFILE_SYNC ];
     then
@@ -73,7 +73,7 @@ done
 # in that file
 if [ "$DOTFILES_AUTOSYNC" = true ]
 then
-    ensure_dotfile_syncing 1 ;
+    ensure_dotfile_syncing ${DOTFILES_AUTOSYNC_PERIOD_IN_HOURS:-24} ;
 fi
 
 # Include $GIT_PERSONAL_PROFILE here since .gitconfig doesn't support env vars

@@ -47,7 +47,12 @@ To get started with these dotfiles:
    your dotfiles in line with `main`). This is controlled by the
    `$DOTFILES_AUTOSYNC` environment variable; set it to true to enable
    autosync. To keep autosync disabled, either leave `$DOTFILES_AUTOSYNC` unset
-   or set it to false.
+   or set it to false. You can also control the frequency at which dotfile
+   autosyncing occurs using the `$DOTFILES_AUTOSYNC_PERIOD_IN_HOURS` variable.
+   By default, if `$DOTFILES_AUTOSYNC` is set to true, dotfiles will be synced
+   every 24 hours. If `DOTFILES_AUTOSYNC_PERIOD_IN_HOURS` is 0, dotfiles will
+   be synced every time `~/.bashrc` is sourced. Note that this happens in the
+   background as a non-blocking operation so the overhead is low.
 
 ## Usage
 
