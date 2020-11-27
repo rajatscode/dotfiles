@@ -92,6 +92,12 @@ function fal() {
 }
 alias fa="fal "
 
+_fal_completions() {
+    local _stored_aliases=$(ls -1 "$ALIAS_SYMLINK_DIR")
+    COMPREPLY=( $(compgen -W "${_stored_aliases}") )
+}
+complete -F _fal_completions fal
+
 ## `xal` - removes aliases
 ## if no arguments are given, clears all aliases
 function xal() {
