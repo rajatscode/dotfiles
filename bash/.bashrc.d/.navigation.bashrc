@@ -156,6 +156,7 @@ function xn() {
 alias fj="xn "
 
 ## `pushloc` - push a location (default $PWD) onto a stack to visit later
+## NOTE: this is not integrated with pushd/popd and has different behavior
 function pushloc() {
     local path_to_push=$(readlink -f "${1:-$PWD}");
     read_dotfile_vars; # keep SAVED_PATHS_STACK consistent
@@ -173,6 +174,7 @@ alias gl="gotoloc "
 
 ## `poploc` - go back to the last location you saved onto the stack
 ## removes the location from the stack as well
+## NOTE: this is not integrated with pushd/popd and has different behavior
 function poploc() {
     gotoloc;
     SAVED_PATHS_STACK=("${SAVED_PATHS_STACK[@]:1}");
