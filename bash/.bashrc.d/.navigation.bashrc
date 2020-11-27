@@ -94,7 +94,9 @@ alias fa="fal "
 
 _fal_completions() {
     local _stored_aliases=$(ls -1 "$ALIAS_SYMLINK_DIR")
-    COMPREPLY=( $(compgen -W "${_stored_aliases}") )
+    local cur=${COMP_WORDS[COMP_CWORD]}
+
+    COMPREPLY=( $(compgen -W "${_stored_aliases}" -- $cur) )
 }
 complete -F _fal_completions fal
 
