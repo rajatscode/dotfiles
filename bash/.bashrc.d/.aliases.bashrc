@@ -67,6 +67,9 @@ incognito() {
   esac
 }
 
+## untar: for when you forget the flags to extract a tar archive
+alias untar="tar -zxvf "
+
 ## download: download any and every item linked from that page.
 ### USAGE - download https://data.gov
 alias download="wget --random-wait -r -p --no-parent -e robots=off -U mozilla"
