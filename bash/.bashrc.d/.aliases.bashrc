@@ -95,6 +95,9 @@ alias restart="source ~/.bashrc"
 ## bye: clear before exiting to avoid leaking information
 alias bye="clear; exit"
 
+## refresh: go to home dir, clear
+alias refresh="cd; clear"
+
 ## freeport: kill process running on specified port
 freeport() {
   kill -9 $(lsof -t -i:$1) 2>>/dev/null && echo "Killed process on port $1" || echo "No process on port $1" ;
