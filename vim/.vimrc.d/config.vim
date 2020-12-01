@@ -30,6 +30,9 @@ set expandtab
 " Infer how to interpret <TAB> based on position of cursor
 set smarttab
 
+" Combine vim yank/paste with the system clipboard
+set clipboard=unnamed
+
 " Get rid of error sounds
 set noerrorbells
 set novisualbell
@@ -102,6 +105,14 @@ endif
 
 " Turn on Wild menu (command line completion)
 set wildmenu
+
+" On first <Tab>, complete to the longest common string & invoke wildmenu
+" On second <Tab>, just complete first alternative
+" To try this out, type ":color " and then press <Tab>
+set wildmode=longest:full,full
+
+" Show partial command unobtrusively (try with visual mode)
+set showcmd
 
 " Wrap lines
 set wrap
