@@ -91,8 +91,8 @@ else \
     if [ "$?" -eq "0" ]; then \
       echo "'$IGreen'"$(__git_ps1 "(%s)"); \
     else \
-      echo "'$IPurple'"$(__git_ps1 "[%s]"); \
-    fi) '$BYellow' git '$BBlue$PathFull$Color_Off'\$ "; \
+      echo "'$IPurple'"$(__git_ps1 "⁅%s⁆"); \
+    fi) '$BYellow'git '$BBlue$PathFull$Color_Off'\$ "; \
   else \
     echo "'$BGreen$PathFull$Color_Off'\$ "; \
   fi \
