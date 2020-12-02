@@ -64,6 +64,8 @@ Plugin 'mattn/emmet-vim'
 Plugin 'maxbrunsfeld/vim-yankstack'
 " support for a distraction free WriteRoom
 Plugin 'mikewest/vimroom'
+" highlight all trailing whitespace characters
+Plugin 'ntpeters/vim-better-whitespace'
 " file system explorer
 Plugin 'preservim/nerdtree'
 " write HTML faster
@@ -72,7 +74,7 @@ Plugin 'rstacruz/sparkup'
 Plugin 'tandrewnichols/vim-rumrunner'
 " multiple selection, like Sublime Text
 Plugin 'terryma/vim-multiple-cursors'
-" comment/uncomment via gcc/gc
+" comment/uncomment via gcc
 Plugin 'tpope/vim-commentary'
 " git inside vim
 Plugin 'tpope/vim-fugitive'
