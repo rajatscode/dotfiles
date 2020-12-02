@@ -31,7 +31,7 @@ set expandtab
 set smarttab
 
 " Combine vim yank/paste with the system clipboard
-set clipboard=unnamed
+set clipboard^=unnamed,unnamedplus
 
 " Get rid of error sounds
 set noerrorbells
