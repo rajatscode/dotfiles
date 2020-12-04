@@ -36,7 +36,7 @@ let g:vim_isort_config_overrides = {
 " syntastic config for Python, with Black-compatible config
 let g:syntastic_python_flake8_post_args = "--max-line-length 88 --extend-ignore=E203"
 " ALE config for Python, with Black-compatible config
-let g:ale_python_flake8_post_args = "--max-line-length 88 --extend-ignore=E203"
+let g:ale_python_flake8_args = "--max-line-length 88 --extend-ignore=E203"
 
 augroup python
   au!
