@@ -33,7 +33,7 @@ function pcd() {
 alias sd="pcd "
 
 ## vcd - tried cd'ing into a file? whoops, should vim
-## if file/directory doesn't exist, then use mkcd
+## if file/directory doesn't exist, then use pcd
 function vcd() {
     if [[ -d "$@" ]]
     then
@@ -44,7 +44,7 @@ function vcd() {
             cd $(dirname "$@");
             vim $(basename "$@");
         else
-            mkcd "$@";
+            pcd "$@";
         fi
     fi
 }
