@@ -37,19 +37,10 @@ then
 fi
 
 ## install black for code formatting (vim-codefmt compatible)
-if ! command -v black &>> /dev/null
-then
-    python3 -m pip install black &>> /dev/null
-fi
+(python3 -m pip install black &>> /dev/null & )
 
-## install isort for sorting 
-if ! command -v isort &>> /dev/null
-then
-    python3 -m pip install isort &>> /dev/null
-fi
+## install isort for sorting
+(python3 -m pip install isort &>> /dev/null & )
 
 ## install flake8 for linting
-if ! command -v flake8 &>> /dev/null
-then
-    python3 -m pip install flake8 &>> /dev/null
-fi
+(python3 -m pip install flake8 &>> /dev/null & )
