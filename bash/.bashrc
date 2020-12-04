@@ -53,10 +53,12 @@ function ensure_dotfile_syncing() {
     if [ -z $LAST_DOTFILE_SYNC ] || [ $SYNC_CUTOFF -ge $LAST_DOTFILE_SYNC ];
     then
         LAST_DOTFILE_SYNC=`date +%s` ;
-        store_dotfile_var LAST_DOTFILE_SYNC ;
-        wait -n ;
-        (sync_and_adopt_dotfiles &) ;
-        source ~/.bashrc ;
+        # check for internet connection first so syncing doesn't hang
+        wget -q --spider 1.1.1.1 &&
+            sync_and_adopt_dotfiles &&
+            store_dotfile_var LAST_DOTFILE_SYNC &&
+            # source afterwards to avoid need for restarting shell
+            source ~/.bashrc ;
     fi
 }
 
