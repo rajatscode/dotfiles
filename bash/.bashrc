@@ -54,7 +54,9 @@ function ensure_dotfile_syncing() {
     then
         LAST_DOTFILE_SYNC=`date +%s` ;
         store_dotfile_var LAST_DOTFILE_SYNC ;
+        wait -n ;
         (sync_and_adopt_dotfiles &) ;
+        source ~/.bashrc ;
     fi
 }
 

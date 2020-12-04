@@ -25,8 +25,6 @@ function adopt_dotfiles() {
     ln -sf "$DOTFILE_SYNC_DIR/git/.gitconfig" $HOME/.gitconfig ;
     ln -sf "$DOTFILE_SYNC_DIR/tmux/.tmux.conf" $HOME/.tmux.conf ;
     ln -sf "$DOTFILE_SYNC_DIR/vim/.vimrc" $HOME/.vimrc ;
-    # source the new bashrc so the shell doesn't need to be restarted
-    source ~/.bashrc ;
 }
 
 if [[ -z "${DOTFILES_HOME_DIR}" ]]
