@@ -18,6 +18,9 @@ function sync_dotfiles() {
 ## WARNING: this will override existing dotfiles and replace them with symlinks
 ## to use these dotfiles alongside personal configurations:
 ## * for Bash, store/source your personal configs in ~/.bash_profile
+## * for Vim, store/source your personal configs in ~/.vim_profile
+## * for Git, store/source your personal configs in ~/.gitprofile
+## * for Tmux, store/source your personal configs in ~/.tmux.profile
 function adopt_dotfiles() {
     local DOTFILE_SYNC_DIR=$1;
 

@@ -43,7 +43,8 @@ To get started with these dotfiles:
    `$DOTFILES_HOME_DIR` environment variable, before you run the script). To
    run the script, you can use: ``` source <(curl -s
    https://raw.githubusercontent.com/rajatscode/dotfiles/main/sync.sh) ```
-2. Consider whether you want to enable autosync (which will automatically keep
+2. Source `~/.bashrc` to load your new dotfiles.
+3. Consider whether you want to enable autosync (which will automatically keep
    your dotfiles in line with `main`). This is controlled by the
    `$DOTFILES_AUTOSYNC` environment variable; set it to true to enable
    autosync. To keep autosync disabled, either leave `$DOTFILES_AUTOSYNC` unset
