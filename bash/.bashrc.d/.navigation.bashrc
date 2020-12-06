@@ -92,13 +92,13 @@ function fal() {
 }
 alias fa="fal "
 
-_fal_completions() {
+_alias_completions() {
     local _stored_aliases=$(ls -1 "$ALIAS_SYMLINK_DIR")
     local cur=${COMP_WORDS[COMP_CWORD]}
 
     COMPREPLY=( $(compgen -W "${_stored_aliases}" -- $cur) )
 }
-complete -F _fal_completions fal
+complete -F _alias_completions fal
 
 ## `xal` - removes aliases
 ## if no arguments are given, clears all aliases
@@ -115,6 +115,8 @@ function xal() {
         rm "$ALIAS_SYMLINK_DIR/$@" 2> /dev/null ;
     fi
 }
+
+complete -F _alias_completions xal
 
 ## `lal` - lists aliases
 alias lal="(stat -c\"%N %Y\" $ALIAS_SYMLINK_DIR/* | sed 's~'\"$ALIAS_SYMLINK_DIR\"'/~~' | sort -nrk 4 | rev | cut -d \" \" -f 2- | rev) 2>> /dev/null"
