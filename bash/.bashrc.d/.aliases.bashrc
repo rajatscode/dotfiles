@@ -17,7 +17,7 @@ alias lsm="ls -hlAFG"
 
 ## `dir` is wasted on `ls -C -b` - use it for ls'ing only directories
 dir() {
-    ls -F -- $1 | grep /
+  ls -F -- $1 | grep /
 }
 
 ## cls: clear, with listed directories
@@ -25,19 +25,19 @@ alias cls="clear;ls -hlAFG"
 
 ## updoot: aggressively update _everything_ (platform-dependent)
 if [ ! -z "$(which brew)" ]; then
-    alias updoot="brew update && brew upgrade"
+  alias updoot="brew update && brew upgrade"
 elif [ ! -z "$(which pacman)" ]; then
-    alias updoot="sudo pacman -Syyu"
+  alias updoot="sudo pacman -Syyu"
 elif [ ! -z "$(which apt)" ]; then
-    alias updoot="sudo apt update && sudo apt upgrade && sudo apt full-upgrade"
+  alias updoot="sudo apt update && sudo apt upgrade && sudo apt full-upgrade"
 elif [ ! -z "$(which apt-get)" ]; then
-    alias updoot ="sudo apt-get update && sudo apt-get upgrade && sudo apt-get dist-upgrade"
+  alias updoot ="sudo apt-get update && sudo apt-get upgrade && sudo apt-get dist-upgrade"
 elif [ ! -z "$(which dnf)" ]; then
-    alias updoot="sudo dnf upgrade"
+  alias updoot="sudo dnf upgrade"
 elif [ ! -z "$(which yum)" ]; then
-    alias updoot="su -c 'yum update'"
+  alias updoot="su -c 'yum update'"
 elif [ ! -z "$(which zypper)" ]; then
-    alias updoot="sudo zypper update"
+  alias updoot="sudo zypper update"
 fi
 
 ## quick curls
@@ -58,12 +58,15 @@ alias used="du -ch -d 1"
 incognito() {
   case $1 in
     start)
-    set +o history;;
+      set +o history
+      ;;
     stop)
-    set -o history;;
+      set -o history
+      ;;
     *)
-    echo -e "USAGE: incognito start - disable command history.
-       incognito stop  - enable command history.";;
+      echo -e "USAGE: incognito start - disable command history.
+       incognito stop  - enable command history."
+      ;;
   esac
 }
 
@@ -76,7 +79,11 @@ alias download="wget --random-wait -r -p --no-parent -e robots=off -U mozilla"
 
 ## pman: render the given manpage in Preview.app
 if [ "$(uname -s)" == "Darwin" ]; then
-  pman() { ps=`mktemp -t manpageXXXX`.ps ; man -t $@ > "$ps" ; open "$ps" ; }
+  pman() {
+    ps=$(mktemp -t manpageXXXX).ps
+    man -t $@ > "$ps"
+    open "$ps"
+  }
 fi
 
 ## reveal: what folder am I in?
@@ -100,10 +107,10 @@ alias refresh="cd; clear"
 
 ## freeport: kill process running on specified port
 freeport() {
-  kill -9 $(lsof -t -i:$1) 2>>/dev/null && echo "Killed process on port $1" || echo "No process on port $1" ;
+  kill -9 $(lsof -t -i:$1) 2>> /dev/null && echo "Killed process on port $1" || echo "No process on port $1"
 }
 
 ## source ~/.bash_aliases if it exists
 if [ -f ~/.bash_aliases ]; then
-    . ~/.bash_aliases
+  . ~/.bash_aliases
 fi
