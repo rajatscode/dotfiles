@@ -157,5 +157,5 @@ autocmd BufRead *.twig set syntax=html filetype=html
 augroup vimscript
   au!
   autocmd FileType vim
-  autocmd BufWritePre * call Preserve('normal gg=G')
+        \ autocmd BufWritePre * call Preserve('normal gg=G')
 augroup end
