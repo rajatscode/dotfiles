@@ -25,6 +25,16 @@ fi
 GOOGLE_JAVA_FMT_PATH=$(ls $DOTFILES_INSTALLS_DIR/*google-java-format*all-deps*jar | head -n 1) ;
 export GOOGLE_JAVA_FMT_PATH=$GOOGLE_JAVA_FMT_PATH
 
+## install shfmt, which is useful for vim-codefmt
+if ! command -v shfmt &>> /dev/null
+then
+    if command -v snap &>> /dev/null
+    then
+        echo "Installing shfmt for formatting shell files..."
+        snap install shfmt
+    fi
+fi
+
 ## make sure pip3 is installed
 if ! command -v pip3 &>> /dev/null
 then
