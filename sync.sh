@@ -6,12 +6,12 @@
 
 ## convenience function to sync dotfiles from git
 function sync_dotfiles() {
-    local DOTFILE_SRC_REPO="https://github.com/rajatscode/dotfiles"
-    local DOTFILE_SYNC_DIR=$1;
+  local DOTFILE_SRC_REPO="https://github.com/rajatscode/dotfiles"
+  local DOTFILE_SYNC_DIR=$1
 
-    git clone $DOTFILE_SRC_REPO "$DOTFILE_SYNC_DIR" &> /dev/null ||
-	(git -C $DOTFILE_SYNC_DIR fetch --all &> /dev/null &&
-	 git -C $DOTFILE_SYNC_DIR reset --hard origin/main &> /dev/null) ;
+  git clone $DOTFILE_SRC_REPO "$DOTFILE_SYNC_DIR" &> /dev/null ||
+    (git -C $DOTFILE_SYNC_DIR fetch --all &> /dev/null &&
+      git -C $DOTFILE_SYNC_DIR reset --hard origin/main &> /dev/null)
 }
 
 ## convenience function to adopt the dotfiles in a directory
@@ -22,18 +22,19 @@ function sync_dotfiles() {
 ## * for Git, store/source your personal configs in ~/.gitprofile
 ## * for Tmux, store/source your personal configs in ~/.tmux.profile
 function adopt_dotfiles() {
-    local DOTFILE_SYNC_DIR=$1;
+  local DOTFILE_SYNC_DIR=$1
 
-    ln -sf "$DOTFILE_SYNC_DIR/bash/.bashrc" $HOME/.bashrc ;
-    ln -sf "$DOTFILE_SYNC_DIR/git/.gitconfig" $HOME/.gitconfig ;
-    ln -sf "$DOTFILE_SYNC_DIR/tmux/.tmux.conf" $HOME/.tmux.conf ;
-    ln -sf "$DOTFILE_SYNC_DIR/vim/.vimrc" $HOME/.vimrc ;
+  ln -sf "$DOTFILE_SYNC_DIR/bash/.bashrc" $HOME/.bashrc
+  ln -sf "$DOTFILE_SYNC_DIR/git/.gitconfig" $HOME/.gitconfig
+  ln -sf "$DOTFILE_SYNC_DIR/tmux/.tmux.conf" $HOME/.tmux.conf
+  ln -sf "$DOTFILE_SYNC_DIR/vim/.vimrc" $HOME/.vimrc
 }
 
-if [[ -z "${DOTFILES_HOME_DIR}" ]]
-    then DOTFILE_SYNC_DIR="${HOME}/.configs/dotfiles" ;
-    else DOTFILE_SYNC_DIR="${DOTFILES_HOME_DIR}" ;
+if [[ -z "${DOTFILES_HOME_DIR}" ]]; then
+  DOTFILE_SYNC_DIR="${HOME}/.configs/dotfiles"
+else
+  DOTFILE_SYNC_DIR="${DOTFILES_HOME_DIR}"
 fi
-sync_dotfiles $DOTFILE_SYNC_DIR ;
-adopt_dotfiles $DOTFILE_SYNC_DIR ;
-unset DOTFILE_SYNC_DIR ;
+sync_dotfiles $DOTFILE_SYNC_DIR
+adopt_dotfiles $DOTFILE_SYNC_DIR
+unset DOTFILE_SYNC_DIR
