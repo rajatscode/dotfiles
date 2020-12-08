@@ -42,7 +42,7 @@ fi
 
 ## quick curls
 ### weather: fetch weather for city/zip code
-weather() { curl wttr.in/"$1"; }
+weather() { curl "wttr.in/""$1""?u" ; }
 ### myip: print IP address
 alias myip="curl icanhazip.com"
 
