@@ -46,6 +46,11 @@ weather() { curl "wttr.in/""$1""?u" ; }
 ### myip: print IP address
 alias myip="curl icanhazip.com"
 
+## connected: whether internet access is working
+## should be &&'d or ||'d
+alias connected="wget -q --spider 1.1.1.1"
+alias internet="connected && echo 👍 || echo 👎"
+
 ## ports: lists all ports open and which programs are using them
 alias ports="netstat -tulpn"
 
