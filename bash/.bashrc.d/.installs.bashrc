@@ -49,3 +49,6 @@ fi
 
 ## install flake8 for linting
 (python3 -m pip install flake8 &>> /dev/null &)
+
+## install yfinance for the `stonks` alias
+(python3 -m pip install yfinance &>> /dev/null &)
