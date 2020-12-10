@@ -51,6 +51,12 @@ alias myip="curl icanhazip.com"
 alias connected="wget -q --spider 1.1.1.1"
 alias internet="connected && echo 👍 || echo 👎"
 
+## stonks: query Yahoo Finance API for a given ticker
+function stonks() {
+  local ticker=$1;
+  python3 -c "import yfinance; stonk = yfinance.Ticker('$ticker'); print(stonk.info.get('longName'), stonk.ticker, '\n', stonk.history(period='5d'));"
+}
+
 ## ports: lists all ports open and which programs are using them
 alias ports="netstat -tulpn"
 
