@@ -71,7 +71,7 @@ function al() {
     local alias_target="${2:-$PWD}";
     # delete the alias, if it already exists, to avoid wonky behavior
     xal $alias_name 2>>/dev/null ;
-    ln -sf "$(realpath $alias_target)" "$ALIAS_SYMLINK_DIR""/""$alias_name" ;
+    ln -sf "$(realpath "$alias_target")" "$ALIAS_SYMLINK_DIR""/""$alias_name" ;
 }
 
 ## `fal` - follow alias; use aliases created by al
@@ -213,7 +213,7 @@ function deldir() {
     then
         local dirtodel=$PWD ;
         command cd .. ;
-        rm -r $dirtodel ;
+        rm -r "$dirtodel" ;
     fi
 }
 alias rd="deldir "
