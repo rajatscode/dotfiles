@@ -31,6 +31,7 @@ let g:ctrlp_custom_ignore = 'node_modules\|^\.DS_Store\|^\.git\|^\.coffee'
 let g:user_emmet_mode='a'
 
 " snipMate
+let g:snipMate = { 'snippet_version' : 1 }
 " support Ctrl+J
 ino <c-j> <c-r>=snipMate#TriggerSnippet()<cr>
 snor <c-j> <esc>i<right><c-r>=snipMate#TriggerSnippet()<cr>
@@ -67,25 +68,25 @@ au FileType mako vmap Si S"i${ _(<esc>2f"a) }<esc>
 
 " lightline
 let g:lightline = {
-      \ 'colorscheme': 'wombat',
-      \ 'active': {
-      \   'left': [ ['mode', 'paste'],
-      \             ['fugitive', 'readonly', 'filename', 'modified'] ],
-      \   'right': [ [ 'lineinfo' ], ['percent'] ]
-      \ },
-      \ 'component': {
-      \   'readonly': '%{&filetype=="help"?"":&readonly?"🔒":""}',
-      \   'modified': '%{&filetype=="help"?"":&modified?"+":&modifiable?"":"-"}',
-      \   'fugitive': '%{exists("*fugitive#head")?fugitive#head():""}'
-      \ },
-      \ 'component_visible_condition': {
-      \   'readonly': '(&filetype!="help"&& &readonly)',
-      \   'modified': '(&filetype!="help"&&(&modified||!&modifiable))',
-      \   'fugitive': '(exists("*fugitive#head") && ""!=fugitive#head())'
-      \ },
-      \ 'separator': { 'left': ' ', 'right': ' ' },
-      \ 'subseparator': { 'left': ' ', 'right': ' ' }
-      \ }
+                  \ 'colorscheme': 'wombat',
+                  \ 'active': {
+                  \   'left': [ ['mode', 'paste'],
+                  \             ['fugitive', 'readonly', 'filename', 'modified'] ],
+                  \   'right': [ [ 'lineinfo' ], ['percent'] ]
+                  \ },
+                  \ 'component': {
+                  \   'readonly': '%{&filetype=="help"?"":&readonly?"🔒":""}',
+                  \   'modified': '%{&filetype=="help"?"":&modified?"+":&modifiable?"":"-"}',
+                  \   'fugitive': '%{exists("*fugitive#head")?fugitive#head():""}'
+                  \ },
+                  \ 'component_visible_condition': {
+                  \   'readonly': '(&filetype!="help"&& &readonly)',
+                  \   'modified': '(&filetype!="help"&&(&modified||!&modifiable))',
+                  \   'fugitive': '(exists("*fugitive#head") && ""!=fugitive#head())'
+                  \ },
+                  \ 'separator': { 'left': ' ', 'right': ' ' },
+                  \ 'subseparator': { 'left': ' ', 'right': ' ' }
+                  \ }
 
 " vim-fugitive - make sure fugitive#head is set
 au BufReadPre,BufNewFile * silent echom fugitive#head()
@@ -101,10 +102,10 @@ let g:go_fmt_command = "goimports"
 
 " Syntastic
 let g:ale_linters = {
-\   'javascript': ['jshint'],
-\   'python': ['flake8'],
-\   'go': ['go', 'golint', 'errcheck']
-\}
+                  \   'javascript': ['jshint'],
+                  \   'python': ['flake8'],
+                  \   'go': ['go', 'golint', 'errcheck']
+                  \}
 
 nmap <silent> <leader>a <Plug>(ale_next_wrap)
 
