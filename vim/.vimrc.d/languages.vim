@@ -92,6 +92,9 @@ augroup python
   autocmd FileType python set cindent
   autocmd FileType python set cinkeys-=0#
   autocmd FileType python set indentkeys-=0#
+
+  " turn off vim-sleuth, which messes up expandtab for Python
+  autocmd FileType python let b:sleuth_automatic = 0
 augroup END
 
 augroup css
