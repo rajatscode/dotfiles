@@ -4,7 +4,9 @@
 ### stay interested in filenames starting with '.'
 shopt -s dotglob
 ### enable '**' to match deep search within directory structure
-shopt -s globstar
+if [ "$(uname -s)" != "Darwin" ]; then
+  shopt -s globstar
+fi
 ### use case-sensitive matching
 shopt -u nocaseglob
 ### enable nullglob-esque '*' but don't back-off to empty matches
@@ -12,7 +14,9 @@ shopt -s failglob
 shopt -u nullglob
 ### catch spelling errors when using cd and in directory names
 shopt -s cdspell
-shopt -s dirspell
+if [ "$(uname -s)" != "Darwin" ]; then
+  shopt -s dirspell
+fi
 
 ## lesspipe - make less work for binary/non-text input files
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
