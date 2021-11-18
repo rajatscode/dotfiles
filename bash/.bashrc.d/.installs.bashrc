@@ -15,40 +15,43 @@ function install_from_github_repo() {
 }
 
 ## install google-java-format, which is useful for vim-codefmt
-if compgen -G "${DOTFILES_INSTALLS_DIR}""/*google-java-format*all-deps*jar" &>> /dev/null; then
+if [ "$(uname -s)" == "Darwin" ]; then
   :
+elif compgen -G "${DOTFILES_INSTALLS_DIR}""/*google-java-format*all-deps*jar" &> /dev/null; then
+  :
+  GOOGLE_JAVA_FMT_PATH=$(ls $DOTFILES_INSTALLS_DIR/*google-java-format*all-deps*jar | head -n 1)
+  export GOOGLE_JAVA_FMT_PATH=$GOOGLE_JAVA_FMT_PATH
 else
   install_from_github_repo "google/google-java-format" "all-deps.jar"
+  GOOGLE_JAVA_FMT_PATH=$(ls $DOTFILES_INSTALLS_DIR/*google-java-format*all-deps*jar | head -n 1)
+  export GOOGLE_JAVA_FMT_PATH=$GOOGLE_JAVA_FMT_PATH
 fi
 
-GOOGLE_JAVA_FMT_PATH=$(ls $DOTFILES_INSTALLS_DIR/*google-java-format*all-deps*jar | head -n 1)
-export GOOGLE_JAVA_FMT_PATH=$GOOGLE_JAVA_FMT_PATH
-
 ## install shfmt, which is useful for vim-codefmt
-if ! command -v shfmt &>> /dev/null; then
-  if command -v snap &>> /dev/null; then
+if ! command -v shfmt &> /dev/null; then
+  if command -v snap &> /dev/null; then
     echo "Installing shfmt for formatting shell files..."
     snap install shfmt
   fi
 fi
 
 ## make sure pip3 is installed
-if ! command -v pip3 &>> /dev/null; then
-  if ! command -v python3 &>> /dev/null; then
-    (curl -s https://bootstrap.pypa.io/get-pip.py | python) &>> /dev/null
+if ! command -v pip3 &> /dev/null; then
+  if ! command -v python3 &> /dev/null; then
+    (curl -s https://bootstrap.pypa.io/get-pip.py | python) &> /dev/null
   else
-    (curl -s https://bootstrap.pypa.io/get-pip.py | python3) &>> /dev/null
+    (curl -s https://bootstrap.pypa.io/get-pip.py | python3) &> /dev/null
   fi
 fi
 
 ## install black for code formatting (vim-codefmt compatible)
-(python3 -m pip install black &>> /dev/null &)
+(python3 -m pip install black &> /dev/null &)
 
 ## install isort for sorting
-(python3 -m pip install isort &>> /dev/null &)
+(python3 -m pip install isort &> /dev/null &)
 
 ## install flake8 for linting
-(python3 -m pip install flake8 &>> /dev/null &)
+(python3 -m pip install flake8 &> /dev/null &)
 
 ## install yfinance for the `stonks` alias
-(python3 -m pip install yfinance &>> /dev/null &)
+(python3 -m pip install yfinance &> /dev/null &)

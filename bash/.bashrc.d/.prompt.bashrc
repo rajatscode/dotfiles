@@ -1,5 +1,7 @@
 # config to handle the prompt
 
+source ~/.git-prompt.sh
+
 # Reset
 Color_Off="\[\033[0m\]" # Text Reset
 
