@@ -20,20 +20,6 @@ So be it, until victory is GNU's and there is no technical debt, but maintainabi
 
 ---
 
-## What's New? 🚀
-
-This is a **complete redesign** of my dotfiles with:
-
-- **Multi-Agent Parallelization Harness** - Run multiple AI coding sessions in parallel
-- **Cross-Platform Support** - Linux, macOS, Windows WSL
-- **Multiple Shell Support** - Bash, Zsh, Fish with full feature parity
-- **Multiple VCS Support** - Git, Mercurial, Jujutsu
-- **Multiple Editor Support** - Vim, Neovim, Zed
-- **Modular Architecture** - GNU Stow-based configuration management
-- **Navigation Features** - Directory aliasing and navigation helpers
-- **Interactive Installer** - Smart, user-friendly setup with per-tool selection
-- **Extensive Documentation** - Actually know what everything does!
-
 ## Quick Start
 
 ```bash
