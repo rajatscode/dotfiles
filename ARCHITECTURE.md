@@ -6,7 +6,7 @@ This is a next-generation dotfiles setup designed for:
 - **Cross-platform support**: Linux, macOS, Windows WSL
 - **Modular management**: Using GNU Stow for symlink management
 - **AI-first workflows**: Built-in harness for parallelized AI coding sessions
-- **Preservation of proven features**: All the navigation wizardry from the original setup
+- **Navigation system**: Directory navigation and aliasing
 - **Easy adoption**: Interactive installer with sensible defaults
 
 ---
@@ -31,7 +31,7 @@ dotfiles/
 │   │   ├── .bashrc
 │   │   └── .bashrc.d/
 │   │       ├── 00-init.bashrc           # Initialization
-│   │       ├── 10-navigation.bashrc     # Your legendary navigation system
+│   │       ├── 10-navigation.bashrc     # Navigation system
 │   │       ├── 20-aliases.bashrc        # Handy aliases
 │   │       ├── 30-git.bashrc            # Git shortcuts
 │   │       ├── 40-agents.bashrc         # AI agent workflow helpers
@@ -271,20 +271,18 @@ acd() {
 export AGENT_SESSION=$(agent current 2>/dev/null)
 ```
 
-### 4. Preserved Features from Original Dotfiles
+### 4. Navigation System
 
-**All your navigation wizardry is kept**:
+**Directory navigation and aliasing**:
 - `al`, `fal`, `xal`, `lal` - symlink aliasing system
 - `pcd` - smart cd with backoff
 - `vcd` - cd into files → vim
 - `mkcd`, `up`, `dn`, `bk` - navigation helpers
 - `pushloc`, `gotoloc`, `poploc` - location stack
 - `xn`, `fk` - expanded navigation
-
-**Enhanced with**:
 - Cross-shell support (bash + fish versions)
 - Integration with agent sessions
-- Better tab completion
+- Tab completion support
 
 ### 5. Cross-Platform Package Management
 
@@ -376,18 +374,6 @@ export AGENT_SESSION=$(agent current 2>/dev/null)
 │ → Run 'agent new' to start          │
 └─────────────────────────────────────┘
 ```
-
----
-
-## Migration from Old Dotfiles
-
-For existing users, `install.sh` will:
-
-1. **Backup existing dotfiles** to `~/dotfiles-backup-YYYYMMDD/`
-2. **Import custom configs** from `.bash_profile`, `.gitprofile`, etc.
-3. **Migrate aliases** from `.bash_aliases`
-4. **Preserve git identity** from existing `.gitconfig`
-5. **Offer side-by-side mode** (install to `~/.dotfiles-new/` first to test)
 
 ---
 
@@ -533,7 +519,7 @@ release_lock() {
 
 1. **Modularity**: Everything is a stow package
 2. **Interactivity**: Installer asks, never assumes
-3. **Preservation**: Keep what works (navigation.bashrc!)
+3. **Functionality**: Rich feature set including advanced navigation
 4. **Extensibility**: Easy to add new modules/features
 5. **Safety**: Backups, validation, dry-run modes
 6. **Documentation**: Extensive inline comments and guides
@@ -542,4 +528,4 @@ release_lock() {
 
 ---
 
-This architecture provides a solid foundation for a truly modern, powerful, and future-proof dotfiles system. Let's build it! 🚀
+---
