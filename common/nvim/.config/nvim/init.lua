@@ -1,4 +1,4 @@
--- Neovim Configuration - Pimped Dotfiles Edition
+-- Neovim Configuration
 -- Modern Lua-based config for Neovim 0.8+
 
 -- ============================================================================

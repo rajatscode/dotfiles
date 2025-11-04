@@ -1,4 +1,4 @@
-# Arch Linux packages - Pimped Dotfiles Edition
+# Arch Linux packages
 
 # Core tools
 stow

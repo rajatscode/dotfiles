@@ -1,4 +1,4 @@
-# ~/.bashrc - Pimped Dotfiles Edition
+# ~/.bashrc
 # Cross-platform, modular, AI-first bash configuration
 #
 # For personal customizations, use ~/.bash_profile (auto-sourced at the end)
@@ -153,7 +153,7 @@ fi
 # ============================================================================
 
 if [ -n "${DOTFILES_SHOW_WELCOME:-}" ]; then
-    echo -e "\033[0;36mPimped Dotfiles loaded successfully!\033[0m"
+    echo -e "\033[0;36mDotfiles loaded successfully!\033[0m"
     if command -v agent &>/dev/null; then
         echo -e "\033[0;32m✓ Agent tools available\033[0m"
         if [ -n "${AGENT_SESSION:-}" ]; then

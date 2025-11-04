@@ -1,4 +1,4 @@
-# Pimped Dotfiles Architecture
+# Dotfiles Architecture
 
 ## Overview
 

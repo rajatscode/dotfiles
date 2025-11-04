@@ -1,4 +1,4 @@
-# Brewfile for macOS - Pimped Dotfiles Edition
+# Brewfile for macOS
 
 tap "homebrew/bundle"
 tap "homebrew/cask-fonts"
