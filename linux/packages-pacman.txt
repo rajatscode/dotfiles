@@ -1,0 +1,54 @@
+# Arch Linux packages - Pimped Dotfiles Edition
+
+# Core tools
+stow
+git
+fzf
+ripgrep
+fd
+bat
+tmux
+curl
+wget
+base-devel
+
+# Shells
+fish
+bash-completion
+
+# Editors
+neovim
+vim
+
+# Development
+github-cli
+python
+python-pip
+nodejs
+npm
+go
+rust
+
+# Window management
+i3-gaps
+i3status
+i3lock
+sway
+waybar
+
+# Terminal
+alacritty
+
+# Utilities
+htop
+btop
+ncdu
+tree
+unzip
+jq
+starship
+
+# Fonts
+ttf-jetbrains-mono-nerd
+ttf-fira-code
+ttf-hack-nerd

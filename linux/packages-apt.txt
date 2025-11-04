@@ -1,0 +1,50 @@
+# Debian/Ubuntu packages - Pimped Dotfiles Edition
+
+# Core tools
+stow
+git
+fzf
+ripgrep
+fd-find
+bat
+tmux
+curl
+wget
+build-essential
+
+# Shells
+fish
+bash-completion
+
+# Editors
+neovim
+vim
+
+# Development
+gh
+python3
+python3-pip
+python3-venv
+nodejs
+npm
+
+# Window management (i3/sway)
+i3
+i3status
+i3lock
+sway
+waybar
+
+# Terminal
+alacritty
+
+# Utilities
+htop
+ncdu
+tree
+unzip
+jq
+
+# Fonts
+fonts-firacode
+fonts-hack-ttf

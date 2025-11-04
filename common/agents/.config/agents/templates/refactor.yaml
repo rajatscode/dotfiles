@@ -1,0 +1,45 @@
+# Refactoring Template
+# Used when creating refactoring sessions
+
+name: "Refactoring"
+description: "Template for code refactoring"
+
+files:
+  context.md: |
+    # Refactor: {{REFACTOR_NAME}}
+
+    ## Goal
+    [What needs to be refactored and why]
+
+    ## Current State
+    [Describe the current code structure]
+
+    ## Target State
+    [Describe the desired code structure]
+
+    ## Strategy
+    1. Step 1
+    2. Step 2
+    3. Step 3
+
+    ## Progress
+    - [ ] Analyze current code
+    - [ ] Design new structure
+    - [ ] Implement refactoring
+    - [ ] Ensure tests pass
+    - [ ] Update documentation
+    - [ ] Verify no regressions
+
+    ## Tests
+    [List tests that verify the refactoring doesn't break functionality]
+
+    ## Notes
+    [Implementation notes]
+
+  notes.md: |
+    # Refactoring Notes
+
+    ## {{DATE}}
+    [Your notes here]
+
+  shared-tempfiles/.gitkeep: ""

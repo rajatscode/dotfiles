@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+
+# context-sync - Sync context between agent sessions
+#
+# This script helps synchronize shared context files between multiple
+# agent sessions, enabling parallel AI coding workflows with shared state.
+#
+# Usage:
+#   context-sync --watch           # Watch for changes and sync automatically
+#   context-sync --once            # Sync once and exit
+#   context-sync --status          # Show sync status
+
+set -euo pipefail
+
+AGENT_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/agents"
+AGENT_CONTEXTS_DIR="$AGENT_CONFIG_DIR/contexts"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+WATCH_MODE=false
+ONCE_MODE=false
+STATUS_MODE=false
+INTERVAL=5  # seconds
+
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+log_sync() { echo -e "${CYAN}[SYNC]${NC} $1"; }
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --watch|-w)
+            WATCH_MODE=true
+            shift
+            ;;
+        --once)
+            ONCE_MODE=true
+            shift
+            ;;
+        --status|-s)
+            STATUS_MODE=true
+            shift
+            ;;
+        --interval=*)
+            INTERVAL="${1#*=}"
+            shift
+            ;;
+        --help|-h)
+            cat <<EOF
+context-sync - Sync context between agent sessions
+
+USAGE:
+    context-sync [mode] [options]
+
+MODES:
+    --watch, -w       Watch for changes and sync automatically
+    --once            Sync once and exit
+    --status, -s      Show current sync status
+
+OPTIONS:
+    --interval=<n>    Watch interval in seconds (default: 5)
+    --help, -h        Show this help message
+
+DESCRIPTION:
+    Synchronizes shared context files in the global context directory
+    across all active agent sessions. This enables parallel AI coding
+    workflows where multiple agents can share architectural notes,
+    conventions, and other important context.
+
+EXAMPLES:
+    # Watch and sync continuously
+    context-sync --watch
+
+    # Sync once
+    context-sync --once
+
+    # Show sync status
+    context-sync --status
+EOF
+            exit 0
+            ;;
+        *)
+            log_error "Unknown argument: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Default to once mode if nothing specified
+if ! $WATCH_MODE && ! $ONCE_MODE && ! $STATUS_MODE; then
+    ONCE_MODE=true
+fi
+
+# Get list of repos with contexts
+get_repos() {
+    if [[ ! -d "$AGENT_CONTEXTS_DIR" ]]; then
+        return
+    fi
+    find "$AGENT_CONTEXTS_DIR" -mindepth 1 -maxdepth 1 -type d -exec basename {} \;
+}
+
+# Sync global context for a repo
+sync_repo_context() {
+    local repo="$1"
+    local repo_context_dir="$AGENT_CONTEXTS_DIR/$repo"
+    local global_dir="$repo_context_dir/global"
+
+    if [[ ! -d "$global_dir" ]]; then
+        return
+    fi
+
+    # Track if any changes were synced
+    local changes=false
+
+    # Find all session directories
+    for session_dir in "$repo_context_dir"/session-*; do
+        [[ -d "$session_dir" ]] || continue
+
+        local session_name=$(basename "$session_dir" | sed 's/^session-//')
+
+        # Check if session is locked
+        if [[ -f "$session_dir/.lock" ]]; then
+            log_warn "Session '$session_name' is locked, skipping..."
+            continue
+        fi
+
+        # Sync global files to session (if newer)
+        for global_file in "$global_dir"/*; do
+            [[ -f "$global_file" ]] || continue
+
+            local filename=$(basename "$global_file")
+            local session_file="$session_dir/$filename"
+
+            # Skip if session has a lock on this specific file
+            if [[ -f "$session_file.lock" ]]; then
+                continue
+            fi
+
+            # Copy if doesn't exist in session or global is newer
+            if [[ ! -f "$session_file" ]] || [[ "$global_file" -nt "$session_file" ]]; then
+                log_sync "Syncing $filename to session '$session_name'"
+                cp "$global_file" "$session_file"
+                changes=true
+            fi
+        done
+
+        # Sync session-specific shared files back to global (if marked)
+        # Files in session_dir/shared-tempfiles/ are synced back
+        if [[ -d "$session_dir/shared-tempfiles" ]]; then
+            for shared_file in "$session_dir/shared-tempfiles"/*; do
+                [[ -f "$shared_file" ]] || continue
+
+                local filename=$(basename "$shared_file")
+                local global_shared="$global_dir/shared-$session_name-$filename"
+
+                if [[ ! -f "$global_shared" ]] || [[ "$shared_file" -nt "$global_shared" ]]; then
+                    log_sync "Syncing shared file from '$session_name': $filename"
+                    cp "$shared_file" "$global_shared"
+                    changes=true
+                fi
+            done
+        fi
+    done
+
+    if $changes; then
+        log_success "Synced context for repo: $repo"
+    fi
+}
+
+# Show sync status
+show_status() {
+    echo -e "${BLUE}Context Sync Status${NC}"
+    echo ""
+
+    local repos=($(get_repos))
+
+    if [[ ${#repos[@]} -eq 0 ]]; then
+        log_info "No repositories with contexts found"
+        return
+    fi
+
+    for repo in "${repos[@]}"; do
+        echo -e "${CYAN}Repository: $repo${NC}"
+
+        local repo_context_dir="$AGENT_CONTEXTS_DIR/$repo"
+        local global_dir="$repo_context_dir/global"
+
+        if [[ -d "$global_dir" ]]; then
+            local file_count=$(find "$global_dir" -type f | wc -l)
+            echo "  Global context files: $file_count"
+        else
+            echo "  Global context: none"
+        fi
+
+        local session_count=$(find "$repo_context_dir" -mindepth 1 -maxdepth 1 -type d -name "session-*" | wc -l)
+        echo "  Active sessions: $session_count"
+
+        # List sessions
+        for session_dir in "$repo_context_dir"/session-*; do
+            [[ -d "$session_dir" ]] || continue
+            local session_name=$(basename "$session_dir" | sed 's/^session-//')
+            local locked=""
+            [[ -f "$session_dir/.lock" ]] && locked=" ${YELLOW}[LOCKED]${NC}"
+            echo -e "    - $session_name$locked"
+        done
+
+        echo ""
+    done
+}
+
+# Sync once
+sync_once() {
+    log_info "Starting context sync..."
+
+    local repos=($(get_repos))
+
+    if [[ ${#repos[@]} -eq 0 ]]; then
+        log_info "No repositories with contexts to sync"
+        return
+    fi
+
+    for repo in "${repos[@]}"; do
+        sync_repo_context "$repo"
+    done
+
+    log_success "Context sync complete"
+}
+
+# Watch and sync continuously
+sync_watch() {
+    log_info "Starting context sync in watch mode (interval: ${INTERVAL}s)"
+    log_info "Press Ctrl+C to stop"
+    echo ""
+
+    while true; do
+        sync_once
+        sleep "$INTERVAL"
+    done
+}
+
+# Main
+main() {
+    if [[ ! -d "$AGENT_CONTEXTS_DIR" ]]; then
+        log_warn "No agent contexts directory found: $AGENT_CONTEXTS_DIR"
+        log_info "Create agent sessions with: agent new <session-name>"
+        exit 0
+    fi
+
+    if $STATUS_MODE; then
+        show_status
+    elif $WATCH_MODE; then
+        sync_watch
+    elif $ONCE_MODE; then
+        sync_once
+    fi
+}
+
+main

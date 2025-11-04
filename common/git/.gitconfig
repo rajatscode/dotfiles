@@ -1,0 +1,99 @@
+# Git Configuration - Pimped Dotfiles Edition
+# Personal info (name, email) should be in ~/.gitprofile
+
+[include]
+	path = ~/.gitprofile
+
+[core]
+	editor = vim
+	excludesfile = ~/.gitignore_global
+	autocrlf = input
+
+[init]
+	defaultBranch = main
+
+[alias]
+	# Shortcuts
+	st = status
+	co = checkout
+	br = branch
+	ci = commit
+	amend = commit -a --amend --no-edit
+
+	# Pretty logs
+	lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+	refer = !git --no-pager show -s --abbrev=12 --pretty='tformat:%h (\"%s\")'
+	clog = log --date=format-local:'%a %b %d %H:%M:%S %Y' --pretty='%C(auto) %h %cd %d %C(red)(%aN)%C(reset) %<(200,trunc)%s'
+	glog = !git clog --graph
+	alog = !git glog $(git branch --list | sed -e 's/^[ *]*//' | tr '\n' ' ')
+
+	# Useful commands
+	rebranch = "!git branch -m $2 $3 && git push $1 :$2 $3 -u #"
+	howbig = !git ls-files | xargs wc -l
+	unstage = reset HEAD --
+	last = log -1 HEAD
+	visual = !gitk
+
+	# Worktree helpers (for agent workflows)
+	wt = worktree
+	wtl = worktree list
+	wta = worktree add
+	wtr = worktree remove
+	wtp = worktree prune
+
+[color]
+	ui = true
+
+[color "diff-highlight"]
+	oldNormal = red
+	newNormal = green
+	oldHighlight = red 224
+	newHighlight = green 194
+
+[interactive]
+	diffFilter = "if command -v diff-highlight >/dev/null 2>&1; then diff-highlight; else cat; fi"
+
+[pager]
+	log = "if command -v diff-highlight >/dev/null 2>&1; then diff-highlight | \"${PAGER:-less}\"; else \"${PAGER:-less}\"; fi"
+	show = "if command -v diff-highlight >/dev/null 2>&1; then diff-highlight | \"${PAGER:-less}\"; else \"${PAGER:-less}\"; fi"
+	diff = "if command -v diff-highlight >/dev/null 2>&1; then diff-highlight | \"${PAGER:-less}\"; else \"${PAGER:-less}\"; fi"
+
+[tag]
+	sort = version:refname
+
+[versionsort]
+	prereleaseSuffix = -rc
+
+[pull]
+	rebase = true
+
+[push]
+	default = current
+	followTags = true
+
+[grep]
+	lineNumber = true
+
+[merge]
+	ff = only
+	conflictstyle = diff3
+
+[format]
+	pretty = fuller
+
+[diff]
+	algorithm = histogram
+	colorMoved = default
+
+[fetch]
+	prune = true
+
+[rebase]
+	autoStash = true
+	autoSquash = true
+
+[status]
+	showUntrackedFiles = all
+
+[help]
+	autocorrect = 1

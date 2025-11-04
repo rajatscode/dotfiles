@@ -1,0 +1,48 @@
+# Bug Fix Template
+# Used when creating bug fix sessions
+
+name: "Bug Fix"
+description: "Template for fixing bugs"
+
+files:
+  context.md: |
+    # Bug Fix: {{BUG_NAME}}
+
+    ## Issue
+    [Describe the bug]
+
+    ## Steps to Reproduce
+    1. Step 1
+    2. Step 2
+    3. Step 3
+
+    ## Expected Behavior
+    [What should happen]
+
+    ## Actual Behavior
+    [What actually happens]
+
+    ## Root Cause
+    [Analysis of what's causing the bug]
+
+    ## Solution
+    [Describe the fix]
+
+    ## Progress
+    - [ ] Reproduce the bug
+    - [ ] Identify root cause
+    - [ ] Implement fix
+    - [ ] Add regression test
+    - [ ] Verify fix works
+    - [ ] Update documentation
+
+    ## Testing
+    [How to test the fix]
+
+  notes.md: |
+    # Bug Fix Notes
+
+    ## {{DATE}}
+    [Investigation notes]
+
+  shared-tempfiles/.gitkeep: ""
