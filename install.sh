@@ -244,20 +244,46 @@ stow_configs() {
         die "GNU Stow is not installed. Please install it first."
     fi
 
-    # Define available modules
-    local common_modules=("bash" "git" "vim" "nvim" "tmux" "agents")
+    # Define available modules by category
+    local shell_modules=("bash" "zsh" "fish")
+    local vcs_modules=("git" "hg" "jj")
+    local editor_modules=("vim" "nvim" "zed")
+    local other_modules=("tmux" "starship" "agents")
     local selected_modules=()
 
     if $MINIMAL_INSTALL; then
         selected_modules=("bash" "git")
     else
-        log_info "Available modules:"
-        for module in "${common_modules[@]}"; do
-            echo "  - $module"
+        # Shell selection
+        log_info "\n${BOLD}Shell Configuration:${NC}"
+        echo "Select which shells to configure (you can choose multiple):"
+        for module in "${shell_modules[@]}"; do
+            if ask_user "Install $module config?"; then
+                selected_modules+=("$module")
+            fi
         done
 
-        echo ""
-        for module in "${common_modules[@]}"; do
+        # VCS selection
+        log_info "\n${BOLD}Version Control Systems:${NC}"
+        echo "Select which VCS to configure:"
+        for module in "${vcs_modules[@]}"; do
+            if ask_user "Install $module config?"; then
+                selected_modules+=("$module")
+            fi
+        done
+
+        # Editor selection
+        log_info "\n${BOLD}Text Editors:${NC}"
+        echo "Select which editors to configure:"
+        for module in "${editor_modules[@]}"; do
+            if ask_user "Install $module config?"; then
+                selected_modules+=("$module")
+            fi
+        done
+
+        # Other tools
+        log_info "\n${BOLD}Other Tools:${NC}"
+        for module in "${other_modules[@]}"; do
             if ask_user "Install $module config?"; then
                 selected_modules+=("$module")
             fi
@@ -287,10 +313,6 @@ stow_configs() {
                 log_success "Window management configs installed"
             fi
 
-            if ask_user "Install Zed editor config?"; then
-                [ -d "$DOTFILES_DIR/macos/zed" ] && stow -R -t ~ -d "$DOTFILES_DIR/macos" zed 2>&1 | grep -v "BUG in find_stowed_path" || true
-                log_success "Zed config installed"
-            fi
         elif [ "$OS_TYPE" = "linux" ]; then
             if ask_user "Install i3/sway window manager config?"; then
                 [ -d "$DOTFILES_DIR/linux/i3" ] && stow -R -t ~ -d "$DOTFILES_DIR/linux" i3 2>&1 | grep -v "BUG in find_stowed_path" || true
@@ -333,7 +355,7 @@ EOF
         log_info "~/.gitprofile already exists"
     fi
 
-    # Bash personal profile
+    # Shell personal profiles
     if [ ! -f "$HOME/.bash_profile" ]; then
         cat > "$HOME/.bash_profile" <<EOF
 # Personal bash configuration
@@ -348,9 +370,52 @@ EOF
 # Example: Machine-specific aliases
 # alias myproject="cd ~/projects/myproject"
 EOF
-        log_success "Created ~/.bash_profile template"
-    else
-        log_info "~/.bash_profile already exists"
+        log_success "Created ~/.bash_profile"
+    fi
+
+    if [ ! -f "$HOME/.zsh_profile" ]; then
+        cat > "$HOME/.zsh_profile" <<EOF
+# Personal zsh configuration
+# This file is not tracked in the dotfiles repository
+
+# Example: Set environment variables
+# export EDITOR=nvim
+
+# Example: Add to PATH
+# export PATH="\$HOME/bin:\$PATH"
+
+# Example: Machine-specific aliases
+# alias myproject="cd ~/projects/myproject"
+EOF
+        log_success "Created ~/.zsh_profile"
+    fi
+
+    if [ ! -f "$HOME/.config/fish/personal.fish" ]; then
+        mkdir -p "$HOME/.config/fish"
+        cat > "$HOME/.config/fish/personal.fish" <<EOF
+# Personal fish configuration
+# This file is not tracked in the dotfiles repository
+
+# Example: Set environment variables
+# set -x EDITOR nvim
+
+# Example: Add to PATH
+# set -x PATH \$HOME/bin \$PATH
+
+# Example: Machine-specific aliases
+# alias myproject="cd ~/projects/myproject"
+EOF
+        log_success "Created ~/.config/fish/personal.fish"
+    fi
+
+    # VCS personal configs
+    if [ ! -f "$HOME/.hgrc_personal" ] && [ -f "$HOME/.hgrc" ]; then
+        cat > "$HOME/.hgrc_personal" <<EOF
+# Personal Mercurial configuration
+[ui]
+username = Your Name <your@email.com>
+EOF
+        log_success "Created ~/.hgrc_personal"
     fi
 }
 
@@ -361,33 +426,73 @@ EOF
 setup_shell() {
     log_header "Shell Configuration"
 
-    # Check if fish is installed
-    if command -v fish >/dev/null 2>&1; then
-        if ask_user "Set Fish as your default shell?"; then
-            local fish_path=$(command -v fish)
+    local desired_shell=""
 
-            # Add fish to /etc/shells if not present
-            if ! grep -q "$fish_path" /etc/shells 2>/dev/null; then
-                log_info "Adding fish to /etc/shells..."
-                echo "$fish_path" | sudo tee -a /etc/shells
-            fi
+    # Ask user which shell they want as default
+    log_info "Which shell would you like to use as your default?"
+    echo "  1) bash (default)"
+    echo "  2) zsh"
+    echo "  3) fish"
+    echo ""
+    read -p "$(echo -e "${BLUE}[?]${NC} Enter choice [1-3]: ")" shell_choice
 
-            # Change default shell
-            if [ "$SHELL" != "$fish_path" ]; then
-                log_info "Changing default shell to fish..."
-                chsh -s "$fish_path"
-                log_success "Default shell changed to fish"
-                log_info "Please restart your terminal for changes to take effect"
+    case $shell_choice in
+        2)
+            if command -v zsh >/dev/null 2>&1; then
+                desired_shell="zsh"
             else
-                log_info "Fish is already your default shell"
+                log_warn "zsh not installed, falling back to bash"
+                desired_shell="bash"
             fi
+            ;;
+        3)
+            if command -v fish >/dev/null 2>&1; then
+                desired_shell="fish"
+            else
+                log_warn "fish not installed, falling back to bash"
+                desired_shell="bash"
+            fi
+            ;;
+        *)
+            desired_shell="bash"
+            ;;
+    esac
+
+    # Change default shell if needed
+    if [ -n "$desired_shell" ] && [ "$desired_shell" != "bash" ]; then
+        local shell_path=$(command -v $desired_shell)
+
+        # Add shell to /etc/shells if not present
+        if ! grep -q "$shell_path" /etc/shells 2>/dev/null; then
+            log_info "Adding $desired_shell to /etc/shells..."
+            echo "$shell_path" | sudo tee -a /etc/shells
+        fi
+
+        # Change default shell
+        if [ "$SHELL" != "$shell_path" ]; then
+            log_info "Changing default shell to $desired_shell..."
+            chsh -s "$shell_path"
+            log_success "Default shell changed to $desired_shell"
+            log_info "Please restart your terminal for changes to take effect"
+        else
+            log_info "$desired_shell is already your default shell"
         fi
     else
-        log_info "Fish shell not installed. Using bash."
+        log_info "Using bash as default shell"
     fi
 
-    # Source bashrc in current session
-    log_info "To activate bash config in this session, run: source ~/.bashrc"
+    # Give instructions for current session
+    case $desired_shell in
+        bash)
+            log_info "To activate config in this session: source ~/.bashrc"
+            ;;
+        zsh)
+            log_info "To activate config in this session: source ~/.zshrc"
+            ;;
+        fish)
+            log_info "To activate config in this session: restart your terminal or run 'exec fish'"
+            ;;
+    esac
 }
 
 # ============================================================================

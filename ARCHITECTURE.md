@@ -4,10 +4,11 @@
 
 This is a next-generation dotfiles setup designed for:
 - **Cross-platform support**: Linux, macOS, Windows WSL
+- **Multiple tool support**: Choose your shell (bash/zsh/fish), VCS (git/hg/jj), editor (vim/nvim/zed)
 - **Modular management**: Using GNU Stow for symlink management
 - **AI-first workflows**: Built-in harness for parallelized AI coding sessions
 - **Navigation system**: Directory navigation and aliasing
-- **Easy adoption**: Interactive installer with sensible defaults
+- **Easy adoption**: Interactive installer with per-tool selection
 
 ---
 
