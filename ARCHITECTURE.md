@@ -6,7 +6,7 @@ This is a next-generation dotfiles setup designed for:
 - **Cross-platform support**: Linux, macOS, Windows WSL
 - **Modular management**: Using GNU Stow for symlink management
 - **AI-first workflows**: Built-in harness for parallelized AI coding sessions
-- **Powerful navigation system**: Advanced directory navigation and aliasing
+- **Navigation system**: Directory navigation and aliasing
 - **Easy adoption**: Interactive installer with sensible defaults
 
 ---
@@ -31,7 +31,7 @@ dotfiles/
 │   │   ├── .bashrc
 │   │   └── .bashrc.d/
 │   │       ├── 00-init.bashrc           # Initialization
-│   │       ├── 10-navigation.bashrc     # Your legendary navigation system
+│   │       ├── 10-navigation.bashrc     # Navigation system
 │   │       ├── 20-aliases.bashrc        # Handy aliases
 │   │       ├── 30-git.bashrc            # Git shortcuts
 │   │       ├── 40-agents.bashrc         # AI agent workflow helpers
@@ -273,7 +273,7 @@ export AGENT_SESSION=$(agent current 2>/dev/null)
 
 ### 4. Navigation System
 
-**Powerful directory navigation and aliasing**:
+**Directory navigation and aliasing**:
 - `al`, `fal`, `xal`, `lal` - symlink aliasing system
 - `pcd` - smart cd with backoff
 - `vcd` - cd into files → vim
@@ -528,4 +528,4 @@ release_lock() {
 
 ---
 
-This architecture provides a solid foundation for a truly modern, powerful, and future-proof dotfiles system. Let's build it! 🚀
+---
