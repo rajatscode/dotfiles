@@ -1,0 +1,109 @@
+# Global gitignore - applies to all repositories
+
+## ============================================================================
+## OS Files
+## ============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.directory
+
+## ============================================================================
+## Editor / IDE
+## ============================================================================
+
+# Vim
+*.swp
+*.swo
+*~
+.*.sw?
+Session.vim
+
+# Neovim
+*.nvim
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Zed
+.zed/
+
+# JetBrains
+.idea/
+*.iml
+
+# Sublime
+*.sublime-project
+*.sublime-workspace
+
+## ============================================================================
+## Development
+## ============================================================================
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+ENV/
+
+# Ruby
+*.gem
+.bundle/
+
+# Go
+*.test
+*.out
+
+## ============================================================================
+## Build artifacts
+## ============================================================================
+
+dist/
+build/
+*.o
+*.so
+*.dylib
+*.dll
+*.exe
+
+## ============================================================================
+## Temporary / Local
+## ============================================================================
+
+# Logs
+*.log
+logs/
+
+# Temp files
+tmp/
+temp/
+.tmp/
+
+# Local configs
+.env
+.env.local
+*.local
+
+# Agent context (managed by agent tool)
+.agent-context/

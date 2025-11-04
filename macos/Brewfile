@@ -1,0 +1,122 @@
+# Brewfile for macOS
+
+tap "homebrew/bundle"
+tap "homebrew/cask-fonts"
+
+# ============================================================================
+# Core CLI Tools
+# ============================================================================
+
+brew "stow"          # Symlink manager for dotfiles
+brew "git"           # Version control
+brew "git-delta"     # Better git diffs
+brew "fzf"           # Fuzzy finder
+brew "ripgrep"       # Fast grep alternative
+brew "fd"            # Fast find alternative
+brew "bat"           # Cat with syntax highlighting
+brew "eza"           # Modern ls replacement
+brew "zoxide"        # Smarter cd
+brew "lazygit"       # Terminal UI for git
+brew "tmux"          # Terminal multiplexer
+brew "wget"          # Download utility
+brew "curl"          # Transfer data
+brew "jq"            # JSON processor
+brew "yq"            # YAML processor
+
+# ============================================================================
+# Shells & Prompts
+# ============================================================================
+
+brew "bash"          # Updated bash
+brew "fish"          # Friendly shell
+brew "starship"      # Cross-shell prompt
+
+# ============================================================================
+# Editors
+# ============================================================================
+
+brew "neovim"        # Modern vim
+brew "vim"           # Classic vim
+
+# ============================================================================
+# Development Tools
+# ============================================================================
+
+brew "gh"            # GitHub CLI
+brew "node"          # JavaScript runtime
+brew "python@3.11"   # Python
+brew "go"            # Go language
+brew "rust"          # Rust language
+
+# ============================================================================
+# macOS-Specific Window Management
+# ============================================================================
+
+tap "koekeishiya/formulae"
+brew "yabai"         # Tiling window manager
+brew "skhd"          # Hotkey daemon
+
+# ============================================================================
+# GUI Applications
+# ============================================================================
+
+cask "alacritty"     # GPU-accelerated terminal
+cask "iterm2"        # Feature-rich terminal
+cask "zed"           # Modern code editor
+cask "visual-studio-code"  # VS Code
+cask "docker"        # Containerization
+
+# ============================================================================
+# Fonts
+# ============================================================================
+
+cask "font-jetbrains-mono-nerd-font"
+cask "font-fira-code-nerd-font"
+cask "font-hack-nerd-font"
+
+# ============================================================================
+# Optional Tools (commented out - uncomment if needed)
+# ============================================================================
+
+# brew "htop"        # Process viewer
+# brew "btop"        # Better htop
+# brew "ncdu"        # Disk usage analyzer
+# cask "rectangle"   # Window management (alternative to yabai)
+
+# ============================================================================
+# Language Tooling
+# ============================================================================
+
+# Python
+brew "uv"              # Fast Python package installer
+brew "ruff"            # Fast Python linter/formatter  
+brew "mypy"            # Type checking
+brew "pre-commit"      # Git hooks
+
+# TypeScript/JavaScript
+brew "node"
+brew "pnpm"            # Fast package manager
+brew "bun"             # Fast runtime
+brew "fnm"             # Node version manager
+
+# Rust
+brew "rust"
+brew "rust-analyzer"
+
+# OCaml
+brew "opam"            # OCaml package manager
+brew "dune"            # OCaml build system
+
+# Formatting/Linting
+brew "prettier"        # Code formatter (JS/TS/CSS/etc)
+brew "eslint"          # JavaScript linter
+brew "shfmt"           # Shell script formatter
+brew "stylua"          # Lua formatter
+brew "markdownlint-cli" # Markdown linter
+
+# Markdown
+brew "glow"            # Markdown preview
+
+# Optional but useful
+# brew "cargo-watch"   # Cargo with watch mode
+# brew "cargo-nextest" # Better Rust test runner

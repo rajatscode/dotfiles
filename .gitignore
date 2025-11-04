@@ -1,2 +1,32 @@
 # installs directory for installed content
 .installs/**
+
+# Vim bundles
+vim/.vim/bundle
+vim/.vimrc.d/plugin-config.vim
+
+# Pimped Dotfiles - Additional Ignores
+
+# Personal configurations (not tracked)
+*profile
+*.local
+*.private
+
+# Agent harness runtime data
+common/agents/.config/agents/sessions/*
+common/agents/.config/agents/contexts/*
+!common/agents/.config/agents/templates
+
+# Backup directories
+dotfiles-backup-*/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
