@@ -1,4 +1,4 @@
-# 10-navigation.bashrc - The Legendary Navigation System
+# 10-navigation.bashrc - Navigation System
 # Enhanced directory navigation with aliasing, backoff, and location stacks
 
 ## ============================================================================

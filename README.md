@@ -29,7 +29,7 @@ This is a **complete redesign** of my dotfiles with:
 - **Multi-Agent Parallelization Harness** - Run multiple AI coding sessions in parallel
 - **Cross-Platform Support** - Linux, macOS, Windows WSL
 - **Modular Architecture** - GNU Stow-based configuration management
-- **Preserved Legendary Features** - All the navigation wizardry you love
+- **Navigation Features** - Directory aliasing and navigation helpers
 - **Interactive Installer** - Smart, user-friendly setup
 - **Extensive Documentation** - Actually know what everything does!
 
@@ -75,9 +75,9 @@ Each session gets:
 
 Perfect for parallelizing work across multiple Claude/Codex instances!
 
-### 🧭 Legendary Navigation System
+### 🧭 Navigation System
 
-The navigation system that made these dotfiles famous:
+Directory aliasing and navigation helpers:
 
 ```bash
 # Symlink-based directory aliasing
@@ -100,7 +100,7 @@ mkcd new/deep/path        # Creates all parents
 vcd ~/project/file.js     # cd to dir, opens file in vim
 ```
 
-### 🛠️ Powerful Aliases & Tools
+### 🛠️ Aliases & Tools
 
 ```bash
 # Cross-platform system updates
@@ -137,7 +137,7 @@ The installer will guide you through:
 
 **Common (Cross-Platform)**:
 - Bash with AI agent integration
-- Git with powerful aliases
+- Git with helpful aliases
 - Vim/Neovim with modern configs
 - Tmux with enhanced features
 - Agent management tools
@@ -219,7 +219,6 @@ dotfiles/
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System design and architecture
 - **[docs/AGENT_WORKFLOWS.md](./docs/AGENT_WORKFLOWS.md)** - AI agent workflow examples
 - **[docs/CUSTOMIZATION.md](./docs/CUSTOMIZATION.md)** - Customization guide
-- **[docs/MIGRATION.md](./docs/MIGRATION.md)** - Migrating from old dotfiles
 
 ## Advanced Features
 
