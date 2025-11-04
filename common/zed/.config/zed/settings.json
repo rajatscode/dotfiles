@@ -1,0 +1,127 @@
+{
+  // Zed Editor Configuration
+  // Cross-platform, AI-first editor setup
+
+  // Theme & Appearance
+  "theme": "One Dark",
+  "ui_font_size": 16,
+  "buffer_font_size": 14,
+  "buffer_font_family": "JetBrains Mono",
+  "tab_size": 2,
+
+  // Editor Behavior
+  "vim_mode": true,
+  "soft_wrap": "editor_width",
+  "format_on_save": "on",
+  "autosave": "on_focus_change",
+  "show_inline_completions": true,
+  "relative_line_numbers": true,
+
+  // Collaboration
+  "collaboration_panel": {
+    "dock": "left"
+  },
+
+  // LSP & Languages
+  "languages": {
+    "Python": {
+      "language_servers": ["pyright", "ruff"],
+      "format_on_save": "on",
+      "formatter": "language_server"
+    },
+    "TypeScript": {
+      "language_servers": ["typescript-language-server", "eslint"],
+      "format_on_save": "on"
+    },
+    "JavaScript": {
+      "language_servers": ["typescript-language-server", "eslint"],
+      "format_on_save": "on"
+    },
+    "Rust": {
+      "language_servers": ["rust-analyzer"],
+      "format_on_save": "on"
+    },
+    "OCaml": {
+      "language_servers": ["ocamllsp"],
+      "format_on_save": "on"
+    },
+    "Markdown": {
+      "language_servers": ["marksman"],
+      "format_on_save": "on",
+      "soft_wrap": "preferred_line_length"
+    },
+    "JSON": {
+      "format_on_save": "on"
+    },
+    "YAML": {
+      "format_on_save": "on"
+    }
+  },
+
+  // Git Integration
+  "git": {
+    "git_gutter": "tracked_files",
+    "inline_blame": {
+      "enabled": true
+    }
+  },
+
+  // Terminal
+  "terminal": {
+    "shell": "system",
+    "font_family": "JetBrains Mono",
+    "font_size": 14,
+    "working_directory": "current_project_directory"
+  },
+
+  // File Management
+  "file_types": {
+    "Dockerfile": ["Dockerfile*"],
+    "YAML": ["*.yml", "*.yaml"]
+  },
+  "file_scan_exclusions": [
+    "**/.git",
+    "**/.svn",
+    "**/.hg",
+    "**/CVS",
+    "**/.DS_Store",
+    "**/Thumbs.db",
+    "**/.idea",
+    "**/__pycache__",
+    "**/node_modules",
+    "**/target",
+    "**/_build",
+    "**/.mypy_cache",
+    "**/.pytest_cache",
+    "**/.ruff_cache"
+  ],
+
+  // AI Assistant
+  "assistant": {
+    "default_model": {
+      "provider": "anthropic",
+      "model": "claude-3-5-sonnet-20241022"
+    },
+    "version": "2",
+    "dock": "right",
+    "default_width": 640
+  },
+
+  // Inlay Hints
+  "inlay_hints": {
+    "enabled": true,
+    "show_type_hints": true,
+    "show_parameter_hints": true
+  },
+
+  // Project Panel
+  "project_panel": {
+    "dock": "left",
+    "default_width": 240
+  },
+
+  // Outline Panel
+  "outline_panel": {
+    "dock": "right"
+  }
+}
