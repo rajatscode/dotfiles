@@ -52,3 +52,18 @@ starship
 ttf-jetbrains-mono-nerd
 ttf-fira-code
 ttf-hack-nerd
+
+# Language Tooling
+python-pip
+nodejs
+npm
+pnpm
+rust
+rust-analyzer
+ocaml
+opam
+dune
+prettier
+shfmt
+stylua
+markdownlint-cli

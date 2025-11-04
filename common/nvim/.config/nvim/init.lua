@@ -1,5 +1,6 @@
 -- Neovim Configuration
--- Modern Lua-based config for Neovim 0.8+
+-- Modern Lua-based config with comprehensive language support
+-- Python (uv/ruff), TypeScript/React, Rust, OCaml, Markdown, HTML/CSS
 
 -- ============================================================================
 -- Leader Key
@@ -80,6 +81,14 @@ require("lazy").setup({
     name = "catppuccin",
     priority = 1000,
     config = function()
+      require("catppuccin").setup({
+        integrations = {
+          cmp = true,
+          gitsigns = true,
+          treesitter = true,
+          mason = true,
+        },
+      })
       vim.cmd.colorscheme("catppuccin-mocha")
     end,
   },
@@ -104,6 +113,7 @@ require("lazy").setup({
       { "<leader>fg", "<cmd>Telescope live_grep<cr>", desc = "Live grep" },
       { "<leader>fb", "<cmd>Telescope buffers<cr>", desc = "Find buffers" },
       { "<leader>fh", "<cmd>Telescope help_tags<cr>", desc = "Help tags" },
+      { "<leader>fd", "<cmd>Telescope diagnostics<cr>", desc = "Diagnostics" },
     },
   },
 
@@ -113,9 +123,30 @@ require("lazy").setup({
     build = ":TSUpdate",
     config = function()
       require("nvim-treesitter.configs").setup({
-        ensure_installed = { "lua", "vim", "vimdoc", "bash", "python", "javascript", "typescript", "go", "rust" },
-        highlight = { enable = true },
+        ensure_installed = {
+          "lua", "vim", "vimdoc", "bash",
+          "python",
+          "javascript", "typescript", "tsx", "jsx",
+          "rust", "toml",
+          "ocaml", "ocaml_interface",
+          "html", "css", "scss", "json", "yaml",
+          "markdown", "markdown_inline",
+          "go", "c", "cpp",
+        },
+        highlight = {
+          enable = true,
+          additional_vim_regex_highlighting = false,
+        },
         indent = { enable = true },
+        incremental_selection = {
+          enable = true,
+          keymaps = {
+            init_selection = "<C-space>",
+            node_incremental = "<C-space>",
+            scope_incremental = false,
+            node_decremental = "<bs>",
+          },
+        },
       })
     end,
   },
@@ -126,14 +157,28 @@ require("lazy").setup({
     dependencies = {
       "williamboman/mason.nvim",
       "williamboman/mason-lspconfig.nvim",
+      "hrsh7th/cmp-nvim-lsp",
     },
     config = function()
       require("mason").setup()
+
+      local lspconfig = require("lspconfig")
+      local capabilities = require("cmp_nvim_lsp").default_capabilities()
+
       require("mason-lspconfig").setup({
-        ensure_installed = { "lua_ls", "pyright", "ts_ls", "gopls" },
+        ensure_installed = {
+          "pyright", "ruff_lsp",
+          "ts_ls", "eslint",
+          "rust_analyzer",
+          "ocamllsp",
+          "html", "cssls", "tailwindcss", "emmet_ls",
+          "marksman",
+          "lua_ls", "bashls", "jsonls", "yamlls",
+        },
+        automatic_installation = true,
       })
 
-      -- Basic LSP keymaps
+      -- LSP keymaps
       vim.api.nvim_create_autocmd("LspAttach", {
         callback = function(event)
           local map = function(keys, func, desc)
@@ -141,11 +186,85 @@ require("lazy").setup({
           end
 
           map("gd", vim.lsp.buf.definition, "Goto Definition")
+          map("gD", vim.lsp.buf.declaration, "Goto Declaration")
           map("gr", vim.lsp.buf.references, "Goto References")
+          map("gI", vim.lsp.buf.implementation, "Goto Implementation")
+          map("<leader>D", vim.lsp.buf.type_definition, "Type Definition")
           map("K", vim.lsp.buf.hover, "Hover Documentation")
+          map("<C-k>", vim.lsp.buf.signature_help, "Signature Documentation")
           map("<leader>rn", vim.lsp.buf.rename, "Rename")
           map("<leader>ca", vim.lsp.buf.code_action, "Code Action")
+          map("<leader>f", vim.lsp.buf.format, "Format")
         end,
+      })
+
+      -- Python: Pyright + Ruff
+      lspconfig.pyright.setup({ capabilities = capabilities })
+      lspconfig.ruff_lsp.setup({
+        capabilities = capabilities,
+        on_attach = function(client, bufnr)
+          client.server_capabilities.hoverProvider = false
+        end,
+      })
+
+      -- TypeScript/JavaScript
+      lspconfig.ts_ls.setup({ capabilities = capabilities })
+      lspconfig.eslint.setup({
+        capabilities = capabilities,
+        on_attach = function(client, bufnr)
+          vim.api.nvim_create_autocmd("BufWritePre", {
+            buffer = bufnr,
+            command = "EslintFixAll",
+          })
+        end,
+      })
+
+      -- Rust
+      lspconfig.rust_analyzer.setup({
+        capabilities = capabilities,
+        settings = {
+          ["rust-analyzer"] = {
+            checkOnSave = { command = "clippy" },
+            cargo = { allFeatures = true },
+          },
+        },
+      })
+
+      -- OCaml
+      lspconfig.ocamllsp.setup({ capabilities = capabilities })
+
+      -- Web
+      lspconfig.html.setup({ capabilities = capabilities })
+      lspconfig.cssls.setup({ capabilities = capabilities })
+      lspconfig.tailwindcss.setup({ capabilities = capabilities })
+      lspconfig.emmet_ls.setup({
+        capabilities = capabilities,
+        filetypes = { "html", "css", "scss", "javascriptreact", "typescriptreact" },
+      })
+
+      -- Markdown
+      lspconfig.marksman.setup({ capabilities = capabilities })
+
+      -- Others
+      lspconfig.lua_ls.setup({
+        capabilities = capabilities,
+        settings = {
+          Lua = {
+            diagnostics = { globals = { "vim" } },
+          },
+        },
+      })
+      lspconfig.bashls.setup({ capabilities = capabilities })
+      lspconfig.jsonls.setup({ capabilities = capabilities })
+      lspconfig.yamlls.setup({ capabilities = capabilities })
+
+      -- Diagnostics configuration
+      vim.diagnostic.config({
+        virtual_text = true,
+        signs = true,
+        underline = true,
+        update_in_insert = false,
+        severity_sort = true,
       })
     end,
   },
@@ -159,20 +278,44 @@ require("lazy").setup({
       "hrsh7th/cmp-path",
       "L3MON4D3/LuaSnip",
       "saadparwaiz1/cmp_luasnip",
+      "rafamadriz/friendly-snippets",
     },
     config = function()
       local cmp = require("cmp")
+      local luasnip = require("luasnip")
+      require("luasnip.loaders.from_vscode").lazy_load()
+
       cmp.setup({
         snippet = {
           expand = function(args)
-            require("luasnip").lsp_expand(args.body)
+            luasnip.lsp_expand(args.body)
           end,
         },
         mapping = cmp.mapping.preset.insert({
+          ["<C-n>"] = cmp.mapping.select_next_item(),
+          ["<C-p>"] = cmp.mapping.select_prev_item(),
+          ["<C-d>"] = cmp.mapping.scroll_docs(-4),
+          ["<C-f>"] = cmp.mapping.scroll_docs(4),
           ["<C-Space>"] = cmp.mapping.complete(),
           ["<CR>"] = cmp.mapping.confirm({ select = true }),
-          ["<Tab>"] = cmp.mapping.select_next_item(),
-          ["<S-Tab>"] = cmp.mapping.select_prev_item(),
+          ["<Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_next_item()
+            elseif luasnip.expand_or_jumpable() then
+              luasnip.expand_or_jump()
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
+          ["<S-Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            elseif luasnip.jumpable(-1) then
+              luasnip.jump(-1)
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
         }),
         sources = {
           { name = "nvim_lsp" },
@@ -187,7 +330,15 @@ require("lazy").setup({
   -- Git signs
   {
     "lewis6991/gitsigns.nvim",
-    config = true,
+    opts = {
+      signs = {
+        add = { text = "+" },
+        change = { text = "~" },
+        delete = { text = "_" },
+        topdelete = { text = "‾" },
+        changedelete = { text = "~" },
+      },
+    },
   },
 
   -- Status line
@@ -195,9 +346,7 @@ require("lazy").setup({
     "nvim-lualine/lualine.nvim",
     dependencies = { "nvim-tree/nvim-web-devicons" },
     opts = {
-      options = {
-        theme = "catppuccin",
-      },
+      options = { theme = "catppuccin" },
       sections = {
         lualine_c = {
           { "filename" },
@@ -228,6 +377,94 @@ require("lazy").setup({
   {
     "kylechui/nvim-surround",
     config = true,
+  },
+
+  -- Rust tools
+  {
+    "simrat39/rust-tools.nvim",
+    ft = "rust",
+    dependencies = { "neovim/nvim-lspconfig" },
+    opts = {
+      server = {
+        on_attach = function(_, bufnr)
+          vim.keymap.set("n", "<leader>rr", function()
+            vim.cmd.RustLsp("runnables")
+          end, { buffer = bufnr, desc = "Rust Runnables" })
+        end,
+      },
+    },
+  },
+
+  -- Markdown preview
+  {
+    "iamcco/markdown-preview.nvim",
+    ft = "markdown",
+    build = function() vim.fn["mkdp#util#install"]() end,
+    keys = {
+      { "<leader>mp", "<cmd>MarkdownPreview<cr>", desc = "Markdown Preview" },
+    },
+  },
+
+  -- Formatting
+  {
+    "stevearc/conform.nvim",
+    event = { "BufWritePre" },
+    cmd = { "ConformInfo" },
+    keys = {
+      {
+        "<leader>f",
+        function()
+          require("conform").format({ async = true, lsp_fallback = true })
+        end,
+        mode = "",
+        desc = "Format buffer",
+      },
+    },
+    opts = {
+      formatters_by_ft = {
+        python = { "ruff_format", "ruff_fix" },
+        javascript = { { "prettier", "prettierd" } },
+        typescript = { { "prettier", "prettierd" } },
+        javascriptreact = { { "prettier", "prettierd" } },
+        typescriptreact = { { "prettier", "prettierd" } },
+        css = { { "prettier", "prettierd" } },
+        html = { { "prettier", "prettierd" } },
+        json = { { "prettier", "prettierd" } },
+        yaml = { { "prettier", "prettierd" } },
+        markdown = { { "prettier", "prettierd" } },
+        rust = { "rustfmt" },
+        ocaml = { "ocamlformat" },
+        lua = { "stylua" },
+        sh = { "shfmt" },
+      },
+      format_on_save = {
+        timeout_ms = 500,
+        lsp_fallback = true,
+      },
+    },
+  },
+
+  -- Linting
+  {
+    "mfussenegger/nvim-lint",
+    event = { "BufReadPre", "BufNewFile" },
+    config = function()
+      local lint = require("lint")
+      lint.linters_by_ft = {
+        python = { "ruff" },
+        javascript = { "eslint_d" },
+        typescript = { "eslint_d" },
+        javascriptreact = { "eslint_d" },
+        typescriptreact = { "eslint_d" },
+        markdown = { "markdownlint" },
+      }
+
+      vim.api.nvim_create_autocmd({ "BufWritePost", "BufReadPost", "InsertLeave" }, {
+        callback = function()
+          require("lint").try_lint()
+        end,
+      })
+    end,
   },
 })
 
