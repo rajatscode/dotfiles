@@ -31,7 +31,7 @@ fi
 
 export BASHRC_HOME_DIR="$DOTFILES_HOME_DIR/common/bash"
 
-# Environment variables (for backward compatibility and new features)
+# Environment variables
 export BASHRC_STORED_VARS="${HOME}/.bash_stored_vars"
 export BASH_PERSONAL_PROFILE="${HOME}/.bash_profile"
 export GIT_PERSONAL_PROFILE="${HOME}/.gitprofile"
@@ -74,35 +74,6 @@ store_dotfile_var() {
 }
 
 # ============================================================================
-# Dotfiles Auto-Sync (Optional)
-# ============================================================================
-
-# Keep dotfiles in sync (if enabled)
-sync_and_adopt_dotfiles() {
-    local SCRIPT_LOC="$BASHRC_HOME_DIR/../../sync.sh"
-    if [ -e "$SCRIPT_LOC" ]; then
-        chmod +x "$SCRIPT_LOC"
-        bash "$SCRIPT_LOC"
-    fi
-}
-
-ensure_dotfile_syncing() {
-    local SYNC_PERIOD_IN_HOURS=$1
-    local SYNC_CUTOFF=$(date -d 'now - '$SYNC_PERIOD_IN_HOURS' hours' +%s 2>/dev/null || \
-                        date -v-${SYNC_PERIOD_IN_HOURS}H +%s 2>/dev/null)
-
-    if [ -z "$LAST_DOTFILE_SYNC" ] || [ "$SYNC_CUTOFF" -ge "$LAST_DOTFILE_SYNC" ]; then
-        LAST_DOTFILE_SYNC=$(date +%s)
-        # check for internet connection first so syncing doesn't hang
-        wget -q --spider 1.1.1.1 2>/dev/null &&
-            sync_and_adopt_dotfiles &&
-            store_dotfile_var LAST_DOTFILE_SYNC &&
-            # source afterwards to avoid need for restarting shell
-            source ~/.bashrc
-    fi
-}
-
-# ============================================================================
 # Import Modular Configurations
 # ============================================================================
 
@@ -133,15 +104,8 @@ fi
 [ -f "$BASH_PERSONAL_PROFILE" ] && source "$BASH_PERSONAL_PROFILE"
 
 # ============================================================================
-# Auto-Sync (Run Last)
+# Git Personal Config
 # ============================================================================
-
-# Don't sync more than once a day, to avoid spawning a bunch of child shells
-# Do this after loading $BASH_PERSONAL_PROFILE so DOTFILES_AUTOSYNC can be set
-# in that file
-if [ "$DOTFILES_AUTOSYNC" = true ]; then
-    ensure_dotfile_syncing ${DOTFILES_AUTOSYNC_PERIOD_IN_HOURS:-24}
-fi
 
 # Include $GIT_PERSONAL_PROFILE here since .gitconfig doesn't support env vars
 if [ -f "$GIT_PERSONAL_PROFILE" ]; then

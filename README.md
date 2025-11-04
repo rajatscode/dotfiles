@@ -249,14 +249,20 @@ context-sync --watch
 context-sync --status
 ```
 
-## Migrating from Old Dotfiles
+## Updating
 
-Your old dotfiles are backed up automatically during installation to:
-```
-~/dotfiles-backup-YYYYMMDD-HHMMSS/
+Since configs are symlinked via stow, updating is simple:
+
+```bash
+# Update dotfiles from git
+dotfiles-update
+
+# Or manually
+cd ~/dotfiles
+git pull
 ```
 
-The new system is **backwards compatible** - all your old bash customizations in `~/.bash_profile` will still work!
+Changes take effect immediately for new shell sessions (existing sessions need `source ~/.bashrc`).
 
 ## Troubleshooting
 

@@ -12,7 +12,6 @@ set -e
 # ============================================================================
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKUP_DIR="$HOME/dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
 
 # Flags
 INTERACTIVE=true
@@ -129,43 +128,36 @@ detect_os() {
 }
 
 # ============================================================================
-# Backup Existing Dotfiles
+# Check for Existing Dotfiles
 # ============================================================================
 
-backup_dotfiles() {
-    log_header "Backing Up Existing Dotfiles"
+check_existing_dotfiles() {
+    log_header "Checking for Existing Dotfiles"
 
-    local files_to_backup=(
-        ".bashrc"
-        ".bash_profile"
-        ".gitconfig"
-        ".gitprofile"
-        ".vimrc"
-        ".tmux.conf"
-        ".config/nvim"
-        ".config/fish"
-        ".config/alacritty"
-    )
+    local existing_files=()
 
-    local backed_up=false
-
-    for file in "${files_to_backup[@]}"; do
+    for file in ".bashrc" ".gitconfig" ".vimrc" ".tmux.conf"; do
         if [ -e "$HOME/$file" ] && [ ! -L "$HOME/$file" ]; then
-            if ! $backed_up; then
-                mkdir -p "$BACKUP_DIR"
-                backed_up=true
-                log_info "Creating backup directory: $BACKUP_DIR"
-            fi
-
-            log_info "Backing up: $file"
-            cp -r "$HOME/$file" "$BACKUP_DIR/"
+            existing_files+=("$file")
         fi
     done
 
-    if $backed_up; then
-        log_success "Backup complete: $BACKUP_DIR"
+    if [ ${#existing_files[@]} -gt 0 ]; then
+        log_warn "Found existing dotfiles that will be replaced by stow:"
+        for file in "${existing_files[@]}"; do
+            echo "  - ~/$file"
+        done
+        echo ""
+        log_info "Stow will overwrite these files with symlinks to the dotfiles repo."
+        log_info "Back them up manually if needed, then remove them before continuing."
+        echo ""
+
+        if ! ask_user "Continue with installation?"; then
+            log_info "Installation cancelled. Please back up your dotfiles and try again."
+            exit 0
+        fi
     else
-        log_info "No existing dotfiles to backup"
+        log_info "No conflicting dotfiles found."
     fi
 }
 
@@ -452,12 +444,6 @@ post_install() {
     echo -e "     ${GREEN}lal${NC}                     - List all aliases"
     echo ""
 
-    if [ -d "$BACKUP_DIR" ]; then
-        echo -e "${YELLOW}⚠${NC}  Your old dotfiles are backed up at:"
-        echo -e "     ${YELLOW}$BACKUP_DIR${NC}"
-        echo ""
-    fi
-
     echo -e "${BOLD}Documentation:${NC}"
     echo -e "  ${CYAN}$DOTFILES_DIR/README.md${NC}             - Getting started"
     echo -e "  ${CYAN}$DOTFILES_DIR/ARCHITECTURE.md${NC}       - System design"
@@ -532,7 +518,7 @@ main() {
 
     # Run installation steps
     detect_os
-    backup_dotfiles
+    check_existing_dotfiles
     install_packages
     stow_configs
     setup_personal_configs
