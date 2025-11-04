@@ -20,6 +20,20 @@ So be it, until victory is GNU's and there is no technical debt, but maintainabi
 
 ---
 
+## What's New? 🚀
+
+This is a **complete redesign** of my dotfiles with:
+
+- **Multi-Agent Parallelization Harness** - Run multiple AI coding sessions in parallel
+- **Cross-Platform Support** - Linux, macOS, Windows WSL
+- **Multiple Shell Support** - Bash, Zsh, Fish with full feature parity
+- **Multiple VCS Support** - Git, Mercurial, Jujutsu
+- **Multiple Editor Support** - Vim, Neovim, Zed
+- **Modular Architecture** - GNU Stow-based configuration management
+- **Navigation Features** - Directory aliasing and navigation helpers
+- **Interactive Installer** - Smart, user-friendly setup with per-tool selection
+- **Extensive Documentation** - Actually know what everything does!
+
 ## Quick Start
 
 ```bash
@@ -122,15 +136,28 @@ The installer will guide you through:
 
 ### What Gets Installed
 
-**Common (Cross-Platform)**:
-- Bash with AI agent integration
-- Git with helpful aliases
-- Vim/Neovim with modern configs
-- Tmux with enhanced features
-- Agent management tools
+**Shells** (choose one or more):
+- Bash - traditional Unix shell
+- Zsh - feature-rich shell with better defaults
+- Fish - user-friendly shell with autosuggestions
+
+**Version Control**:
+- Git - distributed version control
+- Mercurial (hg) - alternative distributed VCS
+- Jujutsu (jj) - next-gen VCS with powerful workflows
+
+**Editors**:
+- Vim - classic modal editor
+- Neovim - modern vim with LSP support
+- Zed - fast, collaborative AI-first editor
+
+**Other Tools**:
+- Tmux - terminal multiplexer
+- Starship - cross-shell prompt
+- Agent tools - AI parallelization harness
 
 **OS-Specific**:
-- **macOS**: Homebrew packages, yabai/skhd, Zed editor
+- **macOS**: Homebrew packages, yabai/skhd window management
 - **Linux**: apt/pacman packages, i3/sway, Alacritty
 - **Windows**: WSL-optimized configs
 

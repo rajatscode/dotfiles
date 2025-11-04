@@ -1,0 +1,70 @@
+# Jujutsu Configuration
+# https://github.com/martinvonz/jj
+
+[user]
+name = "Your Name"
+email = "your.email@example.com"
+
+[ui]
+default-command = "log"
+editor = "vim"
+diff-editor = "vimdiff"
+pager = "less -FRX"
+
+# Enable color output
+color = "always"
+
+[colors]
+# Color customization
+"commit_id prefix" = "cyan"
+"change_id prefix" = "magenta"
+"author" = "green"
+"timestamp" = "yellow"
+
+[alias]
+# Common shortcuts
+st = ["status"]
+l = ["log"]
+lg = ["log", "--graph"]
+co = ["checkout"]
+br = ["branch", "list"]
+d = ["diff"]
+ds = ["diff", "--summary"]
+show = ["show"]
+new = ["new"]
+ci = ["commit"]
+sync = ["git", "fetch", "--all-remotes"]
+
+# Agent workflow helpers
+wt = ["workspace"]
+wtlist = ["workspace", "list"]
+wtnew = ["workspace", "add"]
+
+[revsets]
+# Custom revset aliases
+log = "@ | ancestors(immutable_heads().., 2) | trunk()"
+
+[git]
+# Git interop settings
+auto-local-branch = true
+push-branch-prefix = ""
+
+[snapshot]
+# Automatic snapshots
+auto-track = "all()"
+
+[merge-tools]
+# Merge tool configuration
+vimdiff.program = "vim"
+vimdiff.merge-args = ["-d", "$left", "$right", "$output"]
+
+[template-aliases]
+# Template customization for log output
+format_timestamp = 'timestamp.ago()'
+format_short_id = 'change_id.short(8)'
+
+[signing]
+# Commit signing (configure if using GPG)
+# sign-all = true
+# backend = "gpg"
+# key = "YOUR_GPG_KEY_ID"

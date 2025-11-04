@@ -1,0 +1,63 @@
+# ~/.hgrc
+# Mercurial configuration
+
+[ui]
+username = Your Name <your.email@example.com>
+editor = vim
+# Enable color output
+interface = curses
+
+[extensions]
+# Common useful extensions
+color =
+pager =
+progress =
+purge =
+rebase =
+shelve =
+strip =
+histedit =
+# Evolve for changeset evolution (install separately: pip install hg-evolve)
+# evolve =
+
+[color]
+mode = auto
+
+[pager]
+pager = less -FRX
+attend = annotate, cat, diff, export, glog, log, qdiff
+
+[alias]
+# Useful shortcuts
+st = status
+ci = commit
+br = branches
+co = checkout
+up = update
+lg = log --graph
+last = log -l 5
+unstage = reset HEAD
+
+[diff]
+git = True
+showfunc = True
+
+[merge-tools]
+# Configure your preferred merge tool
+# vimdiff
+vimdiff.executable = vim
+vimdiff.args = -d $base $local $output $other +close +close
+
+[committemplate]
+# Template for commit messages
+# changeset = {desc}\n\n# HG changeset summary
+# # Node ID: {node}
+# # Parent: {p1node}
+
+[experimental]
+# Enable narrow clone for large repositories
+# narrow = True
+
+# Include personal config (not tracked in dotfiles)
+# Put your actual username/email in ~/.hgrc_personal
+%include ~/.hgrc_personal
