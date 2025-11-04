@@ -1,4 +1,4 @@
-# Pimped Dotfiles
+# Dotfiles
 
 [![License](https://img.shields.io/github/license/rajatscode/dotfiles)](./LICENSE)
 
@@ -302,4 +302,4 @@ Special thanks to Gemini and Claude for architectural suggestions.
 
 ---
 
-**Enjoy your pimped dotfiles! 🚀**
+**Enjoy your dotfiles! 🚀**

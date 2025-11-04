@@ -1,4 +1,4 @@
-# Debian/Ubuntu packages - Pimped Dotfiles Edition
+# Debian/Ubuntu packages
 
 # Core tools
 stow

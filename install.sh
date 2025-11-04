@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Pimped Dotfiles Installer
+# Dotfiles Installer
 # Interactive, cross-platform, modular dotfiles installation
 #
 # Usage: ./install.sh [--non-interactive] [--minimal]
@@ -431,7 +431,7 @@ setup_agent_tools() {
 post_install() {
     log_header "Installation Complete!"
 
-    echo -e "${GREEN}${BOLD}✓ Pimped Dotfiles installed successfully!${NC}"
+    echo -e "${GREEN}${BOLD}✓ Dotfiles installed successfully!${NC}"
     echo ""
     echo -e "${BOLD}Next Steps:${NC}"
     echo ""
@@ -463,7 +463,7 @@ post_install() {
     echo -e "  ${CYAN}$DOTFILES_DIR/ARCHITECTURE.md${NC}       - System design"
     echo -e "  ${CYAN}$DOTFILES_DIR/docs/AGENT_WORKFLOWS.md${NC} - AI agent workflows"
     echo ""
-    echo -e "${MAGENTA}Enjoy your pimped dotfiles! 🚀${NC}"
+    echo -e "${MAGENTA}Enjoy your dotfiles! 🚀${NC}"
     echo ""
 }
 
@@ -488,7 +488,7 @@ main() {
                 shift
                 ;;
             --help|-h)
-                echo "Pimped Dotfiles Installer"
+                echo "Dotfiles Installer"
                 echo ""
                 echo "Usage: ./install.sh [options]"
                 echo ""
