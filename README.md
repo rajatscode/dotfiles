@@ -2,8 +2,6 @@
 
 [![License](https://img.shields.io/github/license/rajatscode/dotfiles)](./LICENSE)
 
-> Cross-platform, modular, AI-first dotfiles for the enlightened developer
-
 ---
 
 *These are my dotfiles. There are many like them, but these ones are mine.*
@@ -22,17 +20,6 @@ So be it, until victory is GNU's and there is no technical debt, but maintainabi
 
 ---
 
-## What's New? 🚀
-
-This is a **complete redesign** of my dotfiles with:
-
-- **Multi-Agent Parallelization Harness** - Run multiple AI coding sessions in parallel
-- **Cross-Platform Support** - Linux, macOS, Windows WSL
-- **Modular Architecture** - GNU Stow-based configuration management
-- **Navigation Features** - Directory aliasing and navigation helpers
-- **Interactive Installer** - Smart, user-friendly setup
-- **Extensive Documentation** - Actually know what everything does!
-
 ## Quick Start
 
 ```bash
@@ -48,7 +35,7 @@ cd ~/dotfiles
 
 ### 🤖 AI Agent Parallelization Harness
 
-The **crown jewel** - run multiple AI coding sessions in parallel using git worktrees with shared context:
+Because every day that passes makes me less convinced I can write code myself.
 
 ```bash
 # Create a new feature session
@@ -73,9 +60,9 @@ Each session gets:
 - Lock files to prevent conflicts
 - Pre-configured templates (feature, bugfix, refactor, exploration)
 
-Perfect for parallelizing work across multiple Claude/Codex instances!
-
 ### 🧭 Navigation System
+
+I'm gonna be honest with you, this just exists because I kept trying to `cd` files and `vim` dirs.
 
 Directory aliasing and navigation helpers:
 
