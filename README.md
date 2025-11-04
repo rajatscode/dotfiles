@@ -29,7 +29,7 @@ This is a **complete redesign** of my dotfiles with:
 - **Multi-Agent Parallelization Harness** - Run multiple AI coding sessions in parallel
 - **Cross-Platform Support** - Linux, macOS, Windows WSL
 - **Modular Architecture** - GNU Stow-based configuration management
-- **Preserved Legendary Features** - All the navigation wizardry you love
+- **Legendary Navigation Features** - All the navigation wizardry you love
 - **Interactive Installer** - Smart, user-friendly setup
 - **Extensive Documentation** - Actually know what everything does!
 
@@ -219,7 +219,6 @@ dotfiles/
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System design and architecture
 - **[docs/AGENT_WORKFLOWS.md](./docs/AGENT_WORKFLOWS.md)** - AI agent workflow examples
 - **[docs/CUSTOMIZATION.md](./docs/CUSTOMIZATION.md)** - Customization guide
-- **[docs/MIGRATION.md](./docs/MIGRATION.md)** - Migrating from old dotfiles
 
 ## Advanced Features
 
