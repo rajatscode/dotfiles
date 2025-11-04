@@ -1,0 +1,44 @@
+# Feature Development Template
+# Used when creating new feature sessions
+
+name: "Feature Development"
+description: "Template for developing new features"
+
+files:
+  context.md: |
+    # Feature: {{FEATURE_NAME}}
+
+    ## Objective
+    Develop a new feature for the project.
+
+    ## Requirements
+    - [ ] Requirement 1
+    - [ ] Requirement 2
+    - [ ] Requirement 3
+
+    ## Approach
+    1. Design the feature
+    2. Implement core functionality
+    3. Add tests
+    4. Document the feature
+
+    ## Progress
+    - [ ] Design complete
+    - [ ] Implementation in progress
+    - [ ] Tests written
+    - [ ] Documentation updated
+    - [ ] Code review requested
+
+    ## Notes
+    [Add implementation notes here]
+
+    ## Dependencies
+    [List any dependencies or blockers]
+
+  notes.md: |
+    # Development Notes
+
+    ## {{DATE}}
+    [Your notes here]
+
+  shared-tempfiles/.gitkeep: ""
