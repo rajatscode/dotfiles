@@ -1,0 +1,750 @@
+#!/usr/bin/env bash
+
+# agent - Multi-Agent Session Manager
+# Manages parallel AI coding sessions using git worktrees with shared context
+#
+# Usage:
+#   agent new <session-name> [--branch=<branch>] [--template=<template>]
+#   agent list
+#   agent switch <session-name>
+#   agent context <session-name> [--edit]
+#   agent sync <session-name>
+#   agent close <session-name> [--delete-branch] [--archive]
+#   agent share-context <from-session> <to-session> --file=<filename>
+#   agent lock <session-name> <reason>
+#   agent unlock <session-name>
+#   agent current
+#   agent help
+
+set -euo pipefail
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+AGENT_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/agents"
+AGENT_SESSIONS_DIR="$AGENT_CONFIG_DIR/sessions"
+AGENT_CONTEXTS_DIR="$AGENT_CONFIG_DIR/contexts"
+AGENT_TEMPLATES_DIR="$AGENT_CONFIG_DIR/templates"
+AGENT_CONFIG_FILE="$AGENT_CONFIG_DIR/config.yaml"
+
+# Default configuration (can be overridden in config.yaml)
+DEFAULT_TEMPLATE="feature"
+WORKTREE_PREFIX="wt-"
+AUTO_SYNC=true
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# ============================================================================
+# Utility Functions
+# ============================================================================
+
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+log_step() {
+    echo -e "${CYAN}▶${NC} $1"
+}
+
+die() {
+    log_error "$1"
+    exit 1
+}
+
+# Initialize agent directories
+init_agent_dirs() {
+    mkdir -p "$AGENT_SESSIONS_DIR"
+    mkdir -p "$AGENT_CONTEXTS_DIR"
+    mkdir -p "$AGENT_TEMPLATES_DIR"
+
+    # Create default config if it doesn't exist
+    if [[ ! -f "$AGENT_CONFIG_FILE" ]]; then
+        cat > "$AGENT_CONFIG_FILE" <<EOF
+# Agent Harness Configuration
+default_template: feature
+worktree_prefix: wt-
+auto_sync: true
+editor: \${EDITOR:-vim}
+EOF
+    fi
+}
+
+# Get the git root of current directory
+get_git_root() {
+    git rev-parse --show-toplevel 2>/dev/null
+}
+
+# Get repo name from path
+get_repo_name() {
+    basename "$(get_git_root)"
+}
+
+# Get session metadata file path
+get_session_file() {
+    local session_name="$1"
+    local repo_name="${2:-$(get_repo_name)}"
+    echo "$AGENT_SESSIONS_DIR/${repo_name}-${session_name}.yaml"
+}
+
+# Get context directory for session
+get_context_dir() {
+    local session_name="$1"
+    local repo_name="${2:-$(get_repo_name)}"
+    echo "$AGENT_CONTEXTS_DIR/${repo_name}/session-${session_name}"
+}
+
+# Get global context directory for repo
+get_global_context_dir() {
+    local repo_name="${1:-$(get_repo_name)}"
+    echo "$AGENT_CONTEXTS_DIR/${repo_name}/global"
+}
+
+# Check if session exists
+session_exists() {
+    local session_name="$1"
+    local session_file=$(get_session_file "$session_name")
+    [[ -f "$session_file" ]]
+}
+
+# Get value from session yaml (simple grep-based parser)
+get_session_value() {
+    local session_name="$1"
+    local key="$2"
+    local session_file=$(get_session_file "$session_name")
+
+    grep "^${key}:" "$session_file" | cut -d' ' -f2- | tr -d '"'
+}
+
+# ============================================================================
+# Core Commands
+# ============================================================================
+
+# Create a new agent session with worktree
+cmd_new() {
+    local session_name=""
+    local branch_name=""
+    local template="$DEFAULT_TEMPLATE"
+    local base_branch="main"
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --branch=*)
+                branch_name="${1#*=}"
+                shift
+                ;;
+            --template=*)
+                template="${1#*=}"
+                shift
+                ;;
+            --base=*)
+                base_branch="${1#*=}"
+                shift
+                ;;
+            *)
+                if [[ -z "$session_name" ]]; then
+                    session_name="$1"
+                else
+                    die "Unknown argument: $1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    [[ -z "$session_name" ]] && die "Session name is required. Usage: agent new <session-name>"
+
+    # Ensure we're in a git repo
+    local git_root=$(get_git_root) || die "Not in a git repository"
+    local repo_name=$(get_repo_name)
+
+    # Check if session already exists
+    if session_exists "$session_name"; then
+        die "Session '$session_name' already exists. Use 'agent switch $session_name' or choose a different name."
+    fi
+
+    # Default branch name if not provided
+    [[ -z "$branch_name" ]] && branch_name="agent/${session_name}"
+
+    # Create worktree path
+    local worktree_dir="${git_root}-${WORKTREE_PREFIX}${session_name}"
+
+    log_step "Creating new agent session: $session_name"
+
+    # Create git worktree
+    log_info "Creating git worktree at: $worktree_dir"
+    if git rev-parse --verify "$branch_name" >/dev/null 2>&1; then
+        # Branch exists, check it out
+        git worktree add "$worktree_dir" "$branch_name"
+    else
+        # Create new branch
+        git worktree add -b "$branch_name" "$worktree_dir" "$base_branch"
+    fi
+
+    # Create context directory
+    local context_dir=$(get_context_dir "$session_name")
+    mkdir -p "$context_dir/shared-tempfiles"
+
+    # Create session metadata
+    local session_file=$(get_session_file "$session_name")
+    cat > "$session_file" <<EOF
+name: $session_name
+repo: $git_root
+worktree: $worktree_dir
+branch: $branch_name
+created: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+last_active: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+template: $template
+context_dir: $context_dir
+status: active
+notes: ""
+EOF
+
+    # Apply template if it exists
+    local template_file="$AGENT_TEMPLATES_DIR/${template}.yaml"
+    if [[ -f "$template_file" ]]; then
+        log_info "Applying template: $template"
+        apply_template "$template_file" "$context_dir" "$session_name"
+    else
+        # Create default context files
+        cat > "$context_dir/context.md" <<EOF
+# Session: $session_name
+
+## Branch
+\`$branch_name\`
+
+## Objective
+[Describe what this session is working on]
+
+## Approach
+[Outline the approach]
+
+## Progress
+- [ ] Task 1
+
+## Notes
+[Any important notes]
+EOF
+
+        cat > "$context_dir/notes.md" <<EOF
+# Development Notes - $session_name
+
+## $(date +"%Y-%m-%d")
+[Your notes here]
+EOF
+    fi
+
+    # Create global context if it doesn't exist
+    local global_dir=$(get_global_context_dir)
+    if [[ ! -d "$global_dir" ]]; then
+        mkdir -p "$global_dir"
+        cat > "$global_dir/architecture.md" <<EOF
+# Repository Architecture
+
+[Document the high-level architecture of the codebase]
+EOF
+
+        cat > "$global_dir/conventions.md" <<EOF
+# Code Conventions
+
+[Document coding standards and conventions]
+EOF
+    fi
+
+    log_success "Session '$session_name' created successfully!"
+    echo ""
+    echo -e "${BOLD}Session Details:${NC}"
+    echo -e "  ${CYAN}Worktree:${NC} $worktree_dir"
+    echo -e "  ${CYAN}Branch:${NC} $branch_name"
+    echo -e "  ${CYAN}Context:${NC} $context_dir"
+    echo ""
+    echo -e "${BOLD}Next steps:${NC}"
+    echo -e "  1. Switch to session: ${GREEN}agent switch $session_name${NC}"
+    echo -e "  2. Edit context: ${GREEN}agent context $session_name --edit${NC}"
+    echo -e "  3. Start coding! Launch your AI agent in: ${CYAN}$worktree_dir${NC}"
+}
+
+# Apply a template to context directory
+apply_template() {
+    local template_file="$1"
+    local context_dir="$2"
+    local session_name="$3"
+
+    # Simple template engine: replace {{VAR}} with actual values
+    # This is a basic implementation - could be enhanced with more sophisticated templating
+
+    # For now, just copy template files if they exist
+    # (Real implementation would parse YAML and generate files)
+    log_warn "Template support is basic. Enhance as needed."
+}
+
+# List all active sessions
+cmd_list() {
+    init_agent_dirs
+
+    if [[ ! "$(ls -A $AGENT_SESSIONS_DIR 2>/dev/null)" ]]; then
+        log_info "No active sessions found."
+        echo ""
+        echo "Create a new session with: agent new <session-name>"
+        return
+    fi
+
+    echo -e "${BOLD}Active Agent Sessions:${NC}"
+    echo ""
+
+    for session_file in "$AGENT_SESSIONS_DIR"/*.yaml; do
+        [[ -e "$session_file" ]] || continue
+
+        local name=$(grep "^name:" "$session_file" | cut -d' ' -f2-)
+        local branch=$(grep "^branch:" "$session_file" | cut -d' ' -f2-)
+        local status=$(grep "^status:" "$session_file" | cut -d' ' -f2-)
+        local worktree=$(grep "^worktree:" "$session_file" | cut -d' ' -f2-)
+        local notes=$(grep "^notes:" "$session_file" | cut -d' ' -f2- | tr -d '"')
+
+        # Check if worktree still exists
+        if [[ ! -d "$worktree" ]]; then
+            status="${RED}missing${NC}"
+        elif [[ "$status" == "active" ]]; then
+            status="${GREEN}active${NC}"
+        elif [[ "$status" == "paused" ]]; then
+            status="${YELLOW}paused${NC}"
+        fi
+
+        echo -e "${BOLD}${CYAN}$name${NC}"
+        echo -e "  Branch:   $branch"
+        echo -e "  Status:   $status"
+        echo -e "  Path:     $worktree"
+        [[ -n "$notes" ]] && echo -e "  Notes:    $notes"
+        echo ""
+    done
+}
+
+# Switch to a session (cd into worktree)
+cmd_switch() {
+    local session_name="$1"
+    [[ -z "$session_name" ]] && die "Session name is required. Usage: agent switch <session-name>"
+
+    session_exists "$session_name" || die "Session '$session_name' not found. Run 'agent list' to see available sessions."
+
+    local worktree=$(get_session_value "$session_name" "worktree")
+
+    if [[ ! -d "$worktree" ]]; then
+        die "Worktree directory not found: $worktree. Session may be corrupted."
+    fi
+
+    # Update last_active timestamp
+    local session_file=$(get_session_file "$session_name")
+    sed -i "s/^last_active:.*/last_active: $(date -u +"%Y-%m-%dT%H:%M:%SZ")/" "$session_file"
+
+    # Export environment variable for prompt integration
+    export AGENT_SESSION="$session_name"
+
+    # Change to worktree directory
+    cd "$worktree"
+
+    log_success "Switched to session: $session_name"
+    log_info "Working directory: $worktree"
+
+    # If running in an interactive shell, start a new shell with the session active
+    if [[ $- == *i* ]]; then
+        echo ""
+        echo -e "${BOLD}Entering session environment...${NC}"
+        echo -e "Type ${GREEN}exit${NC} to leave this session."
+        echo ""
+        exec bash --init-file <(echo "
+            source ~/.bashrc
+            export AGENT_SESSION='$session_name'
+            export PS1='${MAGENTA}[$session_name]${NC} \$PS1'
+            cd $worktree
+        ")
+    fi
+}
+
+# View or edit session context
+cmd_context() {
+    local session_name="$1"
+    local edit=false
+
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --edit|-e)
+                edit=true
+                shift
+                ;;
+            *)
+                die "Unknown argument: $1"
+                ;;
+        esac
+    done
+
+    [[ -z "$session_name" ]] && die "Session name is required. Usage: agent context <session-name> [--edit]"
+
+    session_exists "$session_name" || die "Session '$session_name' not found."
+
+    local context_dir=$(get_context_dir "$session_name")
+    local context_file="$context_dir/context.md"
+
+    if [[ ! -f "$context_file" ]]; then
+        die "Context file not found: $context_file"
+    fi
+
+    if $edit; then
+        ${EDITOR:-vim} "$context_file"
+    else
+        ${PAGER:-less} "$context_file"
+    fi
+}
+
+# Sync session with upstream changes
+cmd_sync() {
+    local session_name="$1"
+    [[ -z "$session_name" ]] && die "Session name is required. Usage: agent sync <session-name>"
+
+    session_exists "$session_name" || die "Session '$session_name' not found."
+
+    local worktree=$(get_session_value "$session_name" "worktree")
+    local branch=$(get_session_value "$session_name" "branch")
+
+    log_step "Syncing session: $session_name"
+
+    cd "$worktree"
+
+    log_info "Fetching latest changes..."
+    git fetch origin
+
+    log_info "Rebasing $branch onto origin/main..."
+    git rebase origin/main || {
+        log_error "Rebase failed. Please resolve conflicts manually."
+        log_info "After resolving, run: git rebase --continue"
+        exit 1
+    }
+
+    log_success "Session synced successfully!"
+}
+
+# Close a session (remove worktree and optionally delete branch)
+cmd_close() {
+    local session_name="$1"
+    local delete_branch=false
+    local archive=false
+
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --delete-branch)
+                delete_branch=true
+                shift
+                ;;
+            --archive)
+                archive=true
+                shift
+                ;;
+            *)
+                die "Unknown argument: $1"
+                ;;
+        esac
+    done
+
+    [[ -z "$session_name" ]] && die "Session name is required. Usage: agent close <session-name>"
+
+    session_exists "$session_name" || die "Session '$session_name' not found."
+
+    local worktree=$(get_session_value "$session_name" "worktree")
+    local branch=$(get_session_value "$session_name" "branch")
+    local context_dir=$(get_context_dir "$session_name")
+    local session_file=$(get_session_file "$session_name")
+
+    log_step "Closing session: $session_name"
+
+    # Archive context if requested
+    if $archive; then
+        local archive_dir="$AGENT_CONFIG_DIR/archive/$(get_repo_name)"
+        mkdir -p "$archive_dir"
+        local archive_file="$archive_dir/${session_name}-$(date +%Y%m%d-%H%M%S).tar.gz"
+
+        log_info "Archiving context to: $archive_file"
+        tar -czf "$archive_file" -C "$(dirname $context_dir)" "$(basename $context_dir)"
+    fi
+
+    # Remove worktree
+    if [[ -d "$worktree" ]]; then
+        log_info "Removing worktree: $worktree"
+        git worktree remove "$worktree" --force
+    fi
+
+    # Delete branch if requested
+    if $delete_branch; then
+        log_info "Deleting branch: $branch"
+        git branch -D "$branch" 2>/dev/null || true
+    fi
+
+    # Remove context directory
+    log_info "Removing context directory"
+    rm -rf "$context_dir"
+
+    # Remove session file
+    rm -f "$session_file"
+
+    log_success "Session closed successfully!"
+}
+
+# Share context between sessions
+cmd_share_context() {
+    local from_session="$1"
+    local to_session="$2"
+    local file=""
+
+    shift 2
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --file=*)
+                file="${1#*=}"
+                shift
+                ;;
+            *)
+                die "Unknown argument: $1"
+                ;;
+        esac
+    done
+
+    [[ -z "$from_session" || -z "$to_session" || -z "$file" ]] && \
+        die "Usage: agent share-context <from-session> <to-session> --file=<filename>"
+
+    session_exists "$from_session" || die "Source session '$from_session' not found."
+    session_exists "$to_session" || die "Target session '$to_session' not found."
+
+    local from_context=$(get_context_dir "$from_session")
+    local to_context=$(get_context_dir "$to_session")
+    local from_file="$from_context/$file"
+    local to_file="$to_context/$file"
+
+    [[ ! -f "$from_file" ]] && die "File not found: $from_file"
+
+    log_info "Copying $file from '$from_session' to '$to_session'"
+    cp "$from_file" "$to_file"
+
+    log_success "Context shared successfully!"
+}
+
+# Lock a session
+cmd_lock() {
+    local session_name="$1"
+    local reason="${2:-No reason provided}"
+
+    [[ -z "$session_name" ]] && die "Session name is required. Usage: agent lock <session-name> <reason>"
+
+    session_exists "$session_name" || die "Session '$session_name' not found."
+
+    local context_dir=$(get_context_dir "$session_name")
+    local lockfile="$context_dir/.lock"
+
+    if [[ -f "$lockfile" ]]; then
+        log_error "Session is already locked:"
+        cat "$lockfile"
+        exit 1
+    fi
+
+    echo "$USER@$(hostname) - $reason - $(date)" > "$lockfile"
+    log_success "Session locked: $session_name"
+}
+
+# Unlock a session
+cmd_unlock() {
+    local session_name="$1"
+
+    [[ -z "$session_name" ]] && die "Session name is required. Usage: agent unlock <session-name>"
+
+    session_exists "$session_name" || die "Session '$session_name' not found."
+
+    local context_dir=$(get_context_dir "$session_name")
+    local lockfile="$context_dir/.lock"
+
+    if [[ ! -f "$lockfile" ]]; then
+        log_warn "Session is not locked: $session_name"
+        exit 0
+    fi
+
+    rm -f "$lockfile"
+    log_success "Session unlocked: $session_name"
+}
+
+# Get current session
+cmd_current() {
+    if [[ -n "${AGENT_SESSION:-}" ]]; then
+        echo "$AGENT_SESSION"
+    else
+        # Try to infer from current directory
+        local git_root=$(get_git_root 2>/dev/null) || exit 1
+        local current_dir=$(pwd)
+
+        for session_file in "$AGENT_SESSIONS_DIR"/*.yaml; do
+            [[ -e "$session_file" ]] || continue
+            local worktree=$(grep "^worktree:" "$session_file" | cut -d' ' -f2-)
+            if [[ "$current_dir" == "$worktree"* ]]; then
+                grep "^name:" "$session_file" | cut -d' ' -f2-
+                exit 0
+            fi
+        done
+
+        exit 1
+    fi
+}
+
+# Display help
+cmd_help() {
+    cat <<EOF
+${BOLD}agent${NC} - Multi-Agent Session Manager
+
+${BOLD}USAGE:${NC}
+    agent <command> [arguments]
+
+${BOLD}COMMANDS:${NC}
+    ${CYAN}new${NC} <session-name> [options]
+        Create a new agent session with git worktree
+        Options:
+            --branch=<name>      Git branch name (default: agent/<session-name>)
+            --template=<name>    Session template (default: feature)
+            --base=<branch>      Base branch (default: main)
+
+    ${CYAN}list${NC}
+        List all active agent sessions
+
+    ${CYAN}switch${NC} <session-name>
+        Switch to an agent session (cd into worktree)
+
+    ${CYAN}context${NC} <session-name> [--edit]
+        View or edit session context
+        Options:
+            --edit, -e    Open in editor instead of pager
+
+    ${CYAN}sync${NC} <session-name>
+        Sync session with upstream changes (fetch + rebase)
+
+    ${CYAN}close${NC} <session-name> [options]
+        Close a session and clean up
+        Options:
+            --delete-branch    Delete the git branch
+            --archive          Archive context before closing
+
+    ${CYAN}share-context${NC} <from-session> <to-session> --file=<filename>
+        Share context file between sessions
+
+    ${CYAN}lock${NC} <session-name> <reason>
+        Lock a session to prevent concurrent edits
+
+    ${CYAN}unlock${NC} <session-name>
+        Unlock a session
+
+    ${CYAN}current${NC}
+        Show current active session
+
+    ${CYAN}help${NC}
+        Show this help message
+
+${BOLD}EXAMPLES:${NC}
+    # Create a new feature session
+    agent new auth-feature --branch=feature/oauth
+
+    # List all sessions
+    agent list
+
+    # Switch to a session
+    agent switch auth-feature
+
+    # View session context
+    agent context auth-feature
+
+    # Sync with main branch
+    agent sync auth-feature
+
+    # Close session when done
+    agent close auth-feature --archive --delete-branch
+
+${BOLD}CONFIGURATION:${NC}
+    Config file: $AGENT_CONFIG_FILE
+    Sessions: $AGENT_SESSIONS_DIR
+    Contexts: $AGENT_CONTEXTS_DIR
+
+${BOLD}MORE INFO:${NC}
+    See docs/AGENT_WORKFLOWS.md for detailed workflows and examples
+EOF
+}
+
+# ============================================================================
+# Main
+# ============================================================================
+
+main() {
+    # Initialize directories
+    init_agent_dirs
+
+    # Parse command
+    local command="${1:-help}"
+    shift || true
+
+    case "$command" in
+        new)
+            cmd_new "$@"
+            ;;
+        list|ls)
+            cmd_list "$@"
+            ;;
+        switch|sw)
+            cmd_switch "$@"
+            ;;
+        context|ctx)
+            cmd_context "$@"
+            ;;
+        sync)
+            cmd_sync "$@"
+            ;;
+        close|rm)
+            cmd_close "$@"
+            ;;
+        share-context)
+            cmd_share_context "$@"
+            ;;
+        lock)
+            cmd_lock "$@"
+            ;;
+        unlock)
+            cmd_unlock "$@"
+            ;;
+        current)
+            cmd_current "$@"
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            echo ""
+            cmd_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

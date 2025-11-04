@@ -1,0 +1,43 @@
+# Exploration Template
+# Used when creating exploratory/research sessions
+
+name: "Exploration"
+description: "Template for exploring codebases or experimenting"
+
+files:
+  context.md: |
+    # Exploration: {{EXPLORATION_NAME}}
+
+    ## Purpose
+    [What are you exploring and why]
+
+    ## Questions to Answer
+    - [ ] Question 1
+    - [ ] Question 2
+    - [ ] Question 3
+
+    ## Findings
+    [Document your discoveries here]
+
+    ## Experiments
+    [List any experiments or prototypes]
+
+    ## Next Steps
+    [Based on findings, what should happen next]
+
+    ## Resources
+    - [Link 1]
+    - [Link 2]
+
+  notes.md: |
+    # Exploration Notes
+
+    ## {{DATE}}
+    [Your exploration notes]
+
+  experiments/README.md: |
+    # Experiments
+
+    Store experimental code and prototypes here.
+
+  shared-tempfiles/.gitkeep: ""
