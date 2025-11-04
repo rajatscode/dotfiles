@@ -82,3 +82,41 @@ cask "font-hack-nerd-font"
 # brew "btop"        # Better htop
 # brew "ncdu"        # Disk usage analyzer
 # cask "rectangle"   # Window management (alternative to yabai)
+
+# ============================================================================
+# Language Tooling
+# ============================================================================
+
+# Python
+brew "uv"              # Fast Python package installer
+brew "ruff"            # Fast Python linter/formatter  
+brew "mypy"            # Type checking
+brew "pre-commit"      # Git hooks
+
+# TypeScript/JavaScript
+brew "node"
+brew "pnpm"            # Fast package manager
+brew "bun"             # Fast runtime
+brew "fnm"             # Node version manager
+
+# Rust
+brew "rust"
+brew "rust-analyzer"
+
+# OCaml
+brew "opam"            # OCaml package manager
+brew "dune"            # OCaml build system
+
+# Formatting/Linting
+brew "prettier"        # Code formatter (JS/TS/CSS/etc)
+brew "eslint"          # JavaScript linter
+brew "shfmt"           # Shell script formatter
+brew "stylua"          # Lua formatter
+brew "markdownlint-cli" # Markdown linter
+
+# Markdown
+brew "glow"            # Markdown preview
+
+# Optional but useful
+# brew "cargo-watch"   # Cargo with watch mode
+# brew "cargo-nextest" # Better Rust test runner

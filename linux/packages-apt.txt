@@ -48,3 +48,15 @@ jq
 # Fonts
 fonts-firacode
 fonts-hack-ttf
+
+# Language Tooling
+python3-pip
+python3-venv
+nodejs
+npm
+rustc
+cargo
+opam
+ocaml-dune
+prettier
+shfmt
