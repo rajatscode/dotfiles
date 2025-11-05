@@ -17,12 +17,14 @@
   "show_inline_completions": true,
   "relative_line_numbers": true,
 
-  // AI Inline Completions
-  // To use, install the Codeium or Copilot extension from Zed Extensions
-  // Then set up your provider below:
+  // AI Inline Completions - Tabnine (Privacy-focused)
+  // Install the Tabnine extension from Zed Extensions (Cmd+Shift+X)
+  // Tabnine runs locally for maximum privacy and security
   "inline_completions": {
     "disabled_globs": [
-      ".env"
+      ".env",
+      "*.secret",
+      "*.key"
     ]
   },
 
