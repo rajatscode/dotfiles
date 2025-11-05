@@ -31,6 +31,39 @@ end
 if status is-interactive
     # Commands to run in interactive sessions can go here
 
+    # Auto-sync dotfiles once per day
+    function _dotfiles_auto_sync
+        set dotfiles_dir "$HOME/.dotfiles"
+        set last_sync_file "$HOME/.dotfiles_last_sync"
+        set current_time (date +%s)
+        set sync_interval 86400  # 24 hours in seconds
+
+        # Only sync if dotfiles installation exists
+        if not test -d "$dotfiles_dir/.git"
+            return
+        end
+
+        # Check if we need to sync
+        set should_sync false
+        if not test -f "$last_sync_file"
+            set should_sync true
+        else
+            set last_sync (cat "$last_sync_file" 2>/dev/null; or echo "0")
+            set time_since_sync (math $current_time - $last_sync)
+            if test $time_since_sync -ge $sync_interval
+                set should_sync true
+            end
+        end
+
+        if test "$should_sync" = "true"
+            # Sync silently in background
+            fish -c "cd $dotfiles_dir && git fetch origin >/dev/null 2>&1 && git pull origin main >/dev/null 2>&1 && echo $current_time > $last_sync_file" &
+        end
+    end
+
+    # Run auto-sync
+    _dotfiles_auto_sync
+
     # Disable greeting
     set -g fish_greeting
 

@@ -49,6 +49,48 @@ if [[ -d "$DOTFILES_HOME_DIR/bin" ]]; then
     export PATH="$DOTFILES_HOME_DIR/bin:$PATH"
 fi
 
+# ============================================================================
+# Auto-sync Dotfiles
+# ============================================================================
+
+# Sync dotfiles from remote once per day
+_dotfiles_auto_sync() {
+    local dotfiles_dir="${HOME}/.dotfiles"
+    local last_sync_file="${HOME}/.dotfiles_last_sync"
+    local current_time=$(date +%s)
+    local sync_interval=86400  # 24 hours in seconds
+
+    # Only sync if dotfiles installation exists
+    if [[ ! -d "$dotfiles_dir/.git" ]]; then
+        return
+    fi
+
+    # Check if we need to sync
+    local should_sync=false
+    if [[ ! -f "$last_sync_file" ]]; then
+        should_sync=true
+    else
+        local last_sync=$(cat "$last_sync_file" 2>/dev/null || echo "0")
+        local time_since_sync=$((current_time - last_sync))
+        if [[ $time_since_sync -ge $sync_interval ]]; then
+            should_sync=true
+        fi
+    fi
+
+    if [[ "$should_sync" == "true" ]]; then
+        # Sync silently in background
+        (
+            cd "$dotfiles_dir" && \
+            git fetch origin >/dev/null 2>&1 && \
+            git pull origin main >/dev/null 2>&1 && \
+            echo "$current_time" > "$last_sync_file"
+        ) &
+    fi
+}
+
+# Run auto-sync
+_dotfiles_auto_sync
+
 # Create stored vars file if it doesn't exist, and source it
 mkdir -p $(dirname -- "$ZSHRC_STORED_VARS")
 touch "$ZSHRC_STORED_VARS"
