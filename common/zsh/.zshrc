@@ -12,14 +12,27 @@
 
 # Determine dotfiles directory
 if [[ -z "${DOTFILES_HOME_DIR}" ]]; then
-    if [[ -f "${HOME}/.config/dotfiles/.zshrc" ]]; then
-        export DOTFILES_HOME_DIR="${HOME}/.config/dotfiles"
-    elif [[ -f "${HOME}/.dotfiles/.zshrc" ]]; then
-        export DOTFILES_HOME_DIR="${HOME}/.dotfiles"
-    elif [[ -f "${HOME}/dotfiles/.zshrc" ]]; then
-        export DOTFILES_HOME_DIR="${HOME}/dotfiles"
-    else
-        export DOTFILES_HOME_DIR="${HOME}/.configs/dotfiles"
+    # First, check if this zshrc is symlinked and get the source directory
+    if [[ -L "${HOME}/.zshrc" ]]; then
+        # Get the real path of the symlink and extract dotfiles directory
+        zshrc_real_path="$(readlink -f "${HOME}/.zshrc" 2>/dev/null || readlink "${HOME}/.zshrc")"
+        if [[ -n "$zshrc_real_path" ]]; then
+            # Extract dotfiles dir from path like /path/to/dotfiles/common/zsh/.zshrc
+            export DOTFILES_HOME_DIR="$(dirname "$(dirname "$(dirname "$zshrc_real_path")")")"
+        fi
+    fi
+
+    # If still not found, try standard locations
+    if [[ -z "${DOTFILES_HOME_DIR}" ]] || [[ ! -d "${DOTFILES_HOME_DIR}/common/zsh" ]]; then
+        if [[ -f "${HOME}/.config/dotfiles/.zshrc" ]] || [[ -d "${HOME}/.config/dotfiles/common/zsh" ]]; then
+            export DOTFILES_HOME_DIR="${HOME}/.config/dotfiles"
+        elif [[ -f "${HOME}/.dotfiles/.zshrc" ]] || [[ -d "${HOME}/.dotfiles/common/zsh" ]]; then
+            export DOTFILES_HOME_DIR="${HOME}/.dotfiles"
+        elif [[ -f "${HOME}/dotfiles/.zshrc" ]] || [[ -d "${HOME}/dotfiles/common/zsh" ]]; then
+            export DOTFILES_HOME_DIR="${HOME}/dotfiles"
+        else
+            export DOTFILES_HOME_DIR="${HOME}/.configs/dotfiles"
+        fi
     fi
 fi
 
