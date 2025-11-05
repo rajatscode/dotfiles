@@ -121,10 +121,11 @@ features and tools included in these dotfiles.
 
 ${BOLD}What you'll learn:${NC}
 
-  ${ROBOT} ${CYAN}AI Agent Parallelization${NC} - Multi-agent workflow management
   ${COMPASS} ${CYAN}Navigation System${NC} - Enhanced directory navigation
   ${TOOLS} ${CYAN}Aliases & Utilities${NC} - 50+ productivity shortcuts
   ${GIT} ${CYAN}Git Enhancements${NC} - Streamlined version control
+  🌳 ${CYAN}Git Worktrees${NC} - Easy worktree management with 'wt'
+  ${ROBOT} ${CYAN}AI Agent Parallelization${NC} - Multi-agent workflow management
 
 ${DIM}This tutorial will create a demo directory at:${NC}
 ${DIM}  ${DEMO_DIR}${NC}
@@ -539,6 +540,81 @@ EOF
     wait_for_user
 }
 
+section_worktrees() {
+    print_header
+    print_section "🌳 Git Worktrees Made Easy"
+
+    cat << EOF
+${BOLD}The 'wt' command makes git worktrees incredibly easy to use.${NC}
+
+Git worktrees let you check out multiple branches at once, each in
+its own directory. No more stashing or switching branches!
+
+${BOLD}Why use worktrees?${NC}
+  • Work on multiple features simultaneously
+  • Quick bug fixes without disrupting current work
+  • Compare different branches side-by-side
+  • Parallel testing of different approaches
+
+EOF
+
+    wait_for_user
+
+    print_subsection "Core wt Commands"
+    cat << EOF
+${BOLD}Basic Operations:${NC}
+
+${CYAN}wt add <name>${NC}              Create a new worktree
+${CYAN}wt list${NC}                    List all worktrees
+${CYAN}wt switch <name>${NC}           Switch to a worktree
+${CYAN}wt remove <name>${NC}           Remove a worktree
+${CYAN}wt info [name]${NC}             Show worktree info
+
+${BOLD}Quick Example:${NC}
+
+  ${DIM}# Create worktree for a feature${NC}
+  ${GREEN}wt add feature-auth${NC}
+
+  ${DIM}# Switch to it${NC}
+  ${GREEN}wt switch feature-auth${NC}
+
+  ${DIM}# Work on your feature...${NC}
+
+  ${DIM}# Switch back to main work${NC}
+  ${GREEN}cd \$(wt path main-work)${NC}
+
+  ${DIM}# Remove when done${NC}
+  ${GREEN}wt remove feature-auth${NC}
+
+${BOLD}Advanced Features:${NC}
+
+  ${CYAN}wt add feat --from=develop${NC}      Branch from develop
+  ${CYAN}wt each git status${NC}              Run command in all worktrees
+  ${CYAN}wt path feature-auth${NC}            Get path for scripts
+  ${CYAN}wt branch${NC}                       Show current branch
+
+EOF
+
+    wait_for_user
+
+    print_subsection "Fuzzy Matching"
+    cat << EOF
+${BOLD}wt supports fuzzy matching - no need to type full names!${NC}
+
+  ${GREEN}wt switch feat${NC}     # Matches 'feature-auth'
+  ${GREEN}wt remove fix${NC}      # Matches 'fix-bug-123'
+  ${GREEN}wt info api${NC}        # Matches 'api-refactor'
+
+${BOLD}Tab Completion:${NC}
+  wt [tab]           # Shows all commands
+  wt switch [tab]    # Shows all worktree names
+  wt add new [tab]   # Shows all branches
+
+EOF
+
+    wait_for_user
+}
+
 section_agents() {
     print_header
     print_section "${ROBOT} AI Agent Parallelization"
@@ -548,6 +624,13 @@ ${BOLD}The crown jewel: Multi-agent workflow management.${NC}
 
 This system lets you run multiple AI agent sessions in parallel,
 each with their own git worktree and isolated environment.
+
+${BOLD}The 'agent' command builds on 'wt' with:${NC}
+  • Session management and context tracking
+  • Shared context between sessions
+  • Templates for different workflow types
+  • Lock files to prevent conflicts
+  • Integration with your shell prompt
 
 ${BOLD}Perfect for:${NC}
   • Working on multiple features simultaneously
@@ -729,6 +812,7 @@ ${BOLD}Quick command reference:${NC}
   ${DIM}Navigation:${NC}    al, fal, lal, mkcd, pl/gl/ol
   ${DIM}Utilities:${NC}     updoot, plz, myip, weather, ports
   ${DIM}Git:${NC}           gs, ga, gc, gp, gco, gwip
+  ${DIM}Worktrees:${NC}     wt add/list/switch/remove
   ${DIM}Agent:${NC}         agent new/list/switch/close
 
 ${BOLD}Getting help:${NC}
@@ -786,6 +870,7 @@ main() {
     section_navigation
     section_aliases
     section_git
+    section_worktrees
     section_agents
     section_next_steps
     cleanup
