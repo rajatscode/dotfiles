@@ -430,8 +430,14 @@ EOF
         log_success "Created ~/.zsh_profile"
     fi
 
-    if [ ! -f "$HOME/.config/fish/personal.fish" ]; then
+    # For fish, personal.fish should be created after stowing
+    # It will be referenced by conf.d/99-local.fish but shouldn't be in the repo
+    # Note: If ~/.config/fish is symlinked by stow, the file will appear in the repo
+    # but it's ignored by .gitignore
+    if [ ! -f "$HOME/.config/fish/personal.fish" ] || [ -L "$HOME/.config/fish/personal.fish" ]; then
         mkdir -p "$HOME/.config/fish"
+        # Create personal.fish in the actual ~/.config/fish directory
+        # Even if it's symlinked, this will work and be ignored by git
         cat > "$HOME/.config/fish/personal.fish" <<EOF
 # Personal fish configuration
 # This file is not tracked in the dotfiles repository
@@ -669,18 +675,40 @@ post_install() {
     echo ""
     echo -e "${BOLD}Next Steps:${NC}"
     echo ""
-    echo -e "  1. ${CYAN}Restart your terminal${NC} or run: ${GREEN}source ~/.bashrc${NC}"
+
+    # Shell-specific activation instructions
+    echo -e "  1. ${CYAN}Restart your terminal${NC} or activate your shell config:"
+    if [ -f "$HOME/.config/fish/config.fish" ]; then
+        echo -e "     ${GREEN}exec fish${NC}                    (fish shell - recommended: just restart terminal)"
+    fi
+    if [ -f "$HOME/.zshrc" ]; then
+        echo -e "     ${GREEN}source ~/.zshrc${NC}              (zsh shell)"
+    fi
+    if [ -f "$HOME/.bashrc" ]; then
+        echo -e "     ${GREEN}source ~/.bashrc${NC}             (bash shell)"
+    fi
     echo ""
+
     echo -e "  2. ${CYAN}Edit your personal configs:${NC}"
-    echo -e "     ${YELLOW}~/.gitprofile${NC}    - Git name/email"
-    echo -e "     ${YELLOW}~/.bash_profile${NC}  - Personal bash config"
+    echo -e "     ${YELLOW}~/.gitprofile${NC}                - Git name/email"
+    if [ -f "$HOME/.bash_profile" ]; then
+        echo -e "     ${YELLOW}~/.bash_profile${NC}              - Personal bash config"
+    fi
+    if [ -f "$HOME/.zsh_profile" ]; then
+        echo -e "     ${YELLOW}~/.zsh_profile${NC}               - Personal zsh config"
+    fi
+    if [ -f "$HOME/.config/fish/personal.fish" ]; then
+        echo -e "     ${YELLOW}~/.config/fish/personal.fish${NC} - Personal fish config"
+    fi
     echo ""
+
     echo -e "  3. ${CYAN}Try the AI agent tools:${NC}"
     echo -e "     ${GREEN}agent new my-feature${NC}    - Create a new agent session"
     echo -e "     ${GREEN}agent list${NC}              - List active sessions"
     echo -e "     ${GREEN}agent shepherd${NC}          - Address PR review comments"
     echo -e "     ${GREEN}agent help${NC}              - Show all commands"
     echo ""
+
     echo -e "  4. ${CYAN}Explore the navigation system:${NC}"
     echo -e "     ${GREEN}al myproj${NC}               - Alias current directory"
     echo -e "     ${GREEN}fal myproj${NC}              - Jump to aliased directory"
@@ -693,6 +721,13 @@ post_install() {
     echo -e "  ${CYAN}$DOTFILES_DIR/docs/AGENT_WORKFLOWS.md${NC} - AI agent workflows"
     echo -e "  ${CYAN}$DOTFILES_DIR/docs/SHEPHERD.md${NC}      - PR review automation"
     echo ""
+
+    echo -e "${BOLD}Troubleshooting:${NC}"
+    echo -e "  ${CYAN}If 'agent' command not found:${NC}"
+    echo -e "  - Restart your terminal (recommended)"
+    echo -e "  - Or check: ${GREEN}echo \$PATH${NC} should include ${YELLOW}$DOTFILES_DIR/bin${NC}"
+    echo ""
+
     echo -e "${MAGENTA}Enjoy your dotfiles! 🚀${NC}"
     echo ""
 }
