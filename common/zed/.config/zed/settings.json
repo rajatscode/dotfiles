@@ -17,6 +17,17 @@
   "show_inline_completions": true,
   "relative_line_numbers": true,
 
+  // AI Inline Completions - Tabnine (Privacy-focused)
+  // Install the Tabnine extension from Zed Extensions (Cmd+Shift+X)
+  // Tabnine runs locally for maximum privacy and security
+  "inline_completions": {
+    "disabled_globs": [
+      ".env",
+      "*.secret",
+      "*.key"
+    ]
+  },
+
   // Collaboration
   "collaboration_panel": {
     "dock": "left"
