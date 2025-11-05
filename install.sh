@@ -421,6 +421,56 @@ EOF
 }
 
 # ============================================================================
+# Setup Vim and Vundle
+# ============================================================================
+
+setup_vim() {
+    log_header "Vim Plugin Manager Setup"
+
+    # Check if vim config was installed
+    if [ ! -f "$HOME/.vimrc" ]; then
+        log_info "Vim config not installed, skipping Vundle setup"
+        return
+    fi
+
+    # Check if Vundle is already installed
+    if [ -d "$HOME/.vim/bundle/Vundle.vim" ]; then
+        log_info "Vundle already installed"
+        if ask_user "Update Vundle plugins?"; then
+            log_step "Updating Vundle plugins..."
+            vim +PluginUpdate +qall
+            log_success "Vundle plugins updated"
+        fi
+    else
+        if ask_user "Install Vundle (Vim plugin manager)?"; then
+            log_step "Installing Vundle..."
+
+            # Create bundle directory
+            mkdir -p "$HOME/.vim/bundle"
+
+            # Clone Vundle
+            git clone https://github.com/VundleVim/Vundle.vim.git "$HOME/.vim/bundle/Vundle.vim"
+
+            if [ $? -eq 0 ]; then
+                log_success "Vundle installed successfully"
+
+                # Install plugins
+                log_step "Installing Vim plugins (this may take a few minutes)..."
+                vim +PluginInstall +qall
+                log_success "Vim plugins installed"
+                log_info "Run ':PluginUpdate' in Vim to update plugins"
+            else
+                log_error "Failed to install Vundle"
+                return 1
+            fi
+        else
+            log_warn "Skipping Vundle installation"
+            log_warn "Note: .vimrc expects Vundle to be installed. Vim may show errors."
+        fi
+    fi
+}
+
+# ============================================================================
 # Setup Shell
 # ============================================================================
 
@@ -662,6 +712,7 @@ main() {
     install_packages
     stow_configs
     setup_personal_configs
+    setup_vim
     setup_agent_tools
     setup_shell
     post_install
