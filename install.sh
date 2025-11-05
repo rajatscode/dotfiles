@@ -517,9 +517,55 @@ setup_agent_tools() {
             fi
         fi
 
+        # Check shepherd dependencies
+        log_step "Checking agent shepherd dependencies..."
+        local missing_deps=()
+
+        if ! command -v gh >/dev/null 2>&1; then
+            missing_deps+=("gh (GitHub CLI)")
+        fi
+
+        if ! command -v jq >/dev/null 2>&1; then
+            missing_deps+=("jq (JSON processor)")
+        fi
+
+        if [ ${#missing_deps[@]} -gt 0 ]; then
+            log_warn "Some shepherd dependencies are missing:"
+            for dep in "${missing_deps[@]}"; do
+                echo "  - $dep"
+            done
+            echo ""
+            log_info "These will be installed when you run the package installation step."
+            log_info "Or install manually:"
+            case "$PKG_MANAGER" in
+                apt)
+                    log_info "  sudo apt install gh jq"
+                    ;;
+                brew)
+                    log_info "  brew install gh jq"
+                    ;;
+                pacman)
+                    log_info "  sudo pacman -S github-cli jq"
+                    ;;
+            esac
+            echo ""
+            log_info "After installing dependencies, run: gh auth login"
+        else
+            log_success "All shepherd dependencies are installed"
+
+            # Check gh authentication
+            if ! gh auth status >/dev/null 2>&1; then
+                log_warn "GitHub CLI is not authenticated"
+                log_info "Run 'gh auth login' to authenticate for shepherd to work"
+            else
+                log_success "GitHub CLI is authenticated"
+            fi
+        fi
+
         log_success "Agent tools installed"
-        log_info "Available commands: agent, worktree-clean, context-sync"
+        log_info "Available commands: agent, agent-shepherd-analyze, worktree-clean, context-sync"
         log_info "Run 'agent help' to get started with multi-agent workflows"
+        log_info "Run 'agent shepherd --help' to learn about PR review automation"
     fi
 }
 
@@ -543,6 +589,7 @@ post_install() {
     echo -e "  3. ${CYAN}Try the AI agent tools:${NC}"
     echo -e "     ${GREEN}agent new my-feature${NC}    - Create a new agent session"
     echo -e "     ${GREEN}agent list${NC}              - List active sessions"
+    echo -e "     ${GREEN}agent shepherd${NC}          - Address PR review comments"
     echo -e "     ${GREEN}agent help${NC}              - Show all commands"
     echo ""
     echo -e "  4. ${CYAN}Explore the navigation system:${NC}"
@@ -555,6 +602,7 @@ post_install() {
     echo -e "  ${CYAN}$DOTFILES_DIR/README.md${NC}             - Getting started"
     echo -e "  ${CYAN}$DOTFILES_DIR/ARCHITECTURE.md${NC}       - System design"
     echo -e "  ${CYAN}$DOTFILES_DIR/docs/AGENT_WORKFLOWS.md${NC} - AI agent workflows"
+    echo -e "  ${CYAN}$DOTFILES_DIR/docs/SHEPHERD.md${NC}      - PR review automation"
     echo ""
     echo -e "${MAGENTA}Enjoy your dotfiles! 🚀${NC}"
     echo ""
