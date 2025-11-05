@@ -122,22 +122,36 @@ end
 
 complete -c xal -a "(ls -1 $ALIAS_SYMLINK_DIR 2>/dev/null)"
 
-## lal - lists aliases
+## lal - lists aliases with their targets
 if test "$OS_TYPE" = "macos"
-    # macOS stat has different syntax
+    # macOS: use stat to get mtime for sorting, then readlink to show targets
     function lal
         # Use ls to check if directory is empty (avoid Fish glob expansion errors)
         if test (count (ls -A $ALIAS_SYMLINK_DIR 2>/dev/null)) -gt 0
-            stat -f'%N %m' $ALIAS_SYMLINK_DIR/* 2>/dev/null | sed 's~'"$ALIAS_SYMLINK_DIR"'/~~' | sort -nrk 2 | rev | cut -d ' ' -f 2- | rev
+            for f in $ALIAS_SYMLINK_DIR/*
+                if test -e "$f"
+                    set fname (basename "$f")
+                    set mtime (stat -f'%m' "$f" 2>/dev/null)
+                    set target (readlink "$f" 2>/dev/null)
+                    echo "$mtime $fname -> $target"
+                end
+            end | sort -nrk1 | cut -d' ' -f2-
         else
             echo "No aliases found. Use 'al' to create one."
         end
     end
 else
     function lal
-        # Use ls to check if directory is empty (avoid Fish glob expansion errors)
+        # Linux: use stat to get mtime for sorting, then readlink to show targets
         if test (count (ls -A $ALIAS_SYMLINK_DIR 2>/dev/null)) -gt 0
-            stat -c"%N %Y" $ALIAS_SYMLINK_DIR/* 2>/dev/null | sed 's~'"$ALIAS_SYMLINK_DIR"'/~~' | sort -nrk 4 | rev | cut -d ' ' -f 2- | rev
+            for f in $ALIAS_SYMLINK_DIR/*
+                if test -e "$f"
+                    set fname (basename "$f")
+                    set mtime (stat -c'%Y' "$f" 2>/dev/null)
+                    set target (readlink "$f" 2>/dev/null)
+                    echo "$mtime $fname -> $target"
+                end
+            end | sort -nrk1 | cut -d' ' -f2-
         else
             echo "No aliases found. Use 'al' to create one."
         end
