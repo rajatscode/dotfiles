@@ -71,7 +71,8 @@ ask_user() {
     fi
 
     while true; do
-        read -p "$(echo -e "${BLUE}[?]${NC} $1 [y/n] ")" yn
+        printf "${BLUE}[?]${NC} %s [y/n] " "$1"
+        read yn
         case $yn in
             [Yy]* ) return 0;;
             [Nn]* ) return 1;;
@@ -434,7 +435,8 @@ setup_shell() {
     echo "  2) zsh"
     echo "  3) fish"
     echo ""
-    read -p "$(echo -e "${BLUE}[?]${NC} Enter choice [1-3]: ")" shell_choice
+    printf "${BLUE}[?]${NC} Enter choice [1-3]: "
+    read shell_choice
 
     case $shell_choice in
         2)
