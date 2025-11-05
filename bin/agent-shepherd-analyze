@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+
+# agent-shepherd-analyze - Analyze PR review comments and suggest actions
+#
+# This script analyzes a PR review comment, investigates the relevant code,
+# and suggests actionable fixes or responses.
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+log_step() { echo -e "${CYAN}▶${NC} $1"; }
+die() { log_error "$1"; exit 1; }
+
+# Parse arguments
+comment_file=""
+pr_number=""
+auto_apply=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --comment=*)
+            comment_file="${1#*=}"
+            shift
+            ;;
+        --pr=*)
+            pr_number="${1#*=}"
+            shift
+            ;;
+        --auto-apply)
+            auto_apply=true
+            shift
+            ;;
+        *)
+            die "Unknown argument: $1"
+            ;;
+    esac
+done
+
+[[ -z "$comment_file" ]] && die "Missing --comment argument"
+[[ -z "$pr_number" ]] && die "Missing --pr argument"
+[[ ! -f "$comment_file" ]] && die "Comment file not found: $comment_file"
+
+# Read comment details
+comment_id=$(jq -r '.id' "$comment_file")
+comment_path=$(jq -r '.path' "$comment_file")
+comment_line=$(jq -r '.line' "$comment_file")
+comment_body=$(jq -r '.body' "$comment_file")
+comment_user=$(jq -r '.user' "$comment_file")
+diff_hunk=$(jq -r '.diff_hunk' "$comment_file")
+
+log_step "Analyzing comment from $comment_user on $comment_path:$comment_line"
+echo ""
+
+# Get file context (surrounding lines)
+context_lines=20
+if [[ -f "$comment_path" ]]; then
+    start_line=$((comment_line > context_lines ? comment_line - context_lines : 1))
+    end_line=$((comment_line + context_lines))
+
+    log_info "Reading file context (lines $start_line-$end_line)..."
+    file_context=$(sed -n "${start_line},${end_line}p" "$comment_path" | cat -n)
+else
+    log_warn "File not found in current working directory: $comment_path"
+    file_context="[File not found - it may have been renamed or deleted]"
+fi
+
+# Create analysis prompt
+analysis_prompt=$(cat <<EOF
+# PR Review Comment Analysis
+
+## Comment Details
+- **File**: $comment_path:$comment_line
+- **Author**: $comment_user
+- **PR**: #$pr_number
+
+## Review Comment
+$comment_body
+
+## Diff Context
+\`\`\`diff
+$diff_hunk
+\`\`\`
+
+## File Context (±$context_lines lines)
+\`\`\`
+$file_context
+\`\`\`
+
+## Your Task
+
+Analyze this PR review comment and provide:
+
+1. **Summary**: What is the reviewer asking for?
+2. **Assessment**: Is this comment valid? What's the current state of the code?
+3. **Suggested Action**: What should be done? Choose one:
+   - FIX: Make a specific code change
+   - CLARIFY: The comment needs clarification from the reviewer
+   - ACKNOWLEDGE: Comment is noted but no action needed
+   - DEFER: This should be addressed in a future PR
+   - DISAGREE: Respectfully disagree with the comment
+
+4. **Implementation**: If action is FIX, provide:
+   - Exact code changes needed
+   - Any tests that should be updated
+   - Any documentation updates
+
+5. **Response**: Draft a reply to post on the PR comment
+
+Format your response as:
+\`\`\`yaml
+summary: |
+  [Brief summary of the comment]
+assessment: |
+  [Your assessment of the current code and comment validity]
+action: [FIX|CLARIFY|ACKNOWLEDGE|DEFER|DISAGREE]
+confidence: [HIGH|MEDIUM|LOW]
+implementation:
+  changes: |
+    [Specific code changes, if action is FIX]
+  tests: |
+    [Test updates needed, if any]
+  docs: |
+    [Documentation updates, if any]
+response: |
+  [Draft reply to post on the PR]
+\`\`\`
+EOF
+)
+
+# Save analysis prompt to temp file
+analysis_file="/tmp/shepherd-analysis-$$.md"
+echo "$analysis_prompt" > "$analysis_file"
+
+echo -e "${BOLD}Analysis Prompt:${NC}"
+echo "────────────────────────────────────────────────────"
+cat "$analysis_file"
+echo "────────────────────────────────────────────────────"
+echo ""
+
+# Check if we have claude command available
+if command -v claude &> /dev/null; then
+    log_info "Using Claude CLI to analyze comment..."
+
+    # Run Claude analysis
+    claude_output=$(claude --quiet < "$analysis_file" 2>/dev/null) || {
+        log_warn "Claude CLI failed, falling back to manual mode"
+        claude_output=""
+    }
+
+    if [[ -n "$claude_output" ]]; then
+        echo "$claude_output"
+
+        # Parse the YAML response
+        action=$(echo "$claude_output" | grep "^action:" | cut -d' ' -f2- | tr -d ' ')
+        confidence=$(echo "$claude_output" | grep "^confidence:" | cut -d' ' -f2- | tr -d ' ')
+
+        echo ""
+        log_info "Suggested Action: ${BOLD}$action${NC} (Confidence: $confidence)"
+        echo ""
+
+        # If action is FIX and confidence is HIGH/MEDIUM, offer to apply
+        if [[ "$action" == "FIX" && ("$confidence" == "HIGH" || "$confidence" == "MEDIUM") ]]; then
+            if $auto_apply && [[ "$confidence" == "HIGH" ]]; then
+                apply_fix="y"
+                log_info "Auto-applying high-confidence fix..."
+            else
+                read -p "Would you like to apply this fix? [y/N] " apply_fix
+            fi
+
+            if [[ "$apply_fix" =~ ^[Yy]$ ]]; then
+                # Extract and apply changes
+                # This is a simplified version - in practice, you'd parse the YAML properly
+                log_warn "Automatic fix application not yet implemented."
+                log_info "Please review the suggested changes above and apply manually."
+                log_info "File: $comment_path:$comment_line"
+            fi
+        fi
+
+        # Offer to post response
+        echo ""
+        response=$(echo "$claude_output" | sed -n '/^response:/,/^$/p' | tail -n +2)
+        if [[ -n "$response" ]]; then
+            echo -e "${BOLD}Suggested Response:${NC}"
+            echo "$response"
+            echo ""
+
+            if ! $auto_apply; then
+                read -p "Post this response to the PR comment? [y/N] " post_response
+            else
+                post_response="n"
+            fi
+
+            if [[ "$post_response" =~ ^[Yy]$ ]]; then
+                # Post response using gh CLI
+                echo "$response" | gh pr comment "$pr_number" --body-file - && \
+                    log_success "Response posted!" || \
+                    log_error "Failed to post response"
+            fi
+        fi
+    fi
+else
+    log_warn "Claude CLI not found. Install from: https://github.com/anthropics/claude-code"
+    echo ""
+    log_info "Analysis prompt saved to: $analysis_file"
+    echo ""
+    echo -e "${BOLD}To analyze this comment:${NC}"
+    echo "  1. Copy the prompt above"
+    echo "  2. Paste into Claude Code or your preferred AI"
+    echo "  3. Review the suggested action"
+    echo "  4. Apply changes manually if needed"
+    echo ""
+    echo "Or, install Claude CLI and re-run this command."
+fi
+
+# Cleanup
+rm -f "$analysis_file"
+
+log_success "Analysis complete"

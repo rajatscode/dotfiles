@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+
+# test-shepherd - Validate shepherd command installation and dependencies
+#
+# This script checks that shepherd is properly set up and can run.
+# For real testing, you need a GitHub repository with an actual PR.
+
+set -euo pipefail
+
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+pass() { echo -e "${GREEN}✓${NC} $1"; }
+fail() { echo -e "${RED}✗${NC} $1"; }
+warn() { echo -e "${YELLOW}!${NC} $1"; }
+info() { echo -e "${BLUE}ℹ${NC} $1"; }
+
+echo "Testing agent shepherd installation..."
+echo ""
+
+# Test 1: Check agent command exists
+echo -n "Checking agent command... "
+if command -v agent &> /dev/null; then
+    pass "Found"
+else
+    fail "Not found"
+    echo "  Install: Add dotfiles/bin to PATH"
+    exit 1
+fi
+
+# Test 2: Check shepherd subcommand exists
+echo -n "Checking shepherd subcommand... "
+if agent help | grep -q "shepherd"; then
+    pass "Found"
+else
+    fail "Not found in agent help"
+    exit 1
+fi
+
+# Test 3: Check helper script exists
+echo -n "Checking agent-shepherd-analyze... "
+if [[ -x "$(dirname "$(command -v agent)")/agent-shepherd-analyze" ]]; then
+    pass "Found and executable"
+else
+    fail "Not found or not executable"
+    exit 1
+fi
+
+# Test 4: Check gh CLI
+echo -n "Checking GitHub CLI (gh)... "
+if command -v gh &> /dev/null; then
+    pass "Found ($(gh --version | head -1))"
+else
+    warn "Not found (required for shepherd to work)"
+    echo "  Install: https://cli.github.com/"
+fi
+
+# Test 5: Check gh authentication
+echo -n "Checking gh authentication... "
+if command -v gh &> /dev/null && gh auth status &> /dev/null; then
+    pass "Authenticated"
+else
+    warn "Not authenticated (required for shepherd to work)"
+    echo "  Run: gh auth login"
+fi
+
+# Test 6: Check jq
+echo -n "Checking jq (JSON parser)... "
+if command -v jq &> /dev/null; then
+    pass "Found"
+else
+    warn "Not found (required for shepherd to work)"
+    echo "  Install: brew install jq (macOS) or apt install jq (Linux)"
+fi
+
+# Test 7: Check optional Claude CLI
+echo -n "Checking Claude CLI (optional)... "
+if command -v claude &> /dev/null; then
+    pass "Found (AI analysis enabled)"
+else
+    info "Not found (will use manual mode)"
+    echo "  Optional: Install from https://github.com/anthropics/claude-code"
+fi
+
+# Test 8: Validate script syntax
+echo -n "Validating shepherd script syntax... "
+if bash -n "$(command -v agent)" 2>/dev/null; then
+    pass "Valid bash syntax"
+else
+    fail "Syntax error in agent script"
+    exit 1
+fi
+
+echo ""
+echo "════════════════════════════════════════════════════════════"
+echo ""
+
+if command -v gh &> /dev/null && gh auth status &> /dev/null && command -v jq &> /dev/null; then
+    echo -e "${GREEN}✓ Shepherd is ready to use!${NC}"
+    echo ""
+    echo "To test with a real PR:"
+    echo "  1. cd to a repository with a PR"
+    echo "  2. git checkout <pr-branch>"
+    echo "  3. agent shepherd --dry-run"
+else
+    echo -e "${YELLOW}⚠ Shepherd needs dependencies${NC}"
+    echo ""
+    echo "Install missing dependencies:"
+    if ! command -v gh &> /dev/null; then
+        echo "  • GitHub CLI: https://cli.github.com/"
+    fi
+    if ! command -v jq &> /dev/null; then
+        echo "  • jq: brew install jq (macOS) or apt install jq (Linux)"
+    fi
+    if command -v gh &> /dev/null && ! gh auth status &> /dev/null; then
+        echo "  • Run: gh auth login"
+    fi
+fi
+
+echo ""
+echo "Documentation:"
+echo "  • Agent Workflows: docs/AGENT_WORKFLOWS.md"
+echo "  • Shepherd Guide: docs/SHEPHERD.md"
+echo "  • Help: agent help"
+echo ""
