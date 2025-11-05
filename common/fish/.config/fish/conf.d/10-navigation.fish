@@ -7,7 +7,8 @@
 
 ## mkcd - create the directory if it doesn't exist, then cd into it
 function mkcd
-    mkdir -p -- $argv; and command cd -P -- $argv
+    mkdir -p $argv
+    and cd $argv
 end
 
 ## pcd (overrides cd) - cd with backoff (i.e., if the whole path doesn't work,
@@ -125,11 +126,21 @@ complete -c xal -a "(ls -1 $ALIAS_SYMLINK_DIR 2>/dev/null)"
 if test "$OS_TYPE" = "macos"
     # macOS stat has different syntax
     function lal
-        stat -f'%N %m' $ALIAS_SYMLINK_DIR/* 2>/dev/null | sed 's~'"$ALIAS_SYMLINK_DIR"'/~~' | sort -nrk 2 | rev | cut -d ' ' -f 2- | rev 2>/dev/null
+        # Use ls to check if directory is empty (avoid Fish glob expansion errors)
+        if test (count (ls -A $ALIAS_SYMLINK_DIR 2>/dev/null)) -gt 0
+            stat -f'%N %m' $ALIAS_SYMLINK_DIR/* 2>/dev/null | sed 's~'"$ALIAS_SYMLINK_DIR"'/~~' | sort -nrk 2 | rev | cut -d ' ' -f 2- | rev
+        else
+            echo "No aliases found. Use 'al' to create one."
+        end
     end
 else
     function lal
-        stat -c"%N %Y" $ALIAS_SYMLINK_DIR/* 2>/dev/null | sed 's~'"$ALIAS_SYMLINK_DIR"'/~~' | sort -nrk 4 | rev | cut -d ' ' -f 2- | rev 2>/dev/null
+        # Use ls to check if directory is empty (avoid Fish glob expansion errors)
+        if test (count (ls -A $ALIAS_SYMLINK_DIR 2>/dev/null)) -gt 0
+            stat -c"%N %Y" $ALIAS_SYMLINK_DIR/* 2>/dev/null | sed 's~'"$ALIAS_SYMLINK_DIR"'/~~' | sort -nrk 4 | rev | cut -d ' ' -f 2- | rev
+        else
+            echo "No aliases found. Use 'al' to create one."
+        end
     end
 end
 
