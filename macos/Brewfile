@@ -49,9 +49,13 @@ brew "rust"          # Rust language
 # macOS-Specific Window Management
 # ============================================================================
 
-tap "koekeishiya/formulae"
-brew "yabai"         # Tiling window manager
-brew "skhd"          # Hotkey daemon
+# Note: yabai and skhd require manual installation from:
+# https://github.com/koekeishiya/yabai
+# https://github.com/koekeishiya/skhd
+# Uncomment if the tap becomes available again:
+# tap "koekeishiya/formulae"
+# brew "yabai"         # Tiling window manager
+# brew "skhd"          # Hotkey daemon
 
 # ============================================================================
 # GUI Applications
@@ -61,7 +65,7 @@ cask "alacritty"     # GPU-accelerated terminal
 cask "iterm2"        # Feature-rich terminal
 cask "zed"           # Modern code editor
 cask "visual-studio-code"  # VS Code
-cask "docker"        # Containerization
+# cask "docker"        # Containerization - commented due to installation conflicts
 
 # ============================================================================
 # Fonts
@@ -91,13 +95,13 @@ brew "mypy"            # Type checking
 brew "pre-commit"      # Git hooks
 
 # TypeScript/JavaScript
-brew "node"
+# (node already installed above)
 brew "pnpm"            # Fast package manager
-brew "bun"             # Fast runtime
+# brew "bun"           # Fast runtime - not available via Homebrew, install from https://bun.sh
 brew "fnm"             # Node version manager
 
 # Rust
-brew "rust"
+# (rust already installed above)
 brew "rust-analyzer"
 
 # OCaml
