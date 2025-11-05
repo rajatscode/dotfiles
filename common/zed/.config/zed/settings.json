@@ -17,6 +17,15 @@
   "show_inline_completions": true,
   "relative_line_numbers": true,
 
+  // AI Inline Completions
+  // To use, install the Codeium or Copilot extension from Zed Extensions
+  // Then set up your provider below:
+  "inline_completions": {
+    "disabled_globs": [
+      ".env"
+    ]
+  },
+
   // Collaboration
   "collaboration_panel": {
     "dock": "left"

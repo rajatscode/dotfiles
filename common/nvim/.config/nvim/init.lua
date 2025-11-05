@@ -269,6 +269,20 @@ require("lazy").setup({
     end,
   },
 
+  -- AI Autocompletion - Codeium (Free GitHub Copilot alternative)
+  {
+    "Exafunction/codeium.nvim",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "hrsh7th/nvim-cmp",
+    },
+    config = function()
+      require("codeium").setup({
+        enable_chat = true,
+      })
+    end,
+  },
+
   -- Autocompletion
   {
     "hrsh7th/nvim-cmp",
@@ -279,6 +293,7 @@ require("lazy").setup({
       "L3MON4D3/LuaSnip",
       "saadparwaiz1/cmp_luasnip",
       "rafamadriz/friendly-snippets",
+      "Exafunction/codeium.nvim",
     },
     config = function()
       local cmp = require("cmp")
@@ -318,10 +333,11 @@ require("lazy").setup({
           end, { "i", "s" }),
         }),
         sources = {
-          { name = "nvim_lsp" },
-          { name = "luasnip" },
-          { name = "buffer" },
-          { name = "path" },
+          { name = "codeium", priority = 1000 },  -- AI completions first
+          { name = "nvim_lsp", priority = 900 },
+          { name = "luasnip", priority = 750 },
+          { name = "buffer", priority = 500 },
+          { name = "path", priority = 250 },
         },
       })
     end,
