@@ -99,6 +99,13 @@ print_tip() {
     echo -e "${YELLOW}💡 TIP:${NC} ${DIM}$1${NC}"
 }
 
+# Print formatted text from heredoc with ANSI codes interpreted
+print_formatted() {
+    while IFS= read -r line || [ -n "$line" ]; do
+        echo -e "$line"
+    done
+}
+
 wait_for_user() {
     echo ""
     echo -e "${DIM}Press Enter to continue...${NC}"
@@ -126,7 +133,7 @@ run_demo_command() {
 welcome() {
     print_header
 
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Welcome to your complete development environment!${NC}
 
 This comprehensive tour will walk you through every aspect of
@@ -163,41 +170,37 @@ section_shell() {
     print_header
     print_section "${TERMINAL} Shell Power"
 
-    cat << EOF
-${BOLD}Your shell is the foundation of everything.${NC}
-
-These dotfiles support:
-  • ${GREEN}Bash${NC} - Universal, with modular configuration
-  • ${GREEN}Fish${NC} - User-friendly with autosuggestions
-  • ${GREEN}Starship${NC} - Beautiful, fast cross-shell prompt
-
-All share the same aliases and functions!
-EOF
+    echo -e "${BOLD}Your shell is the foundation of everything.${NC}"
+    echo ""
+    echo "These dotfiles support:"
+    echo -e "  • ${GREEN}Bash${NC} - Universal, with modular configuration"
+    echo -e "  • ${GREEN}Fish${NC} - User-friendly with autosuggestions"
+    echo -e "  • ${GREEN}Starship${NC} - Beautiful, fast cross-shell prompt"
+    echo ""
+    echo "All share the same aliases and functions!"
 
     wait_for_user
 
     print_subsection "Starship Prompt"
-    cat << EOF
-${BOLD}Starship provides a beautiful, informative prompt:${NC}
-
-Shows you:
-  • Current directory (with path trimming)
-  • Git branch and status (✓ clean, ⁅⁆ dirty)
-  • Programming language versions (Node, Python, Rust, etc.)
-  • Command duration for slow commands
-  • Agent session (if active)
-
-${CYAN}Try it:${NC}
-  cd into a git repo to see branch info
-  Run a slow command (sleep 3) to see duration
-  Activate an agent session to see session name
-
-EOF
+    echo -e "${BOLD}Starship provides a beautiful, informative prompt:${NC}"
+    echo ""
+    echo "Shows you:"
+    echo "  • Current directory (with path trimming)"
+    echo "  • Git branch and status (✓ clean, ⁅⁆ dirty)"
+    echo "  • Programming language versions (Node, Python, Rust, etc.)"
+    echo "  • Command duration for slow commands"
+    echo "  • Agent session (if active)"
+    echo ""
+    echo -e "${CYAN}Try it:${NC}"
+    echo "  cd into a git repo to see branch info"
+    echo "  Run a slow command (sleep 3) to see duration"
+    echo "  Activate an agent session to see session name"
+    echo ""
 
     wait_for_user
 
     print_subsection "Shell Configuration Structure"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Modular bash configuration in ~/.bashrc.d/:${NC}
 
   ${CYAN}00-init.bashrc${NC}          Core initialization
@@ -222,7 +225,7 @@ EOF
     wait_for_user
 
     print_subsection "Key Shell Features"
-    cat << EOF
+    print_formatted << EOF
 ${CYAN}History Management:${NC}
   • Infinite history (HISTSIZE=HISTFILESIZE)
   • Deduplication (ignoreboth)
@@ -261,7 +264,7 @@ section_navigation() {
     print_header
     print_section "${COMPASS} Navigation System"
 
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Move around your filesystem like a pro.${NC}
 
 Features:
@@ -278,7 +281,7 @@ EOF
     cd "$DEMO_DIR"
 
     print_subsection "1. Directory Aliasing"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Bookmark frequently used directories:${NC}
 
 ${CYAN}al <name> [path]${NC}     Alias current (or specified) directory
@@ -305,7 +308,7 @@ EOF
     wait_for_user
 
     print_subsection "2. Location Stack"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Push and pop directories like browser history:${NC}
 
 ${CYAN}pl${NC}    Push current location
@@ -326,7 +329,7 @@ EOF
     wait_for_user
 
     print_subsection "3. Smart Navigation"
-    cat << EOF
+    print_formatted << EOF
 ${CYAN}mkcd <path>${NC}        Create directory and cd into it
 ${CYAN}pcd <path>${NC}         cd with backoff (goes to deepest valid path)
 ${CYAN}vcd <path>${NC}         cd to directory OR open file in vim
@@ -351,7 +354,7 @@ section_git() {
     print_header
     print_section "${GIT} Git Mastery"
 
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}30+ Git shortcuts and workflow helpers.${NC}
 
 From basic operations to advanced workflows, everything
@@ -361,7 +364,7 @@ EOF
     wait_for_user
 
     print_subsection "Basic Git Shortcuts"
-    cat << EOF
+    print_formatted << EOF
 ${CYAN}Basic Operations:${NC}
   status, add, commit, push, stash  ${DIM}(full word aliases)${NC}
   gpom                              ${DIM}git push origin main${NC}
@@ -394,7 +397,7 @@ EOF
     wait_for_user
 
     print_subsection "Git Workflow Patterns"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Feature Branch Workflow:${NC}
 
   1. ${CYAN}gnew feature-oauth develop${NC}   # Branch from develop
@@ -436,7 +439,7 @@ section_worktrees() {
     print_header
     print_section "${TREE} Git Worktrees Made Easy"
 
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Work on multiple branches simultaneously.${NC}
 
 Worktrees let you check out multiple branches at once, each in
@@ -460,7 +463,7 @@ EOF
     wait_for_user
 
     print_subsection "wt Command Overview"
-    cat << EOF
+    print_formatted << EOF
 ${CYAN}Creation & Removal:${NC}
   ${BOLD}wt add <name> [branch]${NC}         Create worktree
   ${BOLD}wt remove <name>${NC}               Remove worktree
@@ -484,7 +487,7 @@ EOF
     wait_for_user
 
     print_subsection "Real-World Scenarios"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Scenario 1: Feature + Urgent Fix${NC}
 
   ${DIM}# Working on feature${NC}
@@ -525,7 +528,7 @@ EOF
     wait_for_user
 
     print_subsection "wt Power Features"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Fuzzy Matching:${NC}
   ${DIM}$ wt switch feat${NC}     ${GREEN}→ Matches 'feature-oauth'${NC}
   ${DIM}$ wt remove hot${NC}      ${GREEN}→ Matches 'hotfix-login'${NC}
@@ -544,9 +547,9 @@ ${BOLD}Agent Integration:${NC}
 ${BOLD}Tab Completion:${NC}
   ${DIM}$ wt switch [Tab]${NC}   ${GREEN}→ Shows all worktree names${NC}
   ${DIM}$ wt add new [Tab]${NC}  ${GREEN}→ Shows all branches${NC}
-
-print_tip "Use 'wt' for quick tasks, 'agent' for full AI sessions with context tracking"
 EOF
+
+    print_tip "Use 'wt' for quick tasks, 'agent' for full AI sessions with context tracking"
 
     wait_for_user
 }
@@ -559,7 +562,7 @@ section_tmux() {
     print_header
     print_section "${TMUX} Tmux - Terminal Multiplexer"
 
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}One terminal, infinite possibilities.${NC}
 
 Tmux lets you:
@@ -578,7 +581,7 @@ EOF
     wait_for_user
 
     print_subsection "Tmux Prefix Key"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Your tmux prefix: ${CYAN}Ctrl+a${NC}
 
 Everything starts with ${CYAN}Ctrl+a${NC}, then a command key.
@@ -598,7 +601,7 @@ EOF
     wait_for_user
 
     print_subsection "Essential Tmux Commands"
-    cat << EOF
+    print_formatted << EOF
 ${CYAN}Session Management:${NC}
   ${BOLD}tmux${NC}                     Start new session
   ${BOLD}tmux new -s work${NC}         Named session
@@ -631,7 +634,7 @@ EOF
     wait_for_user
 
     print_subsection "Tmux Workflow Patterns"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Pattern 1: Project Session${NC}
 
   ${CYAN}tmux new -s myproject${NC}
@@ -682,7 +685,7 @@ EOF
     wait_for_user
 
     print_subsection "Tmux Pro Tips"
-    cat << EOF
+    print_formatted << EOF
 ${GREEN}1. Mouse Support${NC}
    ${DIM}Your tmux has mouse support enabled!${NC}
    • Click to switch panes
@@ -708,9 +711,9 @@ ${GREEN}4. Status Bar${NC}
    • Window list
    • Current window (highlighted)
    • System info (customizable)
-
-print_tip "Add 'alias t=tmux' to your ~/.bash_profile for quick access"
 EOF
+
+    print_tip "Add 'alias t=tmux' to your ~/.bash_profile for quick access"
 
     wait_for_user
 }
@@ -723,7 +726,7 @@ section_editors() {
     print_header
     print_section "${EDITOR} Editor Setup"
 
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Three powerful editors, all configured for you.${NC}
 
   ${CYAN}Vim${NC}      - Classic, fast, available everywhere
@@ -736,7 +739,7 @@ EOF
     wait_for_user
 
     print_subsection "Neovim - The Modern Choice"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Your Neovim setup includes:${NC}
 
 ${CYAN}Language Support:${NC}
@@ -783,7 +786,7 @@ EOF
     wait_for_user
 
     print_subsection "Vim - The Classic"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Classic Vim with plugins:${NC}
 
 ${CYAN}Installed Plugins:${NC}
@@ -819,7 +822,7 @@ EOF
     wait_for_user
 
     print_subsection "Editor Workflow Integration"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Editors + Tmux = Power Combo${NC}
 
 ${YELLOW}Pattern: Full-screen editor${NC}
@@ -848,8 +851,9 @@ ${YELLOW}Pattern: Agent workflow${NC}
   ${CYAN}Space ff${NC}              ${DIM}# Find files${NC}
   ${DIM}# AI suggests in tmux pane, you implement in Neovim${NC}
 
-print_tip "Use 'nvim' for modern projects, 'vim' when SSH'd to servers"
 EOF
+
+    print_tip "Use 'nvim' for modern projects, 'vim' when SSH'd to servers"
 
     wait_for_user
 }
@@ -862,28 +866,26 @@ section_window_managers() {
     print_header
     print_section "${WINDOW} Window Management"
 
-    cat << EOF
-${BOLD}Tiling window managers for maximum productivity.${NC}
-
-${BOLD}What's a tiling WM?${NC}
-Instead of overlapping windows, tiles arrange windows to use
-all available screen space automatically.
-
-${CYAN}Linux:${NC}   i3 / Sway
-${CYAN}macOS:${NC}   yabai / skhd (optional), Rectangle
-
-${BOLD}Benefits:${NC}
-  ✓ No window juggling
-  ✓ Keyboard-driven
-  ✓ Consistent layouts
-  ✓ Multi-monitor friendly
-  ✓ Workspace organization
-EOF
+    echo -e "${BOLD}Tiling window managers for maximum productivity.${NC}"
+    echo ""
+    echo -e "${BOLD}What's a tiling WM?${NC}"
+    echo "Instead of overlapping windows, tiles arrange windows to use"
+    echo "all available screen space automatically."
+    echo ""
+    echo -e "${CYAN}Linux:${NC}   i3 / Sway"
+    echo -e "${CYAN}macOS:${NC}   yabai / skhd (optional), Rectangle"
+    echo ""
+    echo -e "${BOLD}Benefits:${NC}"
+    echo "  ✓ No window juggling"
+    echo "  ✓ Keyboard-driven"
+    echo "  ✓ Consistent layouts"
+    echo "  ✓ Multi-monitor friendly"
+    echo "  ✓ Workspace organization"
 
     wait_for_user
 
     print_subsection "i3 / Sway (Linux)"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}i3 (X11) and Sway (Wayland) are tiling window managers.${NC}
 
 ${CYAN}Core Concepts:${NC}
@@ -922,7 +924,7 @@ EOF
     wait_for_user
 
     print_subsection "yabai / skhd (macOS)"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Tiling window manager for macOS (requires manual install).${NC}
 
 ${CYAN}Features:${NC}
@@ -949,13 +951,14 @@ ${CYAN}Alternative: Rectangle${NC}
   • Works immediately (no SIP disable)
   • Good for beginners
 
-print_tip "Start with Rectangle on macOS, graduate to yabai when comfortable"
 EOF
+
+    print_tip "Start with Rectangle on macOS, graduate to yabai when comfortable"
 
     wait_for_user
 
     print_subsection "Integrated Workflow"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Combining all the tools:${NC}
 
 ${YELLOW}The Full Stack:${NC}
@@ -1018,27 +1021,25 @@ section_agents() {
     print_header
     print_section "${ROBOT} AI Agent Parallelization"
 
-    cat << EOF
-${BOLD}Run multiple AI coding sessions in parallel.${NC}
-
-The agent system builds on top of ${CYAN}wt${NC} (worktrees) to add:
-  • Session management and context tracking
-  • Shared context directories between sessions
-  • Templates for different workflow types
-  • Lock files to prevent conflicts
-  • Shell prompt integration
-
-${BOLD}Perfect for:${NC}
-  • Multiple features developed simultaneously
-  • Separating exploration from production
-  • Sharing context between related tasks
-  • Parallel AI agents working independently
-EOF
+    echo -e "${BOLD}Run multiple AI coding sessions in parallel.${NC}"
+    echo ""
+    echo -e "The agent system builds on top of ${CYAN}wt${NC} (worktrees) to add:"
+    echo "  • Session management and context tracking"
+    echo "  • Shared context directories between sessions"
+    echo "  • Templates for different workflow types"
+    echo "  • Lock files to prevent conflicts"
+    echo "  • Shell prompt integration"
+    echo ""
+    echo -e "${BOLD}Perfect for:${NC}"
+    echo "  • Multiple features developed simultaneously"
+    echo "  • Separating exploration from production"
+    echo "  • Sharing context between related tasks"
+    echo "  • Parallel AI agents working independently"
 
     wait_for_user
 
     print_subsection "Agent vs wt"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}When to use what?${NC}
 
 ${CYAN}Use 'wt' for:${NC}
@@ -1071,7 +1072,7 @@ EOF
     wait_for_user
 
     print_subsection "Agent Commands"
-    cat << EOF
+    print_formatted << EOF
 ${CYAN}Session Management:${NC}
   ${BOLD}agent new <name>${NC}          Create session
   ${BOLD}agent list${NC}                List all sessions
@@ -1103,7 +1104,7 @@ EOF
     wait_for_user
 
     print_subsection "Agent Workflow Example"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Complete AI-assisted development workflow:${NC}
 
 ${YELLOW}1. Create session${NC}
@@ -1150,7 +1151,7 @@ EOF
     wait_for_user
 
     print_subsection "Multi-Agent Patterns"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Pattern 1: Feature + Tests${NC}
   Agent A: Implements feature
   Agent B: Writes tests
@@ -1177,8 +1178,9 @@ ${BOLD}Pattern 5: Review + Fix${NC}
   Agent B: Fix identified issues
   ${DIM}Share: Issue list, refactoring plan${NC}
 
-print_tip "Each agent session gets its own tmux session and workspace"
 EOF
+
+    print_tip "Each agent session gets its own tmux session and workspace"
 
     wait_for_user
 }
@@ -1191,7 +1193,7 @@ section_workflow() {
     print_header
     print_section "${WORKFLOW} Complete Development Workflow"
 
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Putting it all together: Start to deployment.${NC}
 
 Let's walk through a real-world development workflow using
@@ -1205,7 +1207,7 @@ EOF
     wait_for_user
 
     print_subsection "Step 1: Project Setup"
-    cat << EOF
+    print_formatted << EOF
 ${YELLOW}Morning: Starting fresh${NC}
 
 ${DIM}# Start window manager workspace 1${NC}
@@ -1231,7 +1233,7 @@ EOF
     wait_for_user
 
     print_subsection "Step 2: Create Feature Branch"
-    cat << EOF
+    print_formatted << EOF
 ${YELLOW}Creating an isolated workspace${NC}
 
 ${DIM}# Create worktree for feature${NC}
@@ -1261,7 +1263,7 @@ EOF
     wait_for_user
 
     print_subsection "Step 3: Development Environment"
-    cat << EOF
+    print_formatted << EOF
 ${YELLOW}Setting up tmux workspace${NC}
 
 ${DIM}# Window 1: Editor${NC}
@@ -1295,7 +1297,7 @@ EOF
     wait_for_user
 
     print_subsection "Step 4: Coding + Testing"
-    cat << EOF
+    print_formatted << EOF
 ${YELLOW}Development loop${NC}
 
 ${DIM}# In vim window (Ctrl+a 0)${NC}
@@ -1327,7 +1329,7 @@ EOF
     wait_for_user
 
     print_subsection "Step 5: Urgent Interruption"
-    cat << EOF
+    print_formatted << EOF
 ${YELLOW}Production bug! Don't lose your work${NC}
 
 ${DIM}# You're in the middle of feature development${NC}
@@ -1368,7 +1370,7 @@ EOF
     wait_for_user
 
     print_subsection "Step 6: Code Review + Refinement"
-    cat << EOF
+    print_formatted << EOF
 ${YELLOW}Using LSP features for quality${NC}
 
 ${DIM}# In Neovim${NC}
@@ -1398,7 +1400,7 @@ EOF
     wait_for_user
 
     print_subsection "Step 7: Documentation + Merge"
-    cat << EOF
+    print_formatted << EOF
 ${YELLOW}Finishing touches${NC}
 
 ${DIM}# Update README${NC}
@@ -1439,7 +1441,7 @@ EOF
     wait_for_user
 
     print_subsection "Step 8: Multi-Agent Parallel Work"
-    cat << EOF
+    print_formatted << EOF
 ${YELLOW}While waiting for review, start another feature${NC}
 
 ${DIM}# First feature awaiting review${NC}
@@ -1470,7 +1472,7 @@ EOF
     wait_for_user
 
     print_subsection "Step 9: Deployment"
-    cat << EOF
+    print_formatted << EOF
 ${YELLOW}Deploying to production${NC}
 
 ${DIM}# Feature merged to main${NC}
@@ -1502,7 +1504,7 @@ EOF
     wait_for_user
 
     print_subsection "Step 10: Cleanup"
-    cat << EOF
+    print_formatted << EOF
 ${YELLOW}Cleaning up after successful deployment${NC}
 
 ${DIM}# Close finished agent sessions${NC}
@@ -1529,7 +1531,7 @@ EOF
     wait_for_user
 
     print_subsection "Workflow Summary"
-    cat << EOF
+    print_formatted << EOF
 ${BOLD}Complete workflow recap:${NC}
 
 ${CYAN}1. Setup${NC}
@@ -1573,7 +1575,7 @@ section_next_steps() {
     print_header
     print_section "${ROCKET} Next Steps"
 
-    cat << EOF
+    print_formatted << EOF
 ${GREEN}${BOLD}Congratulations! You've completed the comprehensive tour.${NC}
 
 ${BOLD}What to do next:${NC}
