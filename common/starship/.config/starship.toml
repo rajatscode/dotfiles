@@ -1,0 +1,127 @@
+# Starship Prompt Configuration
+# ASCII-safe configuration that works with any terminal font
+
+# Overall format
+format = """
+[┌─](bold green)$username$hostname$directory$git_branch$git_status$git_state
+[└─>](bold green) """
+
+# Character at prompt
+[character]
+success_symbol = "[>](bold green)"
+error_symbol = "[>](bold red)"
+vicmd_symbol = "[<](bold green)"
+
+# Username
+[username]
+style_user = "bold blue"
+style_root = "bold red"
+format = "[$user]($style) "
+disabled = false
+show_always = false
+
+# Hostname
+[hostname]
+ssh_only = true
+format = "on [$hostname](bold yellow) "
+disabled = false
+
+# Directory
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+format = "in [$path]($style)[$read_only]($read_only_style) "
+style = "bold cyan"
+read_only = " [RO]"
+read_only_style = "red"
+
+# Git branch
+[git_branch]
+symbol = ""
+format = "on [$symbol$branch]($style) "
+style = "bold purple"
+
+# Git status
+[git_status]
+format = '([$all_status$ahead_behind]($style) )'
+style = "bold red"
+conflicted = "CONFLICT"
+ahead = "^$count"
+behind = "v$count"
+diverged = "^$ahead_count v$behind_count"
+untracked = "?$count"
+stashed = "STASH"
+modified = "!$count"
+staged = "+$count"
+renamed = "»$count"
+deleted = "x$count"
+
+# Git state (rebase, merge, etc.)
+[git_state]
+format = '[\($state( $progress_current of $progress_total)\)]($style) '
+style = "bold yellow"
+rebase = "REBASE"
+merge = "MERGE"
+revert = "REVERT"
+cherry_pick = "CHERRY"
+bisect = "BISECT"
+am = "AM"
+am_or_rebase = "AM/REBASE"
+
+# Programming languages (simplified)
+[nodejs]
+symbol = "node "
+format = "via [$symbol($version)]($style) "
+style = "bold green"
+
+[python]
+symbol = "py "
+format = "via [$symbol$pyenv_prefix($version )]($style)"
+style = "bold yellow"
+
+[rust]
+symbol = "rs "
+format = "via [$symbol($version)]($style) "
+style = "bold red"
+
+[golang]
+symbol = "go "
+format = "via [$symbol($version)]($style) "
+style = "bold cyan"
+
+[java]
+symbol = "java "
+format = "via [$symbol($version)]($style) "
+style = "bold red"
+
+[docker_context]
+symbol = "docker "
+format = "via [$symbol$context]($style) "
+style = "bold blue"
+
+# Command duration
+[cmd_duration]
+min_time = 500
+format = "took [$duration]($style) "
+style = "bold yellow"
+
+# Time
+[time]
+disabled = false
+time_format = "%T"
+format = "at [$time]($style) "
+style = "bold white"
+
+# Line break between prompt lines
+[line_break]
+disabled = false
+
+# Disable modules that use fancy icons by default
+[aws]
+disabled = true
+
+[battery]
+disabled = true
+
+[package]
+disabled = true

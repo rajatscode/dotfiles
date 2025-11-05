@@ -8,7 +8,7 @@ alias gpom="git push origin main"
 alias add="git add"
 alias commit="git commit"
 alias push="git push"
-alias status="git status"
+alias gst="git status"  # 'status' is a Fish builtin - use 'gst' instead
 alias stash="git stash"
 
 ## push-please: force push with lease
