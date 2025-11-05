@@ -177,6 +177,71 @@ agent context refactor-api --edit
 agent close refactor-api --archive --delete-branch
 ```
 
+### PR Review Workflow (Shepherd)
+
+The `shepherd` command helps you systematically address PR review comments with AI assistance:
+
+```bash
+# Auto-detect PR from current branch
+agent shepherd
+
+# Specify PR number explicitly
+agent shepherd --pr=123
+
+# Specify branch to find PR for
+agent shepherd --branch=feature/my-feature
+
+# Dry run (just show comments without taking action)
+agent shepherd --dry-run
+
+# Auto-apply high-confidence fixes
+agent shepherd --auto-apply
+```
+
+**What shepherd does:**
+
+1. Fetches all review comments from the PR using GitHub CLI
+2. For each comment, shows you:
+   - The comment text and author
+   - The file and line number
+   - The diff context
+3. Offers interactive options:
+   - **Investigate & suggest fix** - Analyzes the comment with AI and suggests code changes
+   - **View full file context** - Opens the file in your pager/editor
+   - **Mark as resolved** - Post a reply to the comment
+   - **Skip for now** - Move to the next comment
+
+**Example workflow:**
+
+```bash
+# You receive PR review comments
+# Switch to your PR branch
+git checkout feature/oauth
+
+# Run shepherd to address comments interactively
+agent shepherd
+
+# For each comment, shepherd will:
+# 1. Show the comment and context
+# 2. Ask what you want to do
+# 3. If you choose "investigate", it analyzes the code and suggests fixes
+# 4. You can approve the fix and it will be applied
+# 5. You can draft and post a response
+
+# When done, push your changes
+git push
+```
+
+**Requirements:**
+- GitHub CLI (`gh`) must be installed and authenticated
+- You must be in a git repository with a PR
+- Optional: Claude CLI for AI-powered analysis (falls back to manual mode)
+
+**Tips:**
+- Use `--dry-run` first to see all comments before taking action
+- The AI analysis is saved to a temp file so you can review it later
+- You can quit at any time with 'q' and resume later
+
 ## Advanced Usage
 
 ### Sharing Context Between Sessions
@@ -391,6 +456,50 @@ agent close old-session --archive
 # Clean stale worktrees
 worktree-clean
 ```
+
+### Shepherd Can't Find PR
+
+```bash
+$ agent shepherd
+Error: No PR found for this branch
+```
+
+**Solution**: Specify PR number manually:
+```bash
+agent shepherd --pr=123
+```
+
+Or ensure you're on the correct branch:
+```bash
+git branch --show-current
+gh pr list --head $(git branch --show-current)
+```
+
+### GitHub CLI Not Authenticated
+
+```bash
+$ agent shepherd
+Error: GitHub CLI is not authenticated
+```
+
+**Solution**: Authenticate with GitHub:
+```bash
+gh auth login
+```
+
+### Shepherd Analysis Failing
+
+If the AI analysis helper fails:
+
+**Solution 1**: Install Claude CLI for better analysis:
+```bash
+# See: https://github.com/anthropics/claude-code
+```
+
+**Solution 2**: Use manual mode:
+- The analysis prompt is saved to `/tmp/shepherd-analysis-*.md`
+- Copy the prompt and paste into any AI assistant
+- Apply suggested changes manually
 
 ## Example: Full Feature Development
 
