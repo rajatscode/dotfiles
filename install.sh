@@ -288,7 +288,7 @@ stow_configs() {
     local shell_modules=("bash" "zsh" "fish")
     local vcs_modules=("git" "hg" "jj")
     local editor_modules=("vim" "nvim" "zed")
-    local other_modules=("tmux" "starship" "agents")
+    local other_modules=("tmux" "starship")
     local selected_modules=()
 
     if $MINIMAL_INSTALL; then
@@ -401,6 +401,9 @@ EOF
 # Personal bash configuration
 # This file is not tracked in the dotfiles repository
 
+# Dotfiles directory (used by agent command and other tools)
+export DOTFILES_DIR="$DOTFILES_DIR"
+
 # Example: Set environment variables
 # export EDITOR=nvim
 
@@ -417,6 +420,9 @@ EOF
         cat > "$HOME/.zsh_profile" <<EOF
 # Personal zsh configuration
 # This file is not tracked in the dotfiles repository
+
+# Dotfiles directory (used by agent command and other tools)
+export DOTFILES_DIR="$DOTFILES_DIR"
 
 # Example: Set environment variables
 # export EDITOR=nvim
@@ -441,6 +447,9 @@ EOF
         cat > "$HOME/.config/fish/personal.fish" <<EOF
 # Personal fish configuration
 # This file is not tracked in the dotfiles repository
+
+# Dotfiles directory (used by agent command and other tools)
+set -x DOTFILES_DIR "$DOTFILES_DIR"
 
 # Example: Set environment variables
 # set -x EDITOR nvim
