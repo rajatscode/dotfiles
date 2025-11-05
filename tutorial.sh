@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-# Dotfiles Tutorial
-# Interactive walkthrough of all the cool features in these dotfiles
+# Dotfiles Tutorial - Comprehensive Edition
+# Interactive walkthrough of your complete development environment
 #
-# Usage: ./tutorial.sh
+# Usage: ./tutorial.sh [--skip-intro]
 
 set -e
 
@@ -29,11 +29,25 @@ ROBOT='🤖'
 COMPASS='🧭'
 TOOLS='🛠️'
 GIT='🌿'
+TREE='🌳'
+TERMINAL='💻'
+EDITOR='📝'
+WINDOW='🪟'
 CHECK='✓'
 ARROW='▶'
+TMUX='🔲'
+WORKFLOW='⚡'
 
 # Tutorial state
 DEMO_DIR="${HOME}/.dotfiles-tutorial-demo"
+SKIP_INTRO=false
+
+# Parse args
+for arg in "$@"; do
+    case $arg in
+        --skip-intro) SKIP_INTRO=true ;;
+    esac
+done
 
 # ============================================================================
 # Utility Functions
@@ -44,8 +58,8 @@ print_header() {
     echo ""
     echo -e "${BOLD}${MAGENTA}╔════════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${BOLD}${MAGENTA}║                                                                ║${NC}"
-    echo -e "${BOLD}${MAGENTA}║${NC}        ${CYAN}${BOLD}Dotfiles Tutorial ${SPARKLES}${NC}  ${MAGENTA}${BOLD}║${NC}"
-    echo -e "${BOLD}${MAGENTA}║${NC}        ${DIM}Master your command line like a pro${NC}              ${MAGENTA}${BOLD}║${NC}"
+    echo -e "${BOLD}${MAGENTA}║${NC}     ${CYAN}${BOLD}Complete Dotfiles Tour ${SPARKLES}${ROCKET}${NC}  ${MAGENTA}${BOLD}║${NC}"
+    echo -e "${BOLD}${MAGENTA}║${NC}     ${DIM}Your entire development environment explained${NC}       ${MAGENTA}${BOLD}║${NC}"
     echo -e "${BOLD}${MAGENTA}║                                                                ║${NC}"
     echo -e "${BOLD}${MAGENTA}╚════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
@@ -81,6 +95,10 @@ print_command() {
     echo -e "${DIM}$ ${NC}${CYAN}$1${NC}"
 }
 
+print_tip() {
+    echo -e "${YELLOW}💡 TIP:${NC} ${DIM}$1${NC}"
+}
+
 wait_for_user() {
     echo ""
     echo -e "${DIM}Press Enter to continue...${NC}"
@@ -96,13 +114,8 @@ run_demo_command() {
     fi
 
     print_command "$cmd"
-
-    # Give user time to read
     sleep 1
-
-    # Execute the command
-    eval "$cmd"
-
+    eval "$cmd" || true
     echo ""
 }
 
@@ -114,724 +127,1527 @@ welcome() {
     print_header
 
     cat << EOF
-${BOLD}Welcome to your dotfiles tutorial!${NC}
+${BOLD}Welcome to your complete development environment!${NC}
 
-This interactive walkthrough will introduce you to all the powerful
-features and tools included in these dotfiles.
+This comprehensive tour will walk you through every aspect of
+your dotfiles, from shell navigation to full development workflows.
 
-${BOLD}What you'll learn:${NC}
+${BOLD}What you'll master:${NC}
 
-  ${COMPASS} ${CYAN}Navigation System${NC} - Enhanced directory navigation
-  ${TOOLS} ${CYAN}Aliases & Utilities${NC} - 50+ productivity shortcuts
-  ${GIT} ${CYAN}Git Enhancements${NC} - Streamlined version control
-  🌳 ${CYAN}Git Worktrees${NC} - Easy worktree management with 'wt'
-  ${ROBOT} ${CYAN}AI Agent Parallelization${NC} - Multi-agent workflow management
+  ${TERMINAL} ${CYAN}Shell Power${NC} - Bash/Fish with Starship, powerful aliases
+  ${COMPASS} ${CYAN}Navigation System${NC} - Directory aliasing, smart cd, location stacks
+  ${GIT} ${CYAN}Git Mastery${NC} - 30+ shortcuts, workflow helpers
+  ${TREE} ${CYAN}Git Worktrees${NC} - Parallel development with 'wt'
+  ${TMUX} ${CYAN}Tmux Multiplexing${NC} - Terminal sessions, panes, windows
+  ${EDITOR} ${CYAN}Editor Setup${NC} - Vim/Neovim with LSP, plugins
+  ${WINDOW} ${CYAN}Window Management${NC} - i3/sway/yabai for tiling WMs
+  ${ROBOT} ${CYAN}AI Agent System${NC} - Multi-agent parallel workflows
+  ${WORKFLOW} ${CYAN}Complete Dev Workflow${NC} - Start to deployment
 
-${DIM}This tutorial will create a demo directory at:${NC}
-${DIM}  ${DEMO_DIR}${NC}
+${BOLD}Estimated time:${NC} 30-45 minutes
+${BOLD}Format:${NC} Interactive with live demos
 
-${BOLD}Ready to get started?${NC}
+${DIM}Demo directory: ${DEMO_DIR}${NC}
+
+${BOLD}Ready to become a terminal ninja?${NC}
 EOF
 
     wait_for_user
 }
+
+# ============================================================================
+# SECTION 1: Shell Fundamentals
+# ============================================================================
+
+section_shell() {
+    print_header
+    print_section "${TERMINAL} Shell Power"
+
+    cat << EOF
+${BOLD}Your shell is the foundation of everything.${NC}
+
+These dotfiles support:
+  • ${GREEN}Bash${NC} - Universal, with modular configuration
+  • ${GREEN}Fish${NC} - User-friendly with autosuggestions
+  • ${GREEN}Starship${NC} - Beautiful, fast cross-shell prompt
+
+All share the same aliases and functions!
+EOF
+
+    wait_for_user
+
+    print_subsection "Starship Prompt"
+    cat << EOF
+${BOLD}Starship provides a beautiful, informative prompt:${NC}
+
+Shows you:
+  • Current directory (with path trimming)
+  • Git branch and status (✓ clean, ⁅⁆ dirty)
+  • Programming language versions (Node, Python, Rust, etc.)
+  • Command duration for slow commands
+  • Agent session (if active)
+
+${CYAN}Try it:${NC}
+  cd into a git repo to see branch info
+  Run a slow command (sleep 3) to see duration
+  Activate an agent session to see session name
+
+EOF
+
+    wait_for_user
+
+    print_subsection "Shell Configuration Structure"
+    cat << EOF
+${BOLD}Modular bash configuration in ~/.bashrc.d/:${NC}
+
+  ${CYAN}00-init.bashrc${NC}          Core initialization
+  ${CYAN}10-navigation.bashrc${NC}    Navigation helpers (al, fal, mkcd)
+  ${CYAN}20-aliases.bashrc${NC}       System aliases (updoot, plz, myip)
+  ${CYAN}30-git.bashrc${NC}           Git shortcuts (gwip, gco, gsync)
+  ${CYAN}40-agents.bashrc${NC}        Agent integration (anew, asw)
+  ${CYAN}45-wt-completion.bashrc${NC} Worktree tab completion
+  ${CYAN}50-prompt.bashrc${NC}        Prompt configuration
+  ${CYAN}60-history.bashrc${NC}       History settings
+  ${CYAN}70-aesthetics.bashrc${NC}    Colors and styling
+  ${CYAN}80-languages.bashrc${NC}     Programming language setups
+  ${CYAN}99-local.bashrc${NC}         Personal overrides
+
+${BOLD}Why modular?${NC}
+  ✓ Easy to enable/disable features
+  ✓ Clean organization
+  ✓ Simple to add custom modules
+  ✓ Source control friendly
+EOF
+
+    wait_for_user
+
+    print_subsection "Key Shell Features"
+    cat << EOF
+${CYAN}History Management:${NC}
+  • Infinite history (HISTSIZE=HISTFILESIZE)
+  • Deduplication (ignoreboth)
+  • Cross-session sharing
+  • Timestamp tracking
+
+  ${DIM}Try: history | tail${NC}
+  ${DIM}Try: Ctrl+R (reverse search)${NC}
+
+${CYAN}Smart Completion:${NC}
+  • Git commands and branches
+  • Agent session names
+  • Worktree names
+  • File paths with Tab
+
+  ${DIM}Try: git checkout [Tab]${NC}
+  ${DIM}Try: wt switch [Tab]${NC}
+
+${CYAN}Environment Detection:${NC}
+  • OS type (Linux/macOS/Windows)
+  • Package manager (apt/pacman/brew)
+  • Git repo and worktree
+  • Agent session
+
+${GREEN}Everything just works across different environments!${NC}
+EOF
+
+    wait_for_user
+}
+
+# ============================================================================
+# SECTION 2: Navigation System
+# ============================================================================
 
 section_navigation() {
     print_header
     print_section "${COMPASS} Navigation System"
 
     cat << EOF
-${BOLD}The navigation system makes moving around your filesystem effortless.${NC}
+${BOLD}Move around your filesystem like a pro.${NC}
 
-It includes:
-  • Directory aliasing (bookmark your favorite locations)
-  • Smart cd with backoff (handles typos gracefully)
-  • Location stacks (push/pop directories like a browser)
+Features:
+  • Directory aliasing (bookmark locations)
+  • Smart cd with backoff (handles typos)
+  • Location stacks (push/pop like a browser)
   • Create-and-cd shortcuts
-  • File detection (tried to cd into a file? opens in vim!)
-
-Let's try some commands...
+  • File detection (cd file.txt → vim file.txt)
 EOF
 
     wait_for_user
 
-    # Create demo structure
-    print_subsection "Setting up demo directories"
-    mkdir -p "$DEMO_DIR"/{projects/{web-app,api,mobile},documents,downloads}
+    mkdir -p "$DEMO_DIR"/{projects/{web,api,mobile},docs,scripts}
     cd "$DEMO_DIR"
 
-    print_success "Created demo directory structure at $DEMO_DIR"
-    echo ""
-
-    # mkcd demo
-    print_subsection "1. mkcd - Create and cd into a directory"
+    print_subsection "1. Directory Aliasing"
     cat << EOF
-${DIM}mkcd creates a directory (and all parent directories) then cd's into it.${NC}
+${BOLD}Bookmark frequently used directories:${NC}
 
-${BOLD}Try it:${NC}
-EOF
-    run_demo_command "mkcd projects/new-idea/src" "Creating nested directories"
-    run_demo_command "pwd" "Current location:"
+${CYAN}al <name> [path]${NC}     Alias current (or specified) directory
+${CYAN}fal <name>${NC}           Jump to aliased directory
+${CYAN}lal${NC}                  List all aliases
+${CYAN}xal <name>${NC}           Delete an alias
 
-    wait_for_user
-
-    # Directory aliasing
-    print_subsection "2. Directory Aliasing - Bookmark locations"
-    cat << EOF
-${BOLD}al${NC}  - ${DIM}Alias (bookmark) current directory${NC}
-${BOLD}fal${NC} - ${DIM}Follow alias (jump to bookmarked directory)${NC}
-${BOLD}lal${NC} - ${DIM}List all aliases${NC}
-${BOLD}xal${NC} - ${DIM}Delete an alias${NC}
-
-Let's bookmark some directories:
+${YELLOW}Demo:${NC}
 EOF
 
-    cd "$DEMO_DIR/projects/web-app"
-    run_demo_command "al webapp" "Aliasing web-app directory as 'webapp'"
+    cd "$DEMO_DIR/projects/web"
+    echo -e "${DIM}$ al webapp${NC}"
+    echo -e "${GREEN}Aliased: webapp → $(pwd)${NC}"
 
-    cd "$DEMO_DIR/projects/api"
-    run_demo_command "al api" "Aliasing api directory as 'api'"
-
-    cd "$DEMO_DIR/documents"
-    run_demo_command "al docs" "Aliasing documents directory as 'docs'"
+    cd "$DEMO_DIR/docs"
+    echo -e "${DIM}$ al docs${NC}"
+    echo -e "${GREEN}Aliased: docs → $(pwd)${NC}"
 
     echo ""
-    print_info "Now you can jump to these directories from anywhere!"
-    echo ""
-
-    run_demo_command "lal" "Listing all aliases:"
+    echo -e "${DIM}$ lal${NC}"
+    echo -e "${CYAN}webapp${NC} → $DEMO_DIR/projects/web"
+    echo -e "${CYAN}docs${NC} → $DEMO_DIR/docs"
 
     wait_for_user
 
-    print_subsection "3. Using aliases to navigate"
-
-    cd /tmp
-    run_demo_command "pwd" "Currently in:"
-    echo ""
-    print_info "Let's jump to the webapp directory..."
-    run_demo_command "cd $DEMO_DIR && source ~/.bashrc && fal webapp 2>/dev/null || cd $DEMO_DIR/projects/web-app" "Jumping to 'webapp' alias"
-    run_demo_command "pwd" "Now we're at:"
-
-    wait_for_user
-
-    # Location stack
-    print_subsection "4. Location Stack - Push/Pop directories"
+    print_subsection "2. Location Stack"
     cat << EOF
-${BOLD}pl${NC}  - ${DIM}Push location (save current directory to stack)${NC}
-${BOLD}gl${NC}  - ${DIM}Go to last pushed location${NC}
-${BOLD}ol${NC}  - ${DIM}Pop location (go to and remove from stack)${NC}
+${BOLD}Push and pop directories like browser history:${NC}
 
-This is like browser back/forward but for directories!
-EOF
+${CYAN}pl${NC}    Push current location
+${CYAN}gl${NC}    Go to last pushed location (keep on stack)
+${CYAN}ol${NC}    Pop location (go to and remove from stack)
 
-    echo ""
-    print_demo "Imagine you're working on the web app and need to check the API..."
-    cd "$DEMO_DIR/projects/web-app"
+${BOLD}Example workflow:${NC}
+  You're working in ${DIM}~/projects/api${NC}
+  ${DIM}$ pl${NC}                    # Save location
+  ${DIM}$ cd ~/docs${NC}             # Go somewhere else
+  ${DIM}$ gl${NC}                    # Jump back to ~/projects/api
+  ${DIM}$ cd ~/scripts${NC}          # Go elsewhere again
+  ${DIM}$ ol${NC}                    # Pop and go back
 
-    run_demo_command "pwd" "Currently in web-app:"
-    run_demo_command "echo 'Saving this location...'" ""
-    # Can't actually use pl in this script context, so simulate
-    echo -e "${DIM}$ ${NC}${CYAN}pl${NC}"
-    echo -e "${DIM}(location pushed)${NC}"
-
-    echo ""
-    cd "$DEMO_DIR/projects/api"
-    run_demo_command "pwd" "Moved to API directory:"
-
-    echo ""
-    print_info "Now use 'gl' to jump back to the saved location"
-    echo -e "${DIM}$ ${NC}${CYAN}gl${NC}"
-    echo -e "${DIM}(would return to: $DEMO_DIR/projects/web-app)${NC}"
-
-    wait_for_user
-
-    # Smart cd
-    print_subsection "5. Smart cd with backoff"
-    cat << EOF
-${BOLD}pcd${NC} - ${DIM}cd with backoff (goes to deepest valid path)${NC}
-${BOLD}vcd${NC} - ${DIM}cd or open file in vim${NC}
-
-These handle typos and edge cases gracefully:
-  • ${DIM}pcd /path/that/doesnt/exist/yet${NC} → goes to deepest valid directory
-  • ${DIM}vcd some/file.txt${NC} → cd to directory and opens file in vim
-  • ${DIM}vcd some/directory${NC} → just cd normally
-
-These are aliased to work with regular 'cd' too!
+Perfect for jumping between related directories!
 EOF
 
     wait_for_user
 
-    print_subsection "Navigation System - Summary"
+    print_subsection "3. Smart Navigation"
     cat << EOF
-${GREEN}${BOLD}Quick Reference:${NC}
+${CYAN}mkcd <path>${NC}        Create directory and cd into it
+${CYAN}pcd <path>${NC}         cd with backoff (goes to deepest valid path)
+${CYAN}vcd <path>${NC}         cd to directory OR open file in vim
+${CYAN}up${NC}                 cd ..
+${CYAN}bk${NC}                 cd - (back to previous)
 
-${CYAN}Directory Creation:${NC}
-  ${BOLD}mkcd${NC} path/to/dir     Create and cd into directory
-
-${CYAN}Aliasing:${NC}
-  ${BOLD}al${NC} name [path]       Alias a directory
-  ${BOLD}fal${NC} name             Jump to aliased directory
-  ${BOLD}lal${NC}                  List all aliases
-  ${BOLD}xal${NC} name             Delete an alias
-
-${CYAN}Location Stack:${NC}
-  ${BOLD}pl${NC}                   Push current location
-  ${BOLD}gl${NC}                   Go to last pushed location
-  ${BOLD}ol${NC}                   Pop and go to location
-
-${CYAN}Quick Movement:${NC}
-  ${BOLD}up${NC}                   cd ..
-  ${BOLD}bk${NC}                   cd - (back)
-  ${BOLD}vcd${NC} path             cd or open in vim
+${YELLOW}Examples:${NC}
+  ${DIM}$ mkcd new/deep/path${NC}           # Creates all parents
+  ${DIM}$ pcd /typo/in/path/file.txt${NC}  # Goes to deepest valid dir
+  ${DIM}$ vcd ~/code/script.sh${NC}         # Opens file in vim
+  ${DIM}$ vcd ~/code${NC}                    # Normal cd to directory
 EOF
 
     wait_for_user
 }
 
-section_aliases() {
-    print_header
-    print_section "${TOOLS} Aliases & Utilities"
-
-    cat << EOF
-${BOLD}Over 50 productivity aliases and utilities are included.${NC}
-
-Let's explore the most useful ones...
-EOF
-
-    wait_for_user
-
-    # System updates
-    print_subsection "1. System Updates"
-    cat << EOF
-${BOLD}updoot${NC} - ${DIM}Update all packages (works on any OS!)${NC}
-
-This intelligently detects your package manager and runs
-the appropriate update commands:
-  • ${DIM}macOS:${NC} brew update && brew upgrade
-  • ${DIM}Ubuntu/Debian:${NC} apt update && apt upgrade
-  • ${DIM}Arch:${NC} pacman -Syu
-  • ${DIM}Fedora:${NC} dnf upgrade
-
-Just run: ${CYAN}updoot${NC}
-EOF
-
-    wait_for_user
-
-    # Sudo helper
-    print_subsection "2. Sudo Helper"
-    cat << EOF
-${BOLD}plz${NC} - ${DIM}Re-run last command as root${NC}
-
-Ever run a command and get "Permission denied"?
-
-Instead of:
-  ${DIM}$ apt install something${NC}
-  ${DIM}Permission denied${NC}
-  ${DIM}$ sudo !!${NC}
-
-Just do:
-  ${DIM}$ apt install something${NC}
-  ${DIM}Permission denied${NC}
-  ${CYAN}$ plz${NC}
-
-Much cleaner!
-EOF
-
-    wait_for_user
-
-    # Network utilities
-    print_subsection "3. Network Utilities"
-    cat << EOF
-${BOLD}Network & Internet Commands:${NC}
-
-${CYAN}myip${NC}               Show your public IP address
-${CYAN}weather NYC${NC}        Check weather for any location
-${CYAN}ports${NC}              List all open ports
-${CYAN}freeport 8080${NC}      Kill process on specified port
-${CYAN}connected${NC}          Check if internet is working
-
-Let's try some:
-EOF
-
-    echo ""
-
-    if command -v curl &>/dev/null; then
-        run_demo_command "curl -s icanhazip.com | head -1 || echo '203.0.113.1'" "Your public IP:"
-    else
-        echo -e "${DIM}(curl not available in demo environment)${NC}"
-        echo -e "${GREEN}Your IP: 203.0.113.1${NC}"
-    fi
-
-    echo ""
-    print_info "Try: ${CYAN}weather${NC} followed by your city or zip code"
-    print_info "Example: ${CYAN}weather NYC${NC} or ${CYAN}weather 90210${NC}"
-
-    wait_for_user
-
-    # File management
-    print_subsection "4. File Listing & Management"
-    cat << EOF
-${BOLD}Enhanced ls aliases:${NC}
-
-${CYAN}l${NC}     ls -CF           Classify entries
-${CYAN}la${NC}    ls -A            Show hidden files
-${CYAN}ll${NC}    ls -alF          Long format with indicators
-${CYAN}lsm${NC}   ls -hlAFG        Human-readable, all files
-
-${CYAN}dir${NC}                    List only directories
-${CYAN}cls${NC}                    Clear and then ls
-EOF
-
-    wait_for_user
-
-    # Disk space
-    print_subsection "5. Disk Space Utilities"
-    cat << EOF
-${BOLD}Disk space commands:${NC}
-
-${CYAN}space${NC}              Show disk space (df -h)
-${CYAN}used${NC}               Show space used in current directory
-EOF
-
-    echo ""
-    run_demo_command "df -h 2>/dev/null | head -5 || echo 'Filesystem usage would be shown here'" "Disk space:"
-
-    wait_for_user
-
-    # Archive utilities
-    print_subsection "6. Archive Utilities"
-    cat << EOF
-${BOLD}Archive commands:${NC}
-
-${CYAN}untar file.tar.gz${NC}     Extract tar archive
-                        (no need to remember flags!)
-
-${CYAN}download URL${NC}          Download entire website
-                        (uses wget with proper flags)
-EOF
-
-    wait_for_user
-
-    # Shell management
-    print_subsection "7. Shell Management"
-    cat << EOF
-${BOLD}Shell utilities:${NC}
-
-${CYAN}restart${NC}            Reload shell config (source ~/.bashrc)
-${CYAN}refresh${NC}            Go to home and clear screen
-${CYAN}bye${NC}                Clear and exit (for privacy)
-
-${CYAN}incognito start${NC}    Stop saving command history
-${CYAN}incognito stop${NC}     Resume saving history
-EOF
-
-    wait_for_user
-
-    print_subsection "Aliases & Utilities - Summary"
-    cat << EOF
-${GREEN}${BOLD}Quick Reference:${NC}
-
-${CYAN}System:${NC}
-  ${BOLD}updoot${NC}              Update all packages
-  ${BOLD}plz${NC}                 Re-run last command with sudo
-  ${BOLD}restart${NC}             Reload shell config
-
-${CYAN}Network:${NC}
-  ${BOLD}myip${NC}                Your public IP
-  ${BOLD}weather${NC} [location]  Check weather
-  ${BOLD}ports${NC}               List open ports
-  ${BOLD}freeport${NC} [port]     Kill process on port
-
-${CYAN}Files:${NC}
-  ${BOLD}ll${NC}                  Long listing
-  ${BOLD}space${NC}               Disk usage
-  ${BOLD}used${NC}                Directory size
-  ${BOLD}untar${NC}               Extract tar files
-
-${CYAN}Fun:${NC}
-  ${BOLD}stonks${NC} AAPL         Check stock prices
-  ${BOLD}incognito start${NC}     Disable command history
-EOF
-
-    wait_for_user
-}
+# ============================================================================
+# SECTION 3: Git Mastery
+# ============================================================================
 
 section_git() {
     print_header
-    print_section "${GIT} Git Enhancements"
+    print_section "${GIT} Git Mastery"
 
     cat << EOF
-${BOLD}Streamlined Git workflow with powerful aliases.${NC}
+${BOLD}30+ Git shortcuts and workflow helpers.${NC}
 
-These aliases make common Git operations faster and safer.
+From basic operations to advanced workflows, everything
+is faster and more intuitive.
 EOF
 
     wait_for_user
 
-    print_subsection "Common Git Aliases"
+    print_subsection "Basic Git Shortcuts"
     cat << EOF
 ${CYAN}Basic Operations:${NC}
-  ${BOLD}gs${NC}                   git status
-  ${BOLD}ga${NC}                   git add
-  ${BOLD}gc${NC}                   git commit
-  ${BOLD}gp${NC}                   git push
-  ${BOLD}gpl${NC}                  git pull
+  status, add, commit, push, stash  ${DIM}(full word aliases)${NC}
+  gpom                              ${DIM}git push origin main${NC}
 
-${CYAN}Branch Operations:${NC}
-  ${BOLD}gco${NC}                  git checkout
-  ${BOLD}gcb${NC}                  git checkout -b (new branch)
-  ${BOLD}gb${NC}                   git branch
-  ${BOLD}gbd${NC}                  git branch -d (delete)
-
-${CYAN}Viewing Changes:${NC}
-  ${BOLD}gd${NC}                   git diff
-  ${BOLD}gds${NC}                  git diff --staged
-  ${BOLD}gl${NC}                   git log --oneline --graph
-  ${BOLD}glog${NC}                 git log with nice formatting
-
-${CYAN}Push Variations:${NC}
-  ${BOLD}gpom${NC}                 git push origin main
-  ${BOLD}push-please${NC}          git push --force-with-lease (safe force push)
+${CYAN}Smart Functions:${NC}
+  ${BOLD}gco <branch|file>${NC}      Smart checkout (branch or file)
+  ${BOLD}gnew <name> [base]${NC}     Create and checkout new branch
+  ${BOLD}gsync [base]${NC}           Sync current branch with main/base
+  ${BOLD}gclean${NC}                 Delete merged branches
 
 ${CYAN}Quick WIP Commits:${NC}
-  ${BOLD}gwip${NC}                 Create quick WIP commit
-  ${BOLD}gunwip${NC}               Undo last WIP commit
+  ${BOLD}gwip${NC}                   Quick WIP commit with timestamp
+  ${BOLD}gunwip${NC}                 Undo last WIP commit
 
-${CYAN}Stash Operations:${NC}
-  ${BOLD}gst${NC}                  git stash
-  ${BOLD}gstp${NC}                 git stash pop
-  ${BOLD}gstl${NC}                 git stash list
+${CYAN}Safety First:${NC}
+  ${BOLD}push-please${NC}            git push --force-with-lease
+  ${BOLD}gundo${NC}                  Undo last commit (keep changes)
+
+${YELLOW}Example workflow:${NC}
+  ${DIM}$ gnew feature-auth${NC}              # Create branch
+  ${DIM}$ # ... make changes ...${NC}
+  ${DIM}$ gwip${NC}                            # Quick save
+  ${DIM}$ # ... more work ...${NC}
+  ${DIM}$ gunwip${NC}                          # Unwrap WIP
+  ${DIM}$ commit -m "Add auth"${NC}           # Proper commit
+  ${DIM}$ gsync${NC}                           # Sync with main
+  ${DIM}$ gpom${NC}                            # Push!
 EOF
 
     wait_for_user
 
-    print_subsection "Example Git Workflow"
+    print_subsection "Git Workflow Patterns"
     cat << EOF
-${BOLD}Typical workflow using aliases:${NC}
+${BOLD}Feature Branch Workflow:${NC}
 
-  ${DIM}# Check status${NC}
-  ${CYAN}$ gs${NC}
+  1. ${CYAN}gnew feature-oauth develop${NC}   # Branch from develop
+  2. ${CYAN}# ... code ...${NC}
+  3. ${CYAN}add .${NC}
+  4. ${CYAN}commit -m "Add OAuth"${NC}
+  5. ${CYAN}gsync develop${NC}                # Stay in sync
+  6. ${CYAN}push${NC}
+  7. ${CYAN}# ... create PR ...${NC}
+  8. ${CYAN}gclean${NC}                       # Clean up after merge
 
-  ${DIM}# Create and switch to new branch${NC}
-  ${CYAN}$ gcb feature/new-thing${NC}
+${BOLD}Quick Hotfix Workflow:${NC}
 
-  ${DIM}# Make changes, then add and commit${NC}
-  ${CYAN}$ ga .${NC}
-  ${CYAN}$ gc -m "Add new feature"${NC}
+  1. ${CYAN}pl${NC}                           # Save current location
+  2. ${CYAN}wt add hotfix${NC}                # New worktree
+  3. ${CYAN}# ... fix bug ...${NC}
+  4. ${CYAN}commit -m "Fix bug"${NC}
+  5. ${CYAN}push${NC}
+  6. ${CYAN}ol${NC}                           # Back to original work
+  7. ${CYAN}wt remove hotfix${NC}             # Clean up
 
-  ${DIM}# Push to origin${NC}
-  ${CYAN}$ gp${NC}
+${BOLD}Experimentation:${NC}
 
-  ${DIM}# View git log${NC}
-  ${CYAN}$ gl${NC}
-
-${BOLD}Compare to vanilla Git:${NC}
-
-  ${DIM}$ git status${NC}
-  ${DIM}$ git checkout -b feature/new-thing${NC}
-  ${DIM}$ git add .${NC}
-  ${DIM}$ git commit -m "Add new feature"${NC}
-  ${DIM}$ git push${NC}
-  ${DIM}$ git log --oneline --graph${NC}
-
-${GREEN}Much faster with aliases!${NC}
+  1. ${CYAN}gwip${NC}                         # Save current work
+  2. ${CYAN}# ... try experimental approach ...${NC}
+  3. ${CYAN}git reset --hard HEAD~1${NC}     # Discard if bad
+  4. ${DIM}OR${NC}
+  5. ${CYAN}gunwip && commit -m "Good experiment"${NC}
 EOF
 
     wait_for_user
 }
+
+# ============================================================================
+# SECTION 4: Git Worktrees
+# ============================================================================
 
 section_worktrees() {
     print_header
-    print_section "🌳 Git Worktrees Made Easy"
+    print_section "${TREE} Git Worktrees Made Easy"
 
     cat << EOF
-${BOLD}The 'wt' command makes git worktrees incredibly easy to use.${NC}
+${BOLD}Work on multiple branches simultaneously.${NC}
 
-Git worktrees let you check out multiple branches at once, each in
-its own directory. No more stashing or switching branches!
+Worktrees let you check out multiple branches at once, each in
+its own directory. No more stashing or branch switching!
 
-${BOLD}Why use worktrees?${NC}
-  • Work on multiple features simultaneously
-  • Quick bug fixes without disrupting current work
-  • Compare different branches side-by-side
-  • Parallel testing of different approaches
+${BOLD}Without worktrees:${NC}
+  ${RED}✗${NC} Stash current work
+  ${RED}✗${NC} Switch branch
+  ${RED}✗${NC} Make changes
+  ${RED}✗${NC} Switch back
+  ${RED}✗${NC} Pop stash
+  ${RED}✗${NC} Hope nothing conflicts
 
+${BOLD}With worktrees:${NC}
+  ${GREEN}✓${NC} Keep all work active
+  ${GREEN}✓${NC} Switch instantly (just cd)
+  ${GREEN}✓${NC} Compare side-by-side
+  ${GREEN}✓${NC} No conflicts, no stashing
 EOF
 
     wait_for_user
 
-    print_subsection "Core wt Commands"
+    print_subsection "wt Command Overview"
     cat << EOF
-${BOLD}Basic Operations:${NC}
+${CYAN}Creation & Removal:${NC}
+  ${BOLD}wt add <name> [branch]${NC}         Create worktree
+  ${BOLD}wt remove <name>${NC}               Remove worktree
 
-${CYAN}wt add <name>${NC}              Create a new worktree
-${CYAN}wt list${NC}                    List all worktrees
-${CYAN}wt switch <name>${NC}           Switch to a worktree
-${CYAN}wt remove <name>${NC}           Remove a worktree
-${CYAN}wt info [name]${NC}             Show worktree info
+${CYAN}Navigation:${NC}
+  ${BOLD}wt list${NC}                        List all worktrees
+  ${BOLD}wt switch <name>${NC}               Switch to worktree
+  ${BOLD}wt goto <name>${NC}                 Open in new shell
 
-${BOLD}Quick Example:${NC}
+${CYAN}Information:${NC}
+  ${BOLD}wt path [name]${NC}                 Show path
+  ${BOLD}wt branch [name]${NC}               Show branch
+  ${BOLD}wt info [name]${NC}                 Show detailed info
 
-  ${DIM}# Create worktree for a feature${NC}
-  ${GREEN}wt add feature-auth${NC}
-
-  ${DIM}# Switch to it${NC}
-  ${GREEN}wt switch feature-auth${NC}
-
-  ${DIM}# Work on your feature...${NC}
-
-  ${DIM}# Switch back to main work${NC}
-  ${GREEN}cd \$(wt path main-work)${NC}
-
-  ${DIM}# Remove when done${NC}
-  ${GREEN}wt remove feature-auth${NC}
-
-${BOLD}Advanced Features:${NC}
-
-  ${CYAN}wt add feat --from=develop${NC}      Branch from develop
-  ${CYAN}wt each git status${NC}              Run command in all worktrees
-  ${CYAN}wt path feature-auth${NC}            Get path for scripts
-  ${CYAN}wt branch${NC}                       Show current branch
-
+${CYAN}Advanced:${NC}
+  ${BOLD}wt add feat --from=develop${NC}     Branch from specific base
+  ${BOLD}wt each git status${NC}             Run command in all worktrees
+  ${BOLD}wt clean${NC}                       Remove stale worktrees
 EOF
 
     wait_for_user
 
-    print_subsection "Fuzzy Matching"
+    print_subsection "Real-World Scenarios"
     cat << EOF
-${BOLD}wt supports fuzzy matching - no need to type full names!${NC}
+${BOLD}Scenario 1: Feature + Urgent Fix${NC}
 
-  ${GREEN}wt switch feat${NC}     # Matches 'feature-auth'
-  ${GREEN}wt remove fix${NC}      # Matches 'fix-bug-123'
-  ${GREEN}wt info api${NC}        # Matches 'api-refactor'
+  ${DIM}# Working on feature${NC}
+  ${CYAN}wt add feature-oauth${NC}
+  ${CYAN}cd \$(wt path feature-oauth)${NC}
+  ${DIM}# ... coding ...${NC}
+
+  ${DIM}# Urgent bug! Don't stash${NC}
+  ${CYAN}wt add hotfix-login${NC}
+  ${CYAN}wt switch hotfix-login${NC}
+  ${DIM}# ... fix bug, commit, push ...${NC}
+
+  ${DIM}# Back to feature - work still there!${NC}
+  ${CYAN}wt switch feature-oauth${NC}
+  ${DIM}# ... continue coding ...${NC}
+
+${BOLD}Scenario 2: Compare Approaches${NC}
+
+  ${DIM}# Try two different implementations${NC}
+  ${CYAN}wt add approach-rest${NC}
+  ${CYAN}wt add approach-graphql${NC}
+
+  ${DIM}# Work on both${NC}
+  ${DIM}# Compare results side-by-side${NC}
+  ${DIM}# Keep the better one${NC}
+
+${BOLD}Scenario 3: Review Someone's PR${NC}
+
+  ${DIM}# Don't disrupt your work${NC}
+  ${CYAN}wt add review-pr-123${NC}
+  ${CYAN}wt switch review-pr-123${NC}
+  ${CYAN}git fetch origin pull/123/head:pr-123${NC}
+  ${CYAN}git checkout pr-123${NC}
+  ${DIM}# ... review, test ...${NC}
+  ${CYAN}wt remove review-pr-123${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "wt Power Features"
+    cat << EOF
+${BOLD}Fuzzy Matching:${NC}
+  ${DIM}$ wt switch feat${NC}     ${GREEN}→ Matches 'feature-oauth'${NC}
+  ${DIM}$ wt remove hot${NC}      ${GREEN}→ Matches 'hotfix-login'${NC}
+
+${BOLD}Run Commands Everywhere:${NC}
+  ${CYAN}wt each git status${NC}          ${DIM}# Status of all worktrees${NC}
+  ${CYAN}wt each git fetch${NC}           ${DIM}# Update all${NC}
+  ${CYAN}wt each npm test${NC}            ${DIM}# Test all branches${NC}
+
+${BOLD}Agent Integration:${NC}
+  ${DIM}$ wt list${NC}
+  ${GREEN}* feature-oauth${NC}
+    ${DIM}Branch: feature/oauth${NC}
+    ${MAGENTA}Agent: oauth-session${NC}   ${DIM}← Automatically detected!${NC}
 
 ${BOLD}Tab Completion:${NC}
-  wt [tab]           # Shows all commands
-  wt switch [tab]    # Shows all worktree names
-  wt add new [tab]   # Shows all branches
+  ${DIM}$ wt switch [Tab]${NC}   ${GREEN}→ Shows all worktree names${NC}
+  ${DIM}$ wt add new [Tab]${NC}  ${GREEN}→ Shows all branches${NC}
 
+print_tip "Use 'wt' for quick tasks, 'agent' for full AI sessions with context tracking"
 EOF
 
     wait_for_user
 }
+
+# ============================================================================
+# SECTION 5: Tmux Multiplexing
+# ============================================================================
+
+section_tmux() {
+    print_header
+    print_section "${TMUX} Tmux - Terminal Multiplexer"
+
+    cat << EOF
+${BOLD}One terminal, infinite possibilities.${NC}
+
+Tmux lets you:
+  • Run multiple programs in one terminal
+  • Split your terminal into panes
+  • Create multiple windows (tabs)
+  • Detach and reattach sessions
+  • Survive SSH disconnections
+
+${BOLD}Think of it as:${NC}
+  Sessions = Projects
+  Windows = Tabs
+  Panes = Split views
+EOF
+
+    wait_for_user
+
+    print_subsection "Tmux Prefix Key"
+    cat << EOF
+${BOLD}Your tmux prefix: ${CYAN}Ctrl+a${NC}
+
+Everything starts with ${CYAN}Ctrl+a${NC}, then a command key.
+
+${BOLD}Why Ctrl+a instead of Ctrl+b?${NC}
+  ✓ Easier to reach
+  ✓ Consistent with screen
+  ✓ Less pinky strain
+
+${YELLOW}How to use:${NC}
+  1. Press and release ${CYAN}Ctrl+a${NC}
+  2. Press command key
+
+  Example: ${CYAN}Ctrl+a${NC} then ${CYAN}|${NC}  ${DIM}(vertical split)${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "Essential Tmux Commands"
+    cat << EOF
+${CYAN}Session Management:${NC}
+  ${BOLD}tmux${NC}                     Start new session
+  ${BOLD}tmux new -s work${NC}         Named session
+  ${BOLD}tmux ls${NC}                  List sessions
+  ${BOLD}tmux attach -t work${NC}      Attach to session
+  ${BOLD}Ctrl+a d${NC}                 Detach session
+  ${BOLD}Ctrl+a :${NC}                 Command prompt
+
+${CYAN}Windows (Tabs):${NC}
+  ${BOLD}Ctrl+a c${NC}                 Create window
+  ${BOLD}Ctrl+a n${NC}                 Next window
+  ${BOLD}Ctrl+a p${NC}                 Previous window
+  ${BOLD}Ctrl+a 0-9${NC}               Jump to window number
+  ${BOLD}Ctrl+a ,${NC}                 Rename window
+
+${CYAN}Panes (Splits):${NC}
+  ${BOLD}Ctrl+a |${NC}                 Vertical split
+  ${BOLD}Ctrl+a "${NC}                 Horizontal split
+  ${BOLD}Ctrl+a arrows${NC}            Navigate panes
+  ${BOLD}Ctrl+a x${NC}                 Close pane
+  ${BOLD}Ctrl+Shift+arrows${NC}        Resize panes
+
+${CYAN}Copy Mode (Vim bindings):${NC}
+  ${BOLD}Ctrl+a [${NC}                 Enter copy mode
+  ${BOLD}Space${NC}                    Start selection
+  ${BOLD}Enter${NC}                    Copy selection
+  ${BOLD}Ctrl+a ]${NC}                 Paste
+EOF
+
+    wait_for_user
+
+    print_subsection "Tmux Workflow Patterns"
+    cat << EOF
+${BOLD}Pattern 1: Project Session${NC}
+
+  ${CYAN}tmux new -s myproject${NC}
+
+  Window 0: Editor (vim/nvim)
+  Window 1: Server (npm run dev)
+  Window 2: Shell (git commands)
+  Window 3: Logs (tail -f)
+
+${BOLD}Pattern 2: Split Panes for Full-Stack${NC}
+
+  ${CYAN}Ctrl+a |${NC}    Split vertically
+
+  Left pane:  Frontend (npm run dev)
+  Right pane: Backend (python manage.py runserver)
+
+  ${CYAN}Ctrl+a "${NC}    Split right pane horizontally
+
+  Top right:    Backend server
+  Bottom right: Database shell
+
+${BOLD}Pattern 3: Remote Development${NC}
+
+  ${DIM}# On local machine${NC}
+  ${CYAN}ssh server${NC}
+  ${CYAN}tmux new -s dev${NC}
+  ${DIM}# ... work work work ...${NC}
+  ${CYAN}Ctrl+a d${NC}    ${DIM}# Detach${NC}
+  ${CYAN}exit${NC}         ${DIM}# Close SSH${NC}
+
+  ${DIM}# Later, or from different computer${NC}
+  ${CYAN}ssh server${NC}
+  ${CYAN}tmux attach -s dev${NC}  ${DIM}# Everything still running!${NC}
+
+${BOLD}Pattern 4: Agent Sessions${NC}
+
+  ${DIM}# One tmux window per agent session${NC}
+  ${CYAN}tmux new -s agents${NC}
+  ${CYAN}Ctrl+a c${NC}    ${DIM}# Window for each agent${NC}
+  ${CYAN}wt switch feature-auth${NC}
+  ${CYAN}Ctrl+a ,${NC}    ${DIM}# Rename window to "auth"${NC}
+  ${CYAN}Ctrl+a c${NC}    ${DIM}# New window${NC}
+  ${CYAN}wt switch bugfix-login${NC}
+  ${CYAN}Ctrl+a ,${NC}    ${DIM}# Rename to "bugfix"${NC}
+
+EOF
+
+    wait_for_user
+
+    print_subsection "Tmux Pro Tips"
+    cat << EOF
+${GREEN}1. Mouse Support${NC}
+   ${DIM}Your tmux has mouse support enabled!${NC}
+   • Click to switch panes
+   • Drag borders to resize
+   • Scroll to browse history
+
+${GREEN}2. Copy Mode${NC}
+   ${DIM}Vim keybindings in copy mode:${NC}
+   • ${CYAN}h,j,k,l${NC} to move
+   • ${CYAN}/${NC} to search
+   • ${CYAN}v${NC} for visual selection
+   • Mouse scrolling works too!
+
+${GREEN}3. Persistent Sessions${NC}
+   ${DIM}Name your sessions meaningfully:${NC}
+   • ${CYAN}tmux new -s work${NC}
+   • ${CYAN}tmux new -s personal${NC}
+   • ${CYAN}tmux new -s agent-dev${NC}
+
+${GREEN}4. Status Bar${NC}
+   ${DIM}Bottom bar shows:${NC}
+   • Session name
+   • Window list
+   • Current window (highlighted)
+   • System info (customizable)
+
+print_tip "Add 'alias t=tmux' to your ~/.bash_profile for quick access"
+EOF
+
+    wait_for_user
+}
+
+# ============================================================================
+# SECTION 6: Editors
+# ============================================================================
+
+section_editors() {
+    print_header
+    print_section "${EDITOR} Editor Setup"
+
+    cat << EOF
+${BOLD}Three powerful editors, all configured for you.${NC}
+
+  ${CYAN}Vim${NC}      - Classic, fast, available everywhere
+  ${CYAN}Neovim${NC}   - Modern Vim with LSP and better defaults
+  ${CYAN}Zed${NC}      - Fast, modern, AI-first (via Homebrew)
+
+All three share similar keybindings and workflows!
+EOF
+
+    wait_for_user
+
+    print_subsection "Neovim - The Modern Choice"
+    cat << EOF
+${BOLD}Your Neovim setup includes:${NC}
+
+${CYAN}Language Support:${NC}
+  ✓ Python (Pyright + Ruff)
+  ✓ JavaScript/TypeScript (ts_ls + ESLint)
+  ✓ Rust (rust-analyzer)
+  ✓ Go, OCaml, and more
+
+${CYAN}Features:${NC}
+  ✓ LSP (Language Server Protocol) - IntelliSense everywhere
+  ✓ Autocompletion with snippets
+  ✓ Syntax highlighting (Treesitter)
+  ✓ File explorer (NvimTree)
+  ✓ Fuzzy finder (Telescope)
+  ✓ Git integration (Gitsigns, Fugitive)
+  ✓ AI completions (TabNine)
+  ✓ Auto-formatting on save
+  ✓ Linting
+  ✓ Beautiful Dracula theme
+
+${CYAN}Key Bindings (Space = Leader):${NC}
+  ${BOLD}Space e${NC}      Toggle file explorer
+  ${BOLD}Space ff${NC}     Find files
+  ${BOLD}Space fg${NC}     Live grep (search in files)
+  ${BOLD}Space fb${NC}     Find buffers
+  ${BOLD}Space fd${NC}     Find diagnostics (errors/warnings)
+
+  ${BOLD}gd${NC}           Go to definition
+  ${BOLD}gr${NC}           Go to references
+  ${BOLD}K${NC}            Hover documentation
+  ${BOLD}Space rn${NC}     Rename symbol
+  ${BOLD}Space ca${NC}     Code actions
+  ${BOLD}Space f${NC}      Format file
+
+  ${BOLD}Space mp${NC}     Markdown preview
+  ${BOLD}Space w${NC}      Save file
+  ${BOLD}Space q${NC}      Quit
+
+${CYAN}Window Navigation:${NC}
+  ${BOLD}Ctrl+h/j/k/l${NC} Move between splits
+  ${BOLD}Shift+h/l${NC}    Previous/next buffer
+EOF
+
+    wait_for_user
+
+    print_subsection "Vim - The Classic"
+    cat << EOF
+${BOLD}Classic Vim with plugins:${NC}
+
+${CYAN}Installed Plugins:${NC}
+  • ${BOLD}NERDTree${NC}        File explorer (${CYAN}Leader nn${NC})
+  • ${BOLD}CtrlP${NC}           Fuzzy file finder (${CYAN}Ctrl+f${NC})
+  • ${BOLD}Fugitive${NC}        Git integration (${CYAN}:Git${NC})
+  • ${BOLD}YankStack${NC}       Clipboard history
+  • ${BOLD}Emmet${NC}           HTML/CSS expansion
+  • ${BOLD}snipMate${NC}        Code snippets
+
+${CYAN}Common Vim Commands:${NC}
+  ${BOLD}:w${NC}               Save
+  ${BOLD}:q${NC}               Quit
+  ${BOLD}:wq${NC}              Save and quit
+  ${BOLD}/pattern${NC}         Search
+  ${BOLD}n / N${NC}            Next/previous match
+  ${BOLD}dd${NC}               Delete line
+  ${BOLD}yy${NC}               Yank (copy) line
+  ${BOLD}p${NC}                Paste
+  ${BOLD}u${NC}                Undo
+  ${BOLD}Ctrl+r${NC}           Redo
+  ${BOLD}v${NC}                Visual mode
+  ${BOLD}:split${NC}           Horizontal split
+  ${BOLD}:vsplit${NC}          Vertical split
+
+${BOLD}Why Vim?${NC}
+  ✓ Available on every system
+  ✓ Works over SSH
+  ✓ Lightning fast
+  ✓ Muscle memory transfers to Neovim, Zed, and even IDEs
+EOF
+
+    wait_for_user
+
+    print_subsection "Editor Workflow Integration"
+    cat << EOF
+${BOLD}Editors + Tmux = Power Combo${NC}
+
+${YELLOW}Pattern: Full-screen editor${NC}
+  ${CYAN}tmux new -s code${NC}
+  ${CYAN}nvim .${NC}                ${DIM}# Open directory${NC}
+  ${CYAN}Space e${NC}               ${DIM}# Toggle file tree${NC}
+  ${CYAN}Space ff${NC}              ${DIM}# Find and open file${NC}
+  ${DIM}# Work in Neovim${NC}
+  ${CYAN}Ctrl+a |${NC}              ${DIM}# Split tmux pane${NC}
+  ${DIM}# Now: Editor left, terminal right${NC}
+
+${YELLOW}Pattern: Edit, run, test${NC}
+  Pane 1: ${CYAN}nvim main.py${NC}
+  Pane 2: ${CYAN}python main.py${NC}
+  Pane 3: ${CYAN}pytest${NC}
+
+  ${DIM}Edit in pane 1, run in pane 2, test in pane 3${NC}
+  ${DIM}Switch with Ctrl+a arrows${NC}
+
+${YELLOW}Pattern: Agent workflow${NC}
+  ${CYAN}agent new feature-auth${NC}
+  ${CYAN}wt switch feature-auth${NC}
+  ${CYAN}tmux new -s auth${NC}
+  ${CYAN}nvim .${NC}
+  ${CYAN}Space e${NC}               ${DIM}# File tree${NC}
+  ${CYAN}Space ff${NC}              ${DIM}# Find files${NC}
+  ${DIM}# AI suggests in tmux pane, you implement in Neovim${NC}
+
+print_tip "Use 'nvim' for modern projects, 'vim' when SSH'd to servers"
+EOF
+
+    wait_for_user
+}
+
+# ============================================================================
+# SECTION 7: Window Management
+# ============================================================================
+
+section_window_managers() {
+    print_header
+    print_section "${WINDOW} Window Management"
+
+    cat << EOF
+${BOLD}Tiling window managers for maximum productivity.${NC}
+
+${BOLD}What's a tiling WM?${NC}
+Instead of overlapping windows, tiles arrange windows to use
+all available screen space automatically.
+
+${CYAN}Linux:${NC}   i3 / Sway
+${CYAN}macOS:${NC}   yabai / skhd (optional), Rectangle
+
+${BOLD}Benefits:${NC}
+  ✓ No window juggling
+  ✓ Keyboard-driven
+  ✓ Consistent layouts
+  ✓ Multi-monitor friendly
+  ✓ Workspace organization
+EOF
+
+    wait_for_user
+
+    print_subsection "i3 / Sway (Linux)"
+    cat << EOF
+${BOLD}i3 (X11) and Sway (Wayland) are tiling window managers.${NC}
+
+${CYAN}Core Concepts:${NC}
+  • ${BOLD}Workspaces${NC}    - Virtual desktops (1-10)
+  • ${BOLD}Containers${NC}    - Windows arranged in tree
+  • ${BOLD}Layouts${NC}       - Horizontal, vertical, tabbed, stacked
+  • ${BOLD}Mod key${NC}       - Usually Super (Windows) key
+
+${CYAN}Common Keybindings (Mod = Super):${NC}
+  ${BOLD}Mod+Enter${NC}         Open terminal
+  ${BOLD}Mod+d${NC}             Application launcher
+  ${BOLD}Mod+1-9${NC}           Switch workspace
+  ${BOLD}Mod+Shift+1-9${NC}     Move window to workspace
+
+  ${BOLD}Mod+h/j/k/l${NC}       Navigate windows (vim-style)
+  ${BOLD}Mod+Shift+h/j/k/l${NC} Move windows
+
+  ${BOLD}Mod+v${NC}             Vertical split
+  ${BOLD}Mod+h${NC}             Horizontal split
+  ${BOLD}Mod+e${NC}             Toggle split direction
+  ${BOLD}Mod+f${NC}             Fullscreen
+  ${BOLD}Mod+Shift+q${NC}       Close window
+
+${CYAN}Workflow Example:${NC}
+  Workspace 1: Terminal + Vim (split)
+  Workspace 2: Browser (research)
+  Workspace 3: Multiple terminals (tmux sessions)
+  Workspace 4: Slack / Chat
+
+  ${BOLD}Mod+1${NC} - Code
+  ${BOLD}Mod+2${NC} - Research
+  ${BOLD}Mod+3${NC} - Servers
+  ${BOLD}Mod+4${NC} - Chat
+EOF
+
+    wait_for_user
+
+    print_subsection "yabai / skhd (macOS)"
+    cat << EOF
+${BOLD}Tiling window manager for macOS (requires manual install).${NC}
+
+${CYAN}Features:${NC}
+  • BSP (Binary Space Partitioning) layout
+  • Stack layout
+  • Float mode for specific apps
+  • Multi-monitor support
+
+${CYAN}Common skhd Keybindings:${NC}
+  ${DIM}(If you've installed yabai/skhd)${NC}
+
+  ${BOLD}Alt+Enter${NC}         New terminal
+  ${BOLD}Alt+h/j/k/l${NC}       Focus window
+  ${BOLD}Shift+Alt+h/j/k/l${NC} Move window
+  ${BOLD}Alt+f${NC}             Toggle fullscreen
+  ${BOLD}Alt+r${NC}             Rotate tree
+  ${BOLD}Alt+1-9${NC}           Switch space
+
+${CYAN}Alternative: Rectangle${NC}
+  ${DIM}Simpler window management (via Homebrew)${NC}
+
+  • Snap windows to halves/quarters
+  • Keyboard shortcuts
+  • Works immediately (no SIP disable)
+  • Good for beginners
+
+print_tip "Start with Rectangle on macOS, graduate to yabai when comfortable"
+EOF
+
+    wait_for_user
+
+    print_subsection "Integrated Workflow"
+    cat << EOF
+${BOLD}Combining all the tools:${NC}
+
+${YELLOW}The Full Stack:${NC}
+
+  ${BOLD}Window Manager${NC}  (i3/sway/yabai)
+  ↓ Workspaces organized by project/task
+
+  ${BOLD}Terminal${NC}        (Alacritty/iTerm2)
+  ↓ Fast, GPU-accelerated
+
+  ${BOLD}Tmux${NC}            (Terminal multiplexer)
+  ↓ Multiple sessions, windows, panes
+
+  ${BOLD}Shell${NC}           (Bash/Fish with Starship)
+  ↓ Powerful navigation and git
+
+  ${BOLD}Editor${NC}          (Neovim with LSP)
+  ↓ Full IDE features
+
+  ${BOLD}Git Worktrees${NC}   (via wt command)
+  ↓ Multiple branches active
+
+  ${BOLD}Agent System${NC}    (AI parallel workflows)
+  ✓ Everything tracked and organized
+
+${YELLOW}Real-world example:${NC}
+
+  ${BOLD}Workspace 1: Main Development${NC}
+    Tmux session "main"
+      Window 1: Neovim (main project)
+      Window 2: Server running
+      Window 3: Git commands
+
+  ${BOLD}Workspace 2: Agent Feature${NC}
+    Tmux session "feature-auth"
+      Window 1: Neovim (worktree: feature-oauth)
+      Window 2: Test server
+      Window 3: Agent AI terminal
+
+  ${BOLD}Workspace 3: Code Review${NC}
+    Tmux session "review"
+      Pane 1: Vim (their code)
+      Pane 2: Browser (PR on GitHub)
+      Pane 3: Running their tests
+
+  ${BOLD}Workspace 4: Communication${NC}
+    Slack, Discord, Email
+
+${GREEN}One keystroke switches entire contexts!${NC}
+EOF
+
+    wait_for_user
+}
+
+# ============================================================================
+# SECTION 8: AI Agent System
+# ============================================================================
 
 section_agents() {
     print_header
     print_section "${ROBOT} AI Agent Parallelization"
 
     cat << EOF
-${BOLD}The crown jewel: Multi-agent workflow management.${NC}
+${BOLD}Run multiple AI coding sessions in parallel.${NC}
 
-This system lets you run multiple AI agent sessions in parallel,
-each with their own git worktree and isolated environment.
-
-${BOLD}The 'agent' command builds on 'wt' with:${NC}
+The agent system builds on top of ${CYAN}wt${NC} (worktrees) to add:
   • Session management and context tracking
-  • Shared context between sessions
+  • Shared context directories between sessions
   • Templates for different workflow types
   • Lock files to prevent conflicts
-  • Integration with your shell prompt
+  • Shell prompt integration
 
 ${BOLD}Perfect for:${NC}
-  • Working on multiple features simultaneously
-  • Separating exploration from production work
+  • Multiple features developed simultaneously
+  • Separating exploration from production
   • Sharing context between related tasks
-  • Keeping your main workspace clean
-
+  • Parallel AI agents working independently
 EOF
 
     wait_for_user
 
-    print_subsection "Core Concepts"
+    print_subsection "Agent vs wt"
     cat << EOF
-${BOLD}Git Worktrees:${NC}
-Instead of juggling branches in one directory, each agent session
-gets its own directory (worktree) linked to the same repository.
+${BOLD}When to use what?${NC}
 
-${BOLD}Sessions:${NC}
-A session represents one AI agent working on one task. Each session
-includes:
-  • Its own git worktree (separate directory)
-  • A context directory for sharing information
-  • Lock files to prevent conflicts
-  • Template-based setup (feature/bugfix/refactor/exploration)
+${CYAN}Use 'wt' for:${NC}
+  ✓ Quick feature branches
+  ✓ Simple context switching
+  ✓ Review someone's PR
+  ✓ Trying an experiment
+  ✓ Manual development
+
+${CYAN}Use 'agent' for:${NC}
+  ✓ Long-running AI sessions
+  ✓ Complex features needing context
+  ✓ Sharing info between sessions
+  ✓ Tracked progress and notes
+  ✓ Team collaboration
+  ✓ Structured workflows
+
+${YELLOW}Example:${NC}
+  ${DIM}# Quick fix${NC}
+  ${CYAN}wt add hotfix${NC}
+  ${DIM}# ... fix, commit, done${NC}
+
+  ${DIM}# AI-driven feature${NC}
+  ${CYAN}agent new oauth-integration --template=feature${NC}
+  ${CYAN}agent context oauth-integration --edit${NC}
+  ${DIM}# ... AI reads context, writes code, updates notes${NC}
+  ${DIM}# ... session tracked, progress saved${NC}
 EOF
 
     wait_for_user
 
     print_subsection "Agent Commands"
     cat << EOF
-${CYAN}Creating and Managing Sessions:${NC}
-
-  ${BOLD}agent new${NC} [name] [--template=TYPE] [--branch=NAME]
-      Create a new agent session
-      Templates: feature, bugfix, refactor, exploration
-
-  ${BOLD}agent list${NC}
-      List all active sessions
-
-  ${BOLD}agent switch${NC} [name]
-      Switch to a session's worktree
-
-  ${BOLD}agent close${NC} [name] [--archive] [--delete-branch]
-      Close a session and clean up
-
-${CYAN}Context Sharing:${NC}
-
-  ${BOLD}agent context${NC} [name] [--edit]
-      View or edit session context
-
-  ${BOLD}agent share-context${NC} [from] [to] --file=FILE
-      Share context files between sessions
-
-${CYAN}Maintenance:${NC}
-
-  ${BOLD}worktree-clean${NC}
-      Clean up stale worktrees
-
-  ${BOLD}context-sync${NC} [--watch] [--status]
-      Sync context between sessions
-EOF
-
-    wait_for_user
-
-    print_subsection "Example Workflow"
-    cat << EOF
-${BOLD}Scenario: Working on authentication while fixing a bug${NC}
-
-${DIM}# Create a feature session for authentication${NC}
-${CYAN}$ agent new auth-feature --template=feature --branch=feature/oauth${NC}
-
-${DIM}# Create a bugfix session for login issue${NC}
-${CYAN}$ agent new login-bugfix --template=bugfix --branch=bugfix/login-error${NC}
-
-${DIM}# List active sessions${NC}
-${CYAN}$ agent list${NC}
-${GREEN}Active sessions:
-  • auth-feature (feature/oauth)
-  • login-bugfix (bugfix/login-error)${NC}
-
-${DIM}# Share API spec between sessions${NC}
-${CYAN}$ agent share-context auth-feature login-bugfix --file=api-spec.md${NC}
-
-${DIM}# Work in parallel with two AI agents${NC}
-${DIM}(Open two terminals, switch each to a different session)${NC}
-
-${DIM}# When done, close sessions${NC}
-${CYAN}$ agent close auth-feature --archive${NC}
-${CYAN}$ agent close login-bugfix --archive --delete-branch${NC}
-
-${GREEN}${BOLD}Result:${NC} Two features developed in parallel without conflicts!
-EOF
-
-    wait_for_user
-
-    print_subsection "Templates Explained"
-    cat << EOF
-${BOLD}feature:${NC}      New feature development
-              → Creates feature/ branch
-              → Full context template
-
-${BOLD}bugfix:${NC}       Bug fix work
-              → Creates bugfix/ branch
-              → Focused on issue resolution
-
-${BOLD}refactor:${NC}     Code refactoring
-              → Creates refactor/ branch
-              → Maintains functionality
-
-${BOLD}exploration:${NC}  Experimental work
-              → Creates experiment/ branch
-              → No commitment to merge
-EOF
-
-    wait_for_user
-
-    print_subsection "AI Agent System - Summary"
-    cat << EOF
-${GREEN}${BOLD}Quick Reference:${NC}
-
 ${CYAN}Session Management:${NC}
-  ${BOLD}agent new${NC} name [opts]         Create session
-  ${BOLD}agent list${NC}                    List all sessions
-  ${BOLD}agent switch${NC} name             Switch to session
-  ${BOLD}agent close${NC} name [opts]       Close session
+  ${BOLD}agent new <name>${NC}          Create session
+  ${BOLD}agent list${NC}                List all sessions
+  ${BOLD}agent switch <name>${NC}       Switch to session
+  ${BOLD}agent close <name>${NC}        Close session
+  ${BOLD}agent current${NC}             Show current session
 
-${CYAN}Context Sharing:${NC}
-  ${BOLD}agent context${NC} name [--edit]   View/edit context
-  ${BOLD}agent share-context${NC} A B       Share between sessions
+${CYAN}Context Management:${NC}
+  ${BOLD}agent context <name> --edit${NC}   Edit context
+  ${BOLD}agent share-context A B --file=X${NC}  Share file
+  ${BOLD}agent sync <name>${NC}         Sync with upstream
 
-${CYAN}Utilities:${NC}
-  ${BOLD}worktree-clean${NC}                Clean stale worktrees
-  ${BOLD}context-sync${NC} [--watch]        Sync contexts
+${CYAN}Quick Aliases:${NC}
+  ${BOLD}anew${NC}     →  agent new
+  ${BOLD}asw${NC}      →  agent switch
+  ${BOLD}alist${NC}    →  agent list
+  ${BOLD}actx${NC}     →  agent context
+  ${BOLD}aclose${NC}   →  agent close
+  ${BOLD}ainfo${NC}    →  show current session info
+  ${BOLD}aedit${NC}    →  edit current session context
 
-${YELLOW}${BOLD}Pro Tip:${NC} Use this system when you have an AI coding assistant.
-Let multiple agents work on different features simultaneously!
+${CYAN}Templates:${NC}
+  ${BOLD}--template=feature${NC}       New feature development
+  ${BOLD}--template=bugfix${NC}        Bug fix
+  ${BOLD}--template=refactor${NC}      Code refactoring
+  ${BOLD}--template=exploration${NC}   Experimental work
+EOF
 
-${DIM}See docs/AGENT_WORKFLOWS.md for detailed examples.${NC}
+    wait_for_user
+
+    print_subsection "Agent Workflow Example"
+    cat << EOF
+${BOLD}Complete AI-assisted development workflow:${NC}
+
+${YELLOW}1. Create session${NC}
+   ${CYAN}agent new auth-feature --template=feature${NC}
+
+   Creates:
+     • Worktree at ../repo-wt-auth-feature
+     • Context dir with templates
+     • Session metadata
+
+${YELLOW}2. Edit context${NC}
+   ${CYAN}agent context auth-feature --edit${NC}
+
+   Fill in:
+     • Objective: "Add OAuth2 authentication"
+     • Approach: "Use passport.js library"
+     • Tasks: Checklist of TODOs
+     • Notes: Architecture decisions
+
+${YELLOW}3. Work with AI${NC}
+   ${CYAN}wt switch auth-feature${NC}
+   ${CYAN}tmux new -s auth${NC}
+
+   Left pane:  Your AI tool reading context
+   Right pane: Editor implementing suggestions
+
+${YELLOW}4. Parallel session${NC}
+   ${CYAN}agent new bugfix-login --template=bugfix${NC}
+   ${CYAN}agent switch bugfix-login${NC}
+
+   Fix bug while AI continues on auth-feature!
+
+${YELLOW}5. Share context${NC}
+   ${CYAN}agent share-context auth-feature bugfix-login --file=api-spec.md${NC}
+
+   Both sessions now have same API spec
+
+${YELLOW}6. Close when done${NC}
+   ${CYAN}agent close auth-feature --archive${NC}
+
+   Archives context for future reference
+EOF
+
+    wait_for_user
+
+    print_subsection "Multi-Agent Patterns"
+    cat << EOF
+${BOLD}Pattern 1: Feature + Tests${NC}
+  Agent A: Implements feature
+  Agent B: Writes tests
+  ${DIM}Share: API spec, type definitions${NC}
+
+${BOLD}Pattern 2: Frontend + Backend${NC}
+  Agent A: React frontend
+  Agent B: API backend
+  ${DIM}Share: API contract, data models${NC}
+
+${BOLD}Pattern 3: Experiment + Production${NC}
+  Agent A: Explore new approach
+  Agent B: Maintain current code
+  ${DIM}Keep isolated, merge best parts${NC}
+
+${BOLD}Pattern 4: Parallel Features${NC}
+  Agent A: OAuth integration
+  Agent B: Email notifications
+  Agent C: User profiles
+  ${DIM}All work independently, merge when ready${NC}
+
+${BOLD}Pattern 5: Review + Fix${NC}
+  Agent A: Review codebase for issues
+  Agent B: Fix identified issues
+  ${DIM}Share: Issue list, refactoring plan${NC}
+
+print_tip "Each agent session gets its own tmux session and workspace"
 EOF
 
     wait_for_user
 }
+
+# ============================================================================
+# SECTION 9: Complete Development Workflow
+# ============================================================================
+
+section_workflow() {
+    print_header
+    print_section "${WORKFLOW} Complete Development Workflow"
+
+    cat << EOF
+${BOLD}Putting it all together: Start to deployment.${NC}
+
+Let's walk through a real-world development workflow using
+every tool we've covered.
+
+${BOLD}Scenario:${NC}
+  Building a new API endpoint with authentication,
+  writing tests, and deploying to production.
+EOF
+
+    wait_for_user
+
+    print_subsection "Step 1: Project Setup"
+    cat << EOF
+${YELLOW}Morning: Starting fresh${NC}
+
+${DIM}# Start window manager workspace 1${NC}
+${CYAN}Mod+1${NC}                          ${DIM}(Switch to workspace 1)${NC}
+
+${DIM}# Open terminal and start tmux${NC}
+${CYAN}tmux new -s myapi${NC}
+
+${DIM}# Navigate to project${NC}
+${CYAN}fal myproject${NC}                  ${DIM}(Jump to aliased directory)${NC}
+
+${DIM}# Or create new project${NC}
+${CYAN}mkcd ~/projects/new-api${NC}
+${CYAN}al myapi${NC}                       ${DIM}(Alias for quick access)${NC}
+
+${DIM}# Check git status${NC}
+${CYAN}gs${NC}                             ${DIM}(git status)${NC}
+
+${DIM}# Update dependencies${NC}
+${CYAN}npm install${NC}                    ${DIM}(or pip install -r requirements.txt)${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "Step 2: Create Feature Branch"
+    cat << EOF
+${YELLOW}Creating an isolated workspace${NC}
+
+${DIM}# Create worktree for feature${NC}
+${CYAN}wt add feature-auth${NC}
+
+${DIM}# Switch to it${NC}
+${CYAN}wt switch feature-auth${NC}
+
+${DIM}# Or use agent for tracked development${NC}
+${CYAN}agent new feature-auth --template=feature${NC}
+${CYAN}agent context feature-auth --edit${NC}
+
+${BOLD}Edit context:${NC}
+  ${DIM}Objective: Add JWT authentication to API${NC}
+  ${DIM}Approach: Use jsonwebtoken library${NC}
+  ${DIM}Tasks:${NC}
+    ${DIM}[ ] Install dependencies${NC}
+    ${DIM}[ ] Create auth middleware${NC}
+    ${DIM}[ ] Add login endpoint${NC}
+    ${DIM}[ ] Add protected routes${NC}
+    ${DIM}[ ] Write tests${NC}
+    ${DIM}[ ] Update docs${NC}
+
+${CYAN}agent switch feature-auth${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "Step 3: Development Environment"
+    cat << EOF
+${YELLOW}Setting up tmux workspace${NC}
+
+${DIM}# Window 1: Editor${NC}
+${CYAN}nvim .${NC}
+${CYAN}Space e${NC}                        ${DIM}(Toggle file tree)${NC}
+${CYAN}Space ff${NC}                       ${DIM}(Find file: auth.js)${NC}
+
+${DIM}# Create new window for server${NC}
+${CYAN}Ctrl+a c${NC}
+${CYAN}Ctrl+a ,${NC}                       ${DIM}(Rename to "server")${NC}
+${CYAN}npm run dev${NC}
+
+${DIM}# Create window for tests${NC}
+${CYAN}Ctrl+a c${NC}
+${CYAN}Ctrl+a ,${NC}                       ${DIM}(Rename to "tests")${NC}
+${CYAN}npm run test:watch${NC}
+
+${DIM}# Create window for git/shell${NC}
+${CYAN}Ctrl+a c${NC}
+${CYAN}Ctrl+a ,${NC}                       ${DIM}(Rename to "git")${NC}
+
+${BOLD}Now you have:${NC}
+  Window 0 [vim]:    Editor
+  Window 1 [server]: Dev server running
+  Window 2 [tests]:  Tests watching
+  Window 3 [git]:    Git commands
+
+${DIM}Switch with:${NC} ${CYAN}Ctrl+a 0-3${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "Step 4: Coding + Testing"
+    cat << EOF
+${YELLOW}Development loop${NC}
+
+${DIM}# In vim window (Ctrl+a 0)${NC}
+${CYAN}Space ff${NC}                       ${DIM}(Find: auth.js)${NC}
+${DIM}... write middleware code ...${NC}
+${CYAN}:w${NC}                             ${DIM}(Save - auto-formats on save!)${NC}
+
+${DIM}# Check server logs (Ctrl+a 1)${NC}
+${DIM}... server auto-restarted ...${NC}
+
+${DIM}# Check tests (Ctrl+a 2)${NC}
+${DIM}... tests auto-ran ...${NC}
+${GREEN}✓ All tests passing${NC}
+
+${DIM}# Write more tests${NC}
+${CYAN}Ctrl+a 0${NC}                       ${DIM}(Back to vim)${NC}
+${CYAN}Space ff${NC}                       ${DIM}(Find: auth.test.js)${NC}
+${DIM}... write tests ...${NC}
+
+${DIM}# Commit progress (Ctrl+a 3 - git window)${NC}
+${CYAN}gs${NC}                             ${DIM}(git status)${NC}
+${CYAN}add src/auth.js src/auth.test.js${NC}
+${CYAN}commit -m "Add JWT authentication middleware"${NC}
+
+${DIM}# Quick save work-in-progress${NC}
+${CYAN}gwip${NC}                           ${DIM}(Quick WIP commit)${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "Step 5: Urgent Interruption"
+    cat << EOF
+${YELLOW}Production bug! Don't lose your work${NC}
+
+${DIM}# You're in the middle of feature development${NC}
+${DIM}# Urgent bug report comes in${NC}
+
+${DIM}# DON'T stash or commit half-done work!${NC}
+
+${DIM}# Create new worktree for hotfix${NC}
+${CYAN}wt add hotfix-login${NC}
+
+${DIM}# Switch workspace (Mod+2)${NC}
+${DIM}# Or split current tmux window${NC}
+${CYAN}Ctrl+a |${NC}                       ${DIM}(Vertical split)${NC}
+${CYAN}wt switch hotfix-login${NC}
+
+${DIM}# Fix the bug${NC}
+${CYAN}vim src/login.js${NC}
+${DIM}... fix bug ...${NC}
+${CYAN}:wq${NC}
+
+${DIM}# Test it${NC}
+${CYAN}npm test${NC}
+${GREEN}✓ Tests pass${NC}
+
+${DIM}# Commit and push${NC}
+${CYAN}add src/login.js${NC}
+${CYAN}commit -m "Fix login validation bug"${NC}
+${CYAN}push-please${NC}                    ${DIM}(Force push safely)${NC}
+
+${DIM}# Back to feature work${NC}
+${CYAN}wt switch feature-auth${NC}
+${DIM}# Your work is exactly where you left it!${NC}
+
+${DIM}# Clean up hotfix when merged${NC}
+${CYAN}wt remove hotfix-login${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "Step 6: Code Review + Refinement"
+    cat << EOF
+${YELLOW}Using LSP features for quality${NC}
+
+${DIM}# In Neovim${NC}
+${CYAN}Space fd${NC}                       ${DIM}(Find diagnostics)${NC}
+${DIM}... shows all errors/warnings ...${NC}
+
+${DIM}# Navigate to error${NC}
+${CYAN}gd${NC}                             ${DIM}(Go to definition)${NC}
+${CYAN}gr${NC}                             ${DIM}(Find references)${NC}
+${CYAN}K${NC}                              ${DIM}(Show documentation)${NC}
+
+${DIM}# Rename variable everywhere${NC}
+${CYAN}Space rn${NC}                       ${DIM}(Rename symbol)${NC}
+${DIM}... type new name ...${NC}
+${DIM}... updated everywhere!${NC}
+
+${DIM}# Format code${NC}
+${CYAN}Space f${NC}                        ${DIM}(Format file)${NC}
+
+${DIM}# Run linter${NC}
+${DIM}... happens automatically on save ...${NC}
+
+${DIM}# Check across all worktrees${NC}
+${CYAN}wt each npm run lint${NC}           ${DIM}(Lint all branches!)${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "Step 7: Documentation + Merge"
+    cat << EOF
+${YELLOW}Finishing touches${NC}
+
+${DIM}# Update README${NC}
+${CYAN}Space ff${NC}                       ${DIM}(Find: README.md)${NC}
+${DIM}... document new endpoint ...${NC}
+
+${DIM}# Preview markdown (if installed)${NC}
+${CYAN}Space mp${NC}                       ${DIM}(Markdown preview)${NC}
+
+${DIM}# Update context notes${NC}
+${CYAN}aedit${NC}                          ${DIM}(Edit agent context)${NC}
+${DIM}... mark tasks as complete ...${NC}
+  ${GREEN}[✓] Install dependencies${NC}
+  ${GREEN}[✓] Create auth middleware${NC}
+  ${GREEN}[✓] Add login endpoint${NC}
+  ${GREEN}[✓] Add protected routes${NC}
+  ${GREEN}[✓] Write tests${NC}
+  ${GREEN}[✓] Update docs${NC}
+
+${DIM}# Final commit${NC}
+${CYAN}gs${NC}
+${CYAN}add .${NC}
+${CYAN}commit -m "Complete JWT authentication feature
+
+- Add auth middleware with JWT verification
+- Implement login endpoint
+- Protect sensitive routes
+- Add comprehensive tests (95% coverage)
+- Update API documentation"${NC}
+
+${DIM}# Sync with main${NC}
+${CYAN}gsync main${NC}                     ${DIM}(Rebase on main)${NC}
+
+${DIM}# Push${NC}
+${CYAN}gpom${NC}                           ${DIM}(git push origin main)${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "Step 8: Multi-Agent Parallel Work"
+    cat << EOF
+${YELLOW}While waiting for review, start another feature${NC}
+
+${DIM}# First feature awaiting review${NC}
+${CYAN}agent list${NC}
+  ${GREEN}feature-auth${NC}    (awaiting review)
+
+${DIM}# Start second feature${NC}
+${CYAN}agent new feature-notifications --template=feature${NC}
+${CYAN}agent context feature-notifications --edit${NC}
+
+${DIM}# Share API spec from auth feature${NC}
+${CYAN}agent share-context feature-auth feature-notifications --file=api-spec.md${NC}
+
+${DIM}# New workspace for new feature (Mod+3)${NC}
+${DIM}# New tmux session${NC}
+${CYAN}tmux new -s notifications${NC}
+${CYAN}agent switch feature-notifications${NC}
+${CYAN}nvim .${NC}
+
+${BOLD}Now you have two features in parallel:${NC}
+  Workspace 1: feature-auth (awaiting review)
+  Workspace 2: main work
+  Workspace 3: feature-notifications (active development)
+
+${DIM}Switch between workspaces with ${CYAN}Mod+1-3${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "Step 9: Deployment"
+    cat << EOF
+${YELLOW}Deploying to production${NC}
+
+${DIM}# Feature merged to main${NC}
+${CYAN}wt switch main-dev${NC}              ${DIM}(or just cd to main repo)${NC}
+${CYAN}git checkout main${NC}
+${CYAN}git pull${NC}
+
+${DIM}# Run full test suite${NC}
+${CYAN}npm run test${NC}
+${GREEN}✓ 247 tests passing${NC}
+
+${DIM}# Build for production${NC}
+${CYAN}npm run build${NC}
+
+${DIM}# Deploy${NC}
+${CYAN}npm run deploy${NC}                 ${DIM}(or your deploy script)${NC}
+
+${DIM}# Monitor logs in new tmux window${NC}
+${CYAN}Ctrl+a c${NC}
+${CYAN}ssh production${NC}
+${CYAN}tail -f /var/log/app.log${NC}
+
+${DIM}# If issues, quick rollback${NC}
+${CYAN}git revert HEAD${NC}
+${CYAN}gpom${NC}
+${CYAN}npm run deploy${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "Step 10: Cleanup"
+    cat << EOF
+${YELLOW}Cleaning up after successful deployment${NC}
+
+${DIM}# Close finished agent sessions${NC}
+${CYAN}agent close feature-auth --archive${NC}
+${GREEN}✓ Context archived to ~/.config/agents/archive/${NC}
+
+${DIM}# Remove merged worktrees${NC}
+${CYAN}wt remove feature-auth${NC}
+
+${DIM}# Clean up merged branches${NC}
+${CYAN}gclean${NC}
+${GREEN}✓ Deleted 3 merged branches${NC}
+
+${DIM}# Exit tmux sessions${NC}
+${CYAN}Ctrl+a d${NC}                       ${DIM}(Detach from current)${NC}
+${CYAN}tmux kill-session -t auth${NC}
+
+${DIM}# Update local dotfiles${NC}
+${CYAN}dotfiles-update${NC}
+
+${BOLD}Ready for the next feature!${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "Workflow Summary"
+    cat << EOF
+${BOLD}Complete workflow recap:${NC}
+
+${CYAN}1. Setup${NC}
+   Workspace → Tmux → Navigate → Project
+
+${CYAN}2. Feature Branch${NC}
+   Worktree or Agent → Context
+
+${CYAN}3. Development${NC}
+   Tmux windows → Editor + Server + Tests
+
+${CYAN}4. Interruptions${NC}
+   New worktree → Fix → Back to work
+
+${CYAN}5. Quality${NC}
+   LSP features → Linting → Formatting
+
+${CYAN}6. Review${NC}
+   Documentation → Commit → Sync
+
+${CYAN}7. Parallel Work${NC}
+   Multiple agents → Shared context
+
+${CYAN}8. Deploy${NC}
+   Test → Build → Deploy → Monitor
+
+${CYAN}9. Cleanup${NC}
+   Archive → Remove → Clean
+
+${GREEN}${BOLD}Every tool working together seamlessly!${NC}
+EOF
+
+    wait_for_user
+}
+
+# ============================================================================
+# SECTION 10: Next Steps
+# ============================================================================
 
 section_next_steps() {
     print_header
     print_section "${ROCKET} Next Steps"
 
     cat << EOF
-${GREEN}${BOLD}Congratulations! You've completed the tutorial.${NC}
+${GREEN}${BOLD}Congratulations! You've completed the comprehensive tour.${NC}
 
 ${BOLD}What to do next:${NC}
 
-${CYAN}1. Try the commands${NC}
-   Start using the navigation system, aliases, and git shortcuts
-   in your daily workflow. They'll become second nature quickly!
+${CYAN}1. Practice the basics${NC}
+   Start with navigation and git shortcuts
+   Add some directory aliases
+   Try creating a worktree
 
-${CYAN}2. Customize your config${NC}
-   Edit these files for personal preferences:
-     ${YELLOW}~/.bash_profile${NC}         Personal bash config
-     ${YELLOW}~/.gitprofile${NC}           Git name/email
-     ${YELLOW}~/.tmux.profile${NC}         Tmux settings
-     ${YELLOW}~/.config/nvim/personal.lua${NC}  Neovim config
+${CYAN}2. Set up your environment${NC}
+   Configure: ${YELLOW}~/.bash_profile${NC}
+   Git config: ${YELLOW}~/.gitprofile${NC}
+   Tmux config: ${YELLOW}~/.tmux.profile${NC}
+   Nvim config: ${YELLOW}~/.config/nvim/personal.lua${NC}
 
-${CYAN}3. Explore the agent system${NC}
-   If you use AI coding assistants, try the multi-agent workflow:
-     ${GREEN}agent new my-first-feature --template=feature${NC}
+${CYAN}3. Master one tool at a time${NC}
+   Week 1: Shell navigation + git shortcuts
+   Week 2: Tmux basics
+   Week 3: Neovim essentials
+   Week 4: Worktrees
+   Week 5: Agent system
+   Week 6: Window manager (optional)
 
-${CYAN}4. Read the docs${NC}
-     ${YELLOW}README.md${NC}              Getting started
-     ${YELLOW}ARCHITECTURE.md${NC}        System design
-     ${YELLOW}docs/AGENT_WORKFLOWS.md${NC}  Agent examples
-     ${YELLOW}docs/CUSTOMIZATION.md${NC}   Customization guide
+${CYAN}4. Build muscle memory${NC}
+   Use the tools daily
+   Resist going back to old habits
+   Shortcuts feel weird at first - that's normal!
 
-${CYAN}5. Update regularly${NC}
-     ${GREEN}dotfiles-update${NC}  or  ${GREEN}cd ~/dotfiles && git pull${NC}
+${CYAN}5. Customize${NC}
+   Add your own aliases
+   Tweak keybindings
+   Create custom scripts
+   Share improvements!
 
-${BOLD}Quick command reference:${NC}
+${BOLD}Quick Reference Card:${NC}
 
-  ${DIM}Navigation:${NC}    al, fal, lal, mkcd, pl/gl/ol
-  ${DIM}Utilities:${NC}     updoot, plz, myip, weather, ports
-  ${DIM}Git:${NC}           gs, ga, gc, gp, gco, gwip
-  ${DIM}Worktrees:${NC}     wt add/list/switch/remove
-  ${DIM}Agent:${NC}         agent new/list/switch/close
+${DIM}Navigation:${NC}    al, fal, lal, mkcd, pl/gl/ol, up, bk
+${DIM}Git:${NC}           gs, ga, gc, gp, gco, gnew, gwip, gunwip, gsync
+${DIM}Worktrees:${NC}     wt add/list/switch/remove/each/info
+${DIM}Agent:${NC}         agent new/list/switch/close, anew, asw, aedit
+${DIM}Tmux:${NC}          Ctrl+a |/"/c/n/p/d/[/]
+${DIM}Nvim:${NC}          Space e/ff/fg/fb, gd/gr/K, Space rn/ca/f
+${DIM}Utilities:${NC}     updoot, plz, myip, weather, ports, freeport
 
-${BOLD}Getting help:${NC}
+${BOLD}Resources:${NC}
 
-  ${CYAN}agent help${NC}              Agent system help
-  ${CYAN}man bash${NC}                Bash manual
-  ${CYAN}git help${NC}                Git documentation
+  ${CYAN}./tutorial.sh${NC}                  Run this tutorial again
+  ${CYAN}agent help${NC}                    Agent system help
+  ${CYAN}wt help${NC}                       Worktree wrapper help
+  ${CYAN}man tmux${NC}                      Tmux manual
+  ${CYAN}:help${NC}                         Vim/Neovim help
 
-${MAGENTA}${BOLD}Happy coding! ${ROCKET}${NC}
+  ${CYAN}README.md${NC}                     Getting started guide
+  ${CYAN}ARCHITECTURE.md${NC}               System design
+  ${CYAN}docs/AGENT_WORKFLOWS.md${NC}       Agent examples
+  ${CYAN}docs/CUSTOMIZATION.md${NC}         Customization guide
 
-${DIM}(This tutorial created a demo directory at ${DEMO_DIR})${NC}
-${DIM}(Feel free to explore or delete it: rm -rf ${DEMO_DIR})${NC}
+${BOLD}Get Help:${NC}
+
+  ${DIM}In Vim:${NC}        ${CYAN}:help <topic>${NC}
+  ${DIM}In Neovim:${NC}     ${CYAN}:checkhealth${NC}  ${DIM}(verify LSP setup)${NC}
+  ${DIM}In Tmux:${NC}       ${CYAN}Ctrl+a ?${NC}       ${DIM}(show all keys)${NC}
+  ${DIM}In Shell:${NC}      ${CYAN}man <command>${NC}
+
+${MAGENTA}${BOLD}Happy coding! ${ROCKET}${SPARKLES}${NC}
+
+${DIM}This tutorial created a demo directory at: ${DEMO_DIR}${NC}
+${DIM}Feel free to explore or delete it: ${CYAN}rm -rf ${DEMO_DIR}${NC}
 EOF
 
     echo ""
 }
 
 cleanup() {
-    # Optionally clean up demo directory
     if [ -d "$DEMO_DIR" ]; then
         echo ""
         echo -e "${BLUE}[?]${NC} Remove tutorial demo directory? [y/N] "
@@ -866,17 +1682,27 @@ main() {
     fi
 
     # Run tutorial sections
-    welcome
+    if [ "$SKIP_INTRO" = false ]; then
+        welcome
+    fi
+
+    section_shell
     section_navigation
-    section_aliases
     section_git
     section_worktrees
+    section_tmux
+    section_editors
+    section_window_managers
     section_agents
+    section_workflow
     section_next_steps
     cleanup
 
     echo ""
     print_success "Tutorial complete!"
+    echo ""
+    echo -e "${CYAN}Run again with: ${GREEN}./tutorial.sh${NC}"
+    echo -e "${CYAN}Skip intro with: ${GREEN}./tutorial.sh --skip-intro${NC}"
     echo ""
 }
 
