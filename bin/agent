@@ -612,6 +612,218 @@ cmd_current() {
     fi
 }
 
+# Shepherd - Review and address PR comments
+cmd_shepherd() {
+    local pr_number=""
+    local branch=""
+    local dry_run=false
+    local auto_apply=false
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --pr=*)
+                pr_number="${1#*=}"
+                shift
+                ;;
+            --branch=*)
+                branch="${1#*=}"
+                shift
+                ;;
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
+            --auto-apply)
+                auto_apply=true
+                shift
+                ;;
+            *)
+                die "Unknown argument: $1"
+                ;;
+        esac
+    done
+
+    # Ensure we have gh CLI
+    if ! command -v gh &> /dev/null; then
+        die "GitHub CLI (gh) is required but not installed. Install from: https://cli.github.com/"
+    fi
+
+    # Determine PR number
+    if [[ -z "$pr_number" ]]; then
+        if [[ -n "$branch" ]]; then
+            # Get PR for specific branch
+            log_info "Finding PR for branch: $branch"
+            pr_number=$(gh pr list --head "$branch" --json number --jq '.[0].number' 2>/dev/null)
+        else
+            # Get PR for current branch
+            local current_branch=$(git branch --show-current 2>/dev/null)
+            if [[ -z "$current_branch" ]]; then
+                die "Not on a branch. Use --pr=<number> or --branch=<name>"
+            fi
+            log_info "Finding PR for current branch: $current_branch"
+            pr_number=$(gh pr list --head "$current_branch" --json number --jq '.[0].number' 2>/dev/null)
+        fi
+
+        if [[ -z "$pr_number" || "$pr_number" == "null" ]]; then
+            die "No PR found for this branch. Use --pr=<number> to specify manually."
+        fi
+    fi
+
+    log_step "Shepherding PR #$pr_number"
+    echo ""
+
+    # Get PR info
+    local pr_info=$(gh pr view "$pr_number" --json title,body,reviews,reviewRequests,state 2>/dev/null)
+    if [[ -z "$pr_info" ]]; then
+        die "Failed to fetch PR #$pr_number. Check your permissions and network."
+    fi
+
+    local pr_title=$(echo "$pr_info" | jq -r '.title')
+    local pr_state=$(echo "$pr_info" | jq -r '.state')
+
+    echo -e "${BOLD}PR: #$pr_number${NC}"
+    echo -e "${CYAN}$pr_title${NC}"
+    echo -e "State: $pr_state"
+    echo ""
+
+    # Get review comments
+    log_info "Fetching review comments..."
+    local comments_json=$(gh api "repos/:owner/:repo/pulls/$pr_number/comments" 2>/dev/null)
+
+    if [[ -z "$comments_json" || "$comments_json" == "[]" ]]; then
+        log_success "No review comments found! 🎉"
+        return 0
+    fi
+
+    # Count comments
+    local total_comments=$(echo "$comments_json" | jq 'length')
+    log_info "Found $total_comments review comments"
+    echo ""
+
+    # Create temporary working directory for this shepherd session
+    local shepherd_dir="/tmp/agent-shepherd-$$"
+    mkdir -p "$shepherd_dir"
+
+    # Save comments to file for processing
+    echo "$comments_json" > "$shepherd_dir/comments.json"
+
+    # Process each comment
+    local comment_idx=0
+    echo "$comments_json" | jq -c '.[]' | while read -r comment; do
+        ((comment_idx++))
+
+        local comment_id=$(echo "$comment" | jq -r '.id')
+        local comment_body=$(echo "$comment" | jq -r '.body')
+        local comment_path=$(echo "$comment" | jq -r '.path')
+        local comment_line=$(echo "$comment" | jq -r '.line // .original_line')
+        local comment_user=$(echo "$comment" | jq -r '.user.login')
+        local created_at=$(echo "$comment" | jq -r '.created_at')
+        local diff_hunk=$(echo "$comment" | jq -r '.diff_hunk')
+
+        echo -e "${BOLD}${MAGENTA}Comment $comment_idx/$total_comments${NC}"
+        echo -e "${BOLD}File:${NC} $comment_path:$comment_line"
+        echo -e "${BOLD}Author:${NC} $comment_user ($(date -d "$created_at" "+%b %d, %Y" 2>/dev/null || echo "$created_at"))"
+        echo -e "${BOLD}Comment:${NC}"
+        echo "$comment_body" | sed 's/^/  /'
+        echo ""
+        echo -e "${BOLD}Context:${NC}"
+        echo "$diff_hunk" | sed 's/^/  /'
+        echo ""
+
+        # Save comment details for analysis
+        cat > "$shepherd_dir/comment-$comment_idx.json" <<EOF
+{
+  "id": $comment_id,
+  "path": "$comment_path",
+  "line": $comment_line,
+  "user": "$comment_user",
+  "body": $(echo "$comment" | jq -c '.body'),
+  "diff_hunk": $(echo "$comment" | jq -c '.diff_hunk')
+}
+EOF
+
+        if $dry_run; then
+            echo -e "${YELLOW}[DRY RUN]${NC} Would analyze and suggest action for this comment"
+            echo ""
+            continue
+        fi
+
+        # Interactive prompt for action
+        echo -e "${BOLD}What would you like to do?${NC}"
+        echo "  1) Investigate & suggest fix"
+        echo "  2) View full file context"
+        echo "  3) Mark as resolved (reply)"
+        echo "  4) Skip for now"
+        echo "  q) Quit shepherd"
+        echo ""
+
+        if ! $auto_apply; then
+            read -p "Choose action [1-4, q]: " action
+        else
+            action="1"
+            echo "Auto-apply mode: choosing action 1 (investigate & suggest fix)"
+        fi
+
+        case "$action" in
+            1)
+                # Call helper script to analyze and suggest fix
+                if [[ -x "$(dirname "${BASH_SOURCE[0]}")/agent-shepherd-analyze" ]]; then
+                    "$(dirname "${BASH_SOURCE[0]}")/agent-shepherd-analyze" \
+                        --comment="$shepherd_dir/comment-$comment_idx.json" \
+                        --pr="$pr_number" \
+                        ${auto_apply:+--auto-apply}
+                else
+                    log_warn "Helper script 'agent-shepherd-analyze' not found."
+                    log_info "You can manually investigate: $comment_path:$comment_line"
+                fi
+                ;;
+            2)
+                # Show full file
+                if [[ -f "$comment_path" ]]; then
+                    ${PAGER:-less} "+${comment_line}g" "$comment_path"
+                else
+                    log_error "File not found: $comment_path"
+                fi
+                ;;
+            3)
+                # Reply to comment
+                echo ""
+                read -p "Enter reply message (or press Enter to skip): " reply_msg
+                if [[ -n "$reply_msg" ]]; then
+                    gh api "repos/:owner/:repo/pulls/$pr_number/comments/$comment_id/replies" \
+                        -X POST \
+                        -f body="$reply_msg" >/dev/null 2>&1 && \
+                        log_success "Reply posted!" || \
+                        log_error "Failed to post reply"
+                fi
+                ;;
+            4)
+                log_info "Skipping comment"
+                ;;
+            q|Q)
+                log_info "Exiting shepherd"
+                rm -rf "$shepherd_dir"
+                exit 0
+                ;;
+            *)
+                log_warn "Invalid choice, skipping"
+                ;;
+        esac
+
+        echo ""
+        echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
+        echo ""
+    done
+
+    # Cleanup
+    rm -rf "$shepherd_dir"
+
+    echo ""
+    log_success "Shepherd session complete!"
+    log_info "Review the PR: gh pr view $pr_number --web"
+}
+
 # Display help
 cmd_help() {
     cat <<EOF
@@ -660,6 +872,14 @@ ${BOLD}COMMANDS:${NC}
     ${CYAN}current${NC}
         Show current active session
 
+    ${CYAN}shepherd${NC} [options]
+        Review and address PR comments interactively
+        Options:
+            --pr=<number>      PR number (auto-detected from branch if not provided)
+            --branch=<name>    Branch name to find PR for
+            --dry-run          Show comments without taking action
+            --auto-apply       Automatically investigate and suggest fixes
+
     ${CYAN}help${NC}
         Show this help message
 
@@ -681,6 +901,11 @@ ${BOLD}EXAMPLES:${NC}
 
     # Close session when done
     agent close auth-feature --archive --delete-branch
+
+    # Review PR comments and address them
+    agent shepherd
+    agent shepherd --pr=123
+    agent shepherd --auto-apply
 
 ${BOLD}CONFIGURATION:${NC}
     Config file: $AGENT_CONFIG_FILE
@@ -734,6 +959,9 @@ main() {
             ;;
         current)
             cmd_current "$@"
+            ;;
+        shepherd|shep)
+            cmd_shepherd "$@"
             ;;
         help|--help|-h)
             cmd_help
