@@ -124,12 +124,13 @@ xal() {
 
 complete -F _alias_completions xal
 
-## `lal` - lists aliases
+## `lal` - lists aliases with their targets
 if [ "$OS_TYPE" = "macos" ]; then
-    # macOS stat has different syntax
-    alias lal="(stat -f'%N %m' $ALIAS_SYMLINK_DIR/* 2>/dev/null | sed 's~'\"$ALIAS_SYMLINK_DIR\"'/~~' | sort -nrk 2 | rev | cut -d ' ' -f 2- | rev) 2>> /dev/null"
+    # macOS: use stat to get mtime for sorting, then ls -l to show targets
+    alias lal="(cd $ALIAS_SYMLINK_DIR 2>/dev/null && for f in *; do [ -e \"\$f\" ] && echo \"\$(stat -f'%m' \"\$f\") \$f -> \$(readlink \"\$f\")\"; done 2>/dev/null | sort -nrk1 | cut -d' ' -f2-) 2>/dev/null"
 else
-    alias lal="(stat -c\"%N %Y\" $ALIAS_SYMLINK_DIR/* 2>/dev/null | sed 's~'\"$ALIAS_SYMLINK_DIR\"'/~~' | sort -nrk 4 | rev | cut -d \" \" -f 2- | rev) 2>> /dev/null"
+    # Linux: use stat to get mtime for sorting, then readlink to show targets
+    alias lal="(cd $ALIAS_SYMLINK_DIR 2>/dev/null && for f in *; do [ -e \"\$f\" ] && echo \"\$(stat -c'%Y' \"\$f\") \$f -> \$(readlink \"\$f\")\"; done 2>/dev/null | sort -nrk1 | cut -d' ' -f2-) 2>/dev/null"
 fi
 
 ## `fk` - a convenience alias for `lal` and `fal`, but with a `vcd` fallback
