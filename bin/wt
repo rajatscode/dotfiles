@@ -1,0 +1,806 @@
+#!/usr/bin/env bash
+
+# wt - Intuitive git worktree wrapper
+# Makes working with git worktrees effortless
+#
+# Usage:
+#   wt add <name> [branch] [--from=<base-branch>]
+#   wt list [--all]
+#   wt remove <name> [--force]
+#   wt switch <name>
+#   wt goto <name>
+#   wt prune [--dry-run]
+#   wt path [name]
+#   wt branch [name]
+#   wt info [name]
+#   wt clean [--force]
+#   wt each <command>
+#   wt help
+
+set -euo pipefail
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+# Where to create worktrees (relative to repo root)
+WORKTREE_PREFIX="${WT_PREFIX:-wt-}"
+WORKTREE_LOCATION="${WT_LOCATION:-..}"  # Can be "." for subdirs or ".." for siblings
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m' # No Color
+
+# ============================================================================
+# Utility Functions
+# ============================================================================
+
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[✓]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[!]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[✗]${NC} $1" >&2
+}
+
+log_step() {
+    echo -e "${CYAN}▶${NC} $1"
+}
+
+die() {
+    log_error "$1"
+    exit 1
+}
+
+# Get git root directory
+get_git_root() {
+    git rev-parse --show-toplevel 2>/dev/null || die "Not in a git repository"
+}
+
+# Get repository name
+get_repo_name() {
+    basename "$(get_git_root)"
+}
+
+# Get current branch name
+get_current_branch() {
+    git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD
+}
+
+# Get default branch (main or master)
+get_default_branch() {
+    # Try to detect the default branch
+    if git rev-parse --verify main >/dev/null 2>&1; then
+        echo "main"
+    elif git rev-parse --verify master >/dev/null 2>&1; then
+        echo "master"
+    else
+        # Fallback to current branch
+        get_current_branch
+    fi
+}
+
+# Generate worktree path
+get_worktree_path() {
+    local name="$1"
+    local git_root=$(get_git_root)
+    local repo_name=$(get_repo_name)
+
+    if [[ "$WORKTREE_LOCATION" == "." ]]; then
+        # Create as subdirectory
+        echo "${git_root}/${WORKTREE_PREFIX}${name}"
+    else
+        # Create as sibling directory
+        echo "${git_root}${WORKTREE_LOCATION}/${repo_name}-${WORKTREE_PREFIX}${name}"
+    fi
+}
+
+# Find worktree by fuzzy name
+find_worktree() {
+    local search_name="$1"
+    local exact_matches=()
+    local partial_matches=()
+
+    while IFS= read -r line; do
+        if [[ $line =~ ^worktree\ (.+)$ ]]; then
+            local wt_path="${BASH_REMATCH[1]}"
+            local wt_basename=$(basename "$wt_path")
+
+            # Strip prefix if present
+            local wt_name="${wt_basename#${WORKTREE_PREFIX}}"
+            # Strip repo name prefix if present
+            wt_name="${wt_name#$(get_repo_name)-}"
+
+            if [[ "$wt_name" == "$search_name" ]]; then
+                exact_matches+=("$wt_path")
+            elif [[ "$wt_name" == *"$search_name"* ]]; then
+                partial_matches+=("$wt_path")
+            fi
+        fi
+    done < <(git worktree list --porcelain)
+
+    # Return exact match if found
+    if [[ ${#exact_matches[@]} -eq 1 ]]; then
+        echo "${exact_matches[0]}"
+        return 0
+    elif [[ ${#exact_matches[@]} -gt 1 ]]; then
+        log_error "Multiple exact matches found for '$search_name'"
+        return 1
+    fi
+
+    # Return partial match if only one
+    if [[ ${#partial_matches[@]} -eq 1 ]]; then
+        echo "${partial_matches[0]}"
+        return 0
+    elif [[ ${#partial_matches[@]} -gt 1 ]]; then
+        log_error "Multiple matches found for '$search_name':"
+        for match in "${partial_matches[@]}"; do
+            echo "  - $(basename "$match")" >&2
+        done
+        return 1
+    fi
+
+    return 1
+}
+
+# Get worktree info
+get_worktree_info() {
+    local path="$1"
+    local branch=""
+    local commit=""
+    local is_bare=false
+    local is_detached=false
+
+    while IFS= read -r line; do
+        if [[ $line =~ ^worktree\ (.+)$ ]]; then
+            local current_path="${BASH_REMATCH[1]}"
+            if [[ "$current_path" == "$path" ]]; then
+                # Start collecting info for this worktree
+                continue
+            elif [[ -n "$branch" || -n "$commit" ]]; then
+                # We've moved to the next worktree, stop
+                break
+            fi
+        elif [[ $line =~ ^HEAD\ ([a-f0-9]+)$ ]]; then
+            commit="${BASH_REMATCH[1]}"
+        elif [[ $line =~ ^branch\ (.+)$ ]]; then
+            branch="${BASH_REMATCH[1]}"
+        elif [[ $line =~ ^detached$ ]]; then
+            is_detached=true
+        elif [[ $line =~ ^bare$ ]]; then
+            is_bare=true
+        fi
+    done < <(git worktree list --porcelain)
+
+    echo "branch=$branch"
+    echo "commit=$commit"
+    echo "is_bare=$is_bare"
+    echo "is_detached=$is_detached"
+}
+
+# Check if path is inside a worktree
+get_current_worktree() {
+    local current_dir=$(pwd)
+
+    while IFS= read -r line; do
+        if [[ $line =~ ^worktree\ (.+)$ ]]; then
+            local wt_path="${BASH_REMATCH[1]}"
+            if [[ "$current_dir" == "$wt_path"* ]]; then
+                echo "$wt_path"
+                return 0
+            fi
+        fi
+    done < <(git worktree list --porcelain)
+
+    return 1
+}
+
+# Check if integrated with agent system
+is_agent_worktree() {
+    local path="$1"
+
+    # Check if this path is managed by agent
+    local agent_config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/agents/sessions"
+    if [[ -d "$agent_config_dir" ]]; then
+        for session_file in "$agent_config_dir"/*.yaml; do
+            [[ -e "$session_file" ]] || continue
+            if grep -q "^worktree: $path" "$session_file" 2>/dev/null; then
+                # Extract session name
+                grep "^name:" "$session_file" | cut -d' ' -f2-
+                return 0
+            fi
+        done
+    fi
+
+    return 1
+}
+
+# ============================================================================
+# Commands
+# ============================================================================
+
+# Add a new worktree
+cmd_add() {
+    local name=""
+    local branch=""
+    local base_branch=""
+    local create_branch=true
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --from=*)
+                base_branch="${1#*=}"
+                shift
+                ;;
+            --no-create-branch)
+                create_branch=false
+                shift
+                ;;
+            *)
+                if [[ -z "$name" ]]; then
+                    name="$1"
+                elif [[ -z "$branch" ]]; then
+                    branch="$1"
+                else
+                    die "Unknown argument: $1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    [[ -z "$name" ]] && die "Usage: wt add <name> [branch] [--from=<base-branch>]"
+
+    # Default branch name if not provided
+    if [[ -z "$branch" ]]; then
+        branch="$name"
+    fi
+
+    # Default base branch if not provided
+    if [[ -z "$base_branch" ]]; then
+        base_branch=$(get_default_branch)
+    fi
+
+    local worktree_path=$(get_worktree_path "$name")
+
+    # Check if worktree already exists
+    if [[ -d "$worktree_path" ]]; then
+        die "Worktree already exists at: $worktree_path"
+    fi
+
+    log_step "Creating worktree: $name"
+
+    # Check if branch exists
+    if git rev-parse --verify "$branch" >/dev/null 2>&1; then
+        log_info "Branch '$branch' exists, checking out"
+        git worktree add "$worktree_path" "$branch"
+    else
+        if $create_branch; then
+            log_info "Creating new branch '$branch' from '$base_branch'"
+            git worktree add -b "$branch" "$worktree_path" "$base_branch"
+        else
+            die "Branch '$branch' does not exist. Remove --no-create-branch or create it first."
+        fi
+    fi
+
+    log_success "Worktree created: $worktree_path"
+    echo ""
+    echo -e "${BOLD}Next steps:${NC}"
+    echo -e "  ${GREEN}wt switch $name${NC}    # Switch to this worktree"
+    echo -e "  ${GREEN}wt goto $name${NC}      # Open in new shell"
+
+    # Check if agent tool is available
+    if command -v agent >/dev/null 2>&1; then
+        echo ""
+        echo -e "${DIM}Tip: Use 'agent new' for full AI session management${NC}"
+    fi
+}
+
+# List all worktrees
+cmd_list() {
+    local show_all=false
+    local verbose=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --all|-a)
+                show_all=true
+                shift
+                ;;
+            --verbose|-v)
+                verbose=true
+                shift
+                ;;
+            *)
+                die "Unknown argument: $1"
+                ;;
+        esac
+    done
+
+    local current_wt=$(get_current_worktree || echo "")
+    local git_root=$(get_git_root)
+
+    echo -e "${BOLD}Worktrees:${NC}"
+    echo ""
+
+    local count=0
+    while IFS= read -r line; do
+        if [[ $line =~ ^worktree\ (.+)$ ]]; then
+            local wt_path="${BASH_REMATCH[1]}"
+            local wt_branch=""
+            local wt_commit=""
+            local is_main=false
+
+            # Skip main worktree unless --all
+            if [[ "$wt_path" == "$git_root" ]]; then
+                is_main=true
+                [[ "$show_all" == false ]] && continue
+            fi
+
+            ((count++))
+
+            local wt_basename=$(basename "$wt_path")
+            local wt_name="${wt_basename#${WORKTREE_PREFIX}}"
+            wt_name="${wt_name#$(get_repo_name)-}"
+
+            # Get branch info
+            local info=$(get_worktree_info "$wt_path")
+            eval "$info"
+
+            # Mark current worktree
+            local marker=" "
+            if [[ "$wt_path" == "$current_wt" ]]; then
+                marker="${GREEN}*${NC}"
+            fi
+
+            # Format name
+            local display_name="$wt_name"
+            if $is_main; then
+                display_name="${BOLD}${MAGENTA}(main)${NC}"
+            fi
+
+            echo -e "$marker ${CYAN}$display_name${NC}"
+
+            # Show branch
+            if [[ -n "$branch" ]]; then
+                echo -e "  ${DIM}branch:${NC} ${GREEN}$branch${NC}"
+            elif [[ "$is_detached" == true ]]; then
+                echo -e "  ${DIM}branch:${NC} ${YELLOW}(detached at $commit)${NC}"
+            fi
+
+            # Show path in verbose mode
+            if $verbose; then
+                echo -e "  ${DIM}path:${NC} $wt_path"
+            fi
+
+            # Show if managed by agent
+            if agent_session=$(is_agent_worktree "$wt_path"); then
+                echo -e "  ${DIM}agent:${NC} ${MAGENTA}$agent_session${NC}"
+            fi
+
+            echo ""
+        fi
+    done < <(git worktree list --porcelain)
+
+    if [[ $count -eq 0 ]]; then
+        if $show_all; then
+            log_info "Only the main worktree exists"
+        else
+            log_info "No additional worktrees found"
+            echo ""
+            echo "Create one with: ${GREEN}wt add <name>${NC}"
+        fi
+    fi
+}
+
+# Remove a worktree
+cmd_remove() {
+    local name=""
+    local force=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --force|-f)
+                force=true
+                shift
+                ;;
+            *)
+                if [[ -z "$name" ]]; then
+                    name="$1"
+                else
+                    die "Unknown argument: $1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    [[ -z "$name" ]] && die "Usage: wt remove <name> [--force]"
+
+    local wt_path=$(find_worktree "$name") || die "Worktree not found: $name"
+
+    log_step "Removing worktree: $(basename "$wt_path")"
+
+    if $force; then
+        git worktree remove "$wt_path" --force
+    else
+        git worktree remove "$wt_path"
+    fi
+
+    log_success "Worktree removed"
+
+    # Clean up agent session if exists
+    if agent_session=$(is_agent_worktree "$wt_path"); then
+        log_warn "Agent session '$agent_session' may still exist"
+        echo "Run: ${GREEN}agent close $agent_session${NC}"
+    fi
+}
+
+# Switch to a worktree (cd)
+cmd_switch() {
+    local name="$1"
+    [[ -z "$name" ]] && die "Usage: wt switch <name>"
+
+    local wt_path=$(find_worktree "$name") || die "Worktree not found: $name"
+
+    # Check if we're in a worktree managed by agent
+    if agent_session=$(is_agent_worktree "$wt_path"); then
+        log_info "This is an agent session: $agent_session"
+        echo "Consider using: ${GREEN}agent switch $agent_session${NC}"
+        echo ""
+    fi
+
+    cd "$wt_path"
+    log_success "Switched to: $(basename "$wt_path")"
+
+    # Execute shell if interactive
+    if [[ $- == *i* ]]; then
+        exec bash --init-file <(echo "
+            source ~/.bashrc
+            export WT_NAME='$name'
+            cd '$wt_path'
+        ")
+    fi
+}
+
+# Go to worktree in new shell
+cmd_goto() {
+    local name="$1"
+    [[ -z "$name" ]] && die "Usage: wt goto <name>"
+
+    local wt_path=$(find_worktree "$name") || die "Worktree not found: $name"
+
+    log_info "Opening worktree: $(basename "$wt_path")"
+
+    # Check if agent session
+    if agent_session=$(is_agent_worktree "$wt_path"); then
+        log_info "Using agent session: $agent_session"
+        exec bash -c "cd '$wt_path' && exec bash"
+    else
+        cd "$wt_path" && exec bash
+    fi
+}
+
+# Prune stale worktrees
+cmd_prune() {
+    local dry_run=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
+            *)
+                die "Unknown argument: $1"
+                ;;
+        esac
+    done
+
+    log_step "Pruning stale worktrees..."
+
+    if $dry_run; then
+        git worktree prune --dry-run -v
+    else
+        git worktree prune -v
+        log_success "Prune complete"
+    fi
+}
+
+# Get worktree path
+cmd_path() {
+    local name="${1:-}"
+
+    if [[ -z "$name" ]]; then
+        # Show current worktree path
+        get_current_worktree || die "Not in a worktree"
+    else
+        # Show specific worktree path
+        find_worktree "$name" || die "Worktree not found: $name"
+    fi
+}
+
+# Get worktree branch
+cmd_branch() {
+    local name="${1:-}"
+    local wt_path=""
+
+    if [[ -z "$name" ]]; then
+        wt_path=$(get_current_worktree) || die "Not in a worktree"
+    else
+        wt_path=$(find_worktree "$name") || die "Worktree not found: $name"
+    fi
+
+    local info=$(get_worktree_info "$wt_path")
+    eval "$info"
+
+    if [[ -n "$branch" ]]; then
+        echo "$branch"
+    elif [[ "$is_detached" == true ]]; then
+        echo "detached@$commit"
+    else
+        die "Could not determine branch"
+    fi
+}
+
+# Show worktree info
+cmd_info() {
+    local name="${1:-}"
+
+    if [[ -z "$name" ]]; then
+        # Show current worktree info
+        local wt_path=$(get_current_worktree) || die "Not in a worktree"
+        local wt_name=$(basename "$wt_path")
+    else
+        # Show specific worktree info
+        local wt_path=$(find_worktree "$name") || die "Worktree not found: $name"
+        local wt_name="$name"
+    fi
+
+    local info=$(get_worktree_info "$wt_path")
+    eval "$info"
+
+    echo -e "${BOLD}Worktree: ${CYAN}$wt_name${NC}"
+    echo -e "${DIM}═══════════════════════════════════════${NC}"
+    echo -e "${BOLD}Path:${NC}     $wt_path"
+    echo -e "${BOLD}Branch:${NC}   ${GREEN}$branch${NC}"
+    echo -e "${BOLD}Commit:${NC}   $commit"
+
+    # Check if managed by agent
+    if agent_session=$(is_agent_worktree "$wt_path"); then
+        echo -e "${BOLD}Agent:${NC}    ${MAGENTA}$agent_session${NC}"
+    fi
+
+    # Show git status if we're in the worktree
+    if [[ "$(pwd)" == "$wt_path"* ]]; then
+        echo ""
+        echo -e "${BOLD}Status:${NC}"
+        (cd "$wt_path" && git status --short)
+    fi
+}
+
+# Clean up worktrees
+cmd_clean() {
+    local force=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --force|-f)
+                force=true
+                shift
+                ;;
+            *)
+                die "Unknown argument: $1"
+                ;;
+        esac
+    done
+
+    # Use the existing worktree-clean tool if available
+    if command -v worktree-clean >/dev/null 2>&1; then
+        if $force; then
+            worktree-clean --force
+        else
+            worktree-clean
+        fi
+    else
+        # Fallback to basic cleanup
+        log_step "Cleaning stale worktrees..."
+        git worktree prune -v
+        log_success "Cleanup complete"
+    fi
+}
+
+# Run command in each worktree
+cmd_each() {
+    [[ $# -eq 0 ]] && die "Usage: wt each <command>"
+
+    local command="$*"
+    local git_root=$(get_git_root)
+
+    log_step "Running in each worktree: $command"
+    echo ""
+
+    while IFS= read -r line; do
+        if [[ $line =~ ^worktree\ (.+)$ ]]; then
+            local wt_path="${BASH_REMATCH[1]}"
+
+            # Skip main worktree
+            [[ "$wt_path" == "$git_root" ]] && continue
+
+            local wt_name=$(basename "$wt_path")
+
+            echo -e "${CYAN}▶ $wt_name${NC}"
+            (cd "$wt_path" && eval "$command")
+            echo ""
+        fi
+    done < <(git worktree list --porcelain)
+}
+
+# Show help
+cmd_help() {
+    cat <<EOF
+${BOLD}wt${NC} - Intuitive git worktree wrapper
+
+${BOLD}USAGE:${NC}
+    wt <command> [arguments]
+
+${BOLD}COMMANDS:${NC}
+    ${CYAN}add${NC} <name> [branch] [--from=<base>]
+        Create a new worktree
+        Examples:
+            wt add feature-x              # Creates worktree and branch 'feature-x'
+            wt add fix-123 bugfix/issue   # Custom branch name
+            wt add test --from=develop    # Branch from 'develop' instead of main
+
+    ${CYAN}list${NC} [--all] [--verbose]
+        List all worktrees
+        Options:
+            --all, -a       Include main worktree
+            --verbose, -v   Show full paths
+
+    ${CYAN}remove${NC} <name> [--force]
+        Remove a worktree
+        Options:
+            --force, -f     Force removal even with uncommitted changes
+
+    ${CYAN}switch${NC} <name>
+        Switch to a worktree (cd into it)
+
+    ${CYAN}goto${NC} <name>
+        Open worktree in a new shell
+
+    ${CYAN}prune${NC} [--dry-run]
+        Clean up stale worktree administrative files
+        Options:
+            --dry-run       Show what would be pruned
+
+    ${CYAN}path${NC} [name]
+        Show path to worktree (current if no name given)
+
+    ${CYAN}branch${NC} [name]
+        Show branch of worktree (current if no name given)
+
+    ${CYAN}info${NC} [name]
+        Show detailed information about worktree
+
+    ${CYAN}clean${NC} [--force]
+        Remove stale worktrees (uses worktree-clean if available)
+
+    ${CYAN}each${NC} <command>
+        Run command in each worktree
+        Example:
+            wt each git status
+            wt each 'git fetch && git status'
+
+    ${CYAN}help${NC}
+        Show this help message
+
+${BOLD}FUZZY MATCHING:${NC}
+    Most commands support fuzzy matching for worktree names:
+        wt switch feat      # Matches 'feature-x'
+        wt remove fix       # Matches 'fix-123'
+
+${BOLD}INTEGRATION:${NC}
+    - Works seamlessly with the 'agent' command
+    - Detects agent-managed worktrees automatically
+    - Shows agent session info in 'wt list'
+
+${BOLD}CONFIGURATION:${NC}
+    Environment variables:
+        WT_PREFIX          Worktree name prefix (default: wt-)
+        WT_LOCATION        Where to create worktrees (default: ..)
+                          Use "." for subdirectories, ".." for siblings
+
+${BOLD}EXAMPLES:${NC}
+    # Quick feature development
+    wt add feature-auth
+    wt switch feature-auth
+    # ... work work work ...
+    wt remove feature-auth
+
+    # List all worktrees
+    wt list
+
+    # Run git status in all worktrees
+    wt each git status
+
+    # Get path for scripts
+    cd \$(wt path feature-auth)
+
+${BOLD}SEE ALSO:${NC}
+    agent(1), git-worktree(1), worktree-clean(1)
+EOF
+}
+
+# ============================================================================
+# Main
+# ============================================================================
+
+main() {
+    # Parse command
+    local command="${1:-help}"
+    shift || true
+
+    case "$command" in
+        add|new)
+            cmd_add "$@"
+            ;;
+        list|ls)
+            cmd_list "$@"
+            ;;
+        remove|rm|delete)
+            cmd_remove "$@"
+            ;;
+        switch|sw)
+            cmd_switch "$@"
+            ;;
+        goto|go|open)
+            cmd_goto "$@"
+            ;;
+        prune)
+            cmd_prune "$@"
+            ;;
+        path|pwd)
+            cmd_path "$@"
+            ;;
+        branch|br)
+            cmd_branch "$@"
+            ;;
+        info|show)
+            cmd_info "$@"
+            ;;
+        clean|cleanup)
+            cmd_clean "$@"
+            ;;
+        each|foreach)
+            cmd_each "$@"
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            echo ""
+            echo "Run '${GREEN}wt help${NC}' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

@@ -87,6 +87,33 @@ mkcd new/deep/path        # Creates all parents
 vcd ~/project/file.js     # cd to dir, opens file in vim
 ```
 
+### 🌳 Git Worktrees Made Easy
+
+Working on multiple features? Need a quick hotfix without stashing?
+
+```bash
+# Create a worktree
+wt add feature-auth              # Creates branch and worktree
+
+# List all worktrees
+wt list
+
+# Switch to a worktree
+wt switch feature-auth
+
+# Run command in all worktrees
+wt each git status
+
+# Remove when done
+wt remove feature-auth
+```
+
+**Features:**
+- Fuzzy name matching
+- Tab completion
+- Agent integration detection
+- Beautiful colored output
+
 ### 🛠️ Aliases & Tools
 
 ```bash
