@@ -12,6 +12,11 @@ vim/.vimrc.d/plugin-config.vim
 *.local
 *.private
 
+# Fish shell generated files (these get created when fish runs)
+common/fish/.config/fish/fish_variables
+common/fish/.config/fish/personal.fish
+common/fish/.config/fish/local.fish
+
 # Agent harness runtime data
 common/agents/.config/agents/sessions/*
 common/agents/.config/agents/contexts/*
