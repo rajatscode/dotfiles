@@ -11,7 +11,8 @@ set -e
 # Configuration
 # ============================================================================
 
-DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOTFILES_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOTFILES_DIR="$HOME/.dotfiles"
 
 # Flags
 INTERACTIVE=true
@@ -79,6 +80,44 @@ ask_user() {
             * ) echo "Please answer yes or no.";;
         esac
     done
+}
+
+# ============================================================================
+# Sync Dotfiles to Installation Directory
+# ============================================================================
+
+sync_dotfiles() {
+    log_header "Syncing Dotfiles to Installation Directory"
+
+    if [ -d "$DOTFILES_DIR/.git" ]; then
+        log_step "Updating existing installation at $DOTFILES_DIR..."
+
+        # Fetch and pull latest changes
+        if git -C "$DOTFILES_DIR" fetch origin && git -C "$DOTFILES_DIR" pull origin main 2>&1; then
+            log_success "Dotfiles updated from remote"
+        else
+            log_warn "Could not update from remote, using existing installation"
+        fi
+    else
+        log_step "Cloning dotfiles to $DOTFILES_DIR..."
+
+        # Remove if exists but not a git repo
+        if [ -d "$DOTFILES_DIR" ]; then
+            log_warn "Removing non-git directory at $DOTFILES_DIR"
+            rm -rf "$DOTFILES_DIR"
+        fi
+
+        # Clone the repo
+        if git clone "$DOTFILES_REPO" "$DOTFILES_DIR"; then
+            log_success "Dotfiles cloned to $DOTFILES_DIR"
+        else
+            log_error "Failed to clone dotfiles"
+            die "Could not set up dotfiles installation directory"
+        fi
+    fi
+
+    log_info "Installation directory: $DOTFILES_DIR"
+    log_info "Repository directory: $DOTFILES_REPO"
 }
 
 # ============================================================================
@@ -657,6 +696,7 @@ main() {
     fi
 
     # Run installation steps
+    sync_dotfiles
     detect_os
     check_existing_dotfiles
     install_packages
