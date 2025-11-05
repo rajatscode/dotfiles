@@ -6,7 +6,10 @@
 ## ============================================================================
 
 # Source personal fish config if it exists
-if test -f ~/.config/fish/local.fish
+# Check both personal.fish (created by installer) and local.fish (legacy)
+if test -f ~/.config/fish/personal.fish
+    source ~/.config/fish/personal.fish
+else if test -f ~/.config/fish/local.fish
     source ~/.config/fish/local.fish
 end
 
