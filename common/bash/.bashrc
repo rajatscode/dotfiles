@@ -17,15 +17,28 @@ esac
 # Determine dotfiles directory
 if [[ -z "${DOTFILES_HOME_DIR}" ]]; then
     # Try to find dotfiles directory
-    if [[ -f "${HOME}/.config/dotfiles/.bashrc" ]]; then
-        export DOTFILES_HOME_DIR="${HOME}/.config/dotfiles"
-    elif [[ -f "${HOME}/.dotfiles/.bashrc" ]]; then
-        export DOTFILES_HOME_DIR="${HOME}/.dotfiles"
-    elif [[ -f "${HOME}/dotfiles/.bashrc" ]]; then
-        export DOTFILES_HOME_DIR="${HOME}/dotfiles"
-    else
-        # Fallback to default
-        export DOTFILES_HOME_DIR="${HOME}/.configs/dotfiles"
+    # First, check if this bashrc is symlinked and get the source directory
+    if [[ -L "${HOME}/.bashrc" ]]; then
+        # Get the real path of the symlink and extract dotfiles directory
+        bashrc_real_path="$(readlink -f "${HOME}/.bashrc" 2>/dev/null || readlink "${HOME}/.bashrc")"
+        if [[ -n "$bashrc_real_path" ]]; then
+            # Extract dotfiles dir from path like /path/to/dotfiles/common/bash/.bashrc
+            export DOTFILES_HOME_DIR="$(dirname "$(dirname "$(dirname "$bashrc_real_path")")")"
+        fi
+    fi
+
+    # If still not found, try standard locations
+    if [[ -z "${DOTFILES_HOME_DIR}" ]] || [[ ! -d "${DOTFILES_HOME_DIR}/common/bash" ]]; then
+        if [[ -f "${HOME}/.config/dotfiles/.bashrc" ]] || [[ -d "${HOME}/.config/dotfiles/common/bash" ]]; then
+            export DOTFILES_HOME_DIR="${HOME}/.config/dotfiles"
+        elif [[ -f "${HOME}/.dotfiles/.bashrc" ]] || [[ -d "${HOME}/.dotfiles/common/bash" ]]; then
+            export DOTFILES_HOME_DIR="${HOME}/.dotfiles"
+        elif [[ -f "${HOME}/dotfiles/.bashrc" ]] || [[ -d "${HOME}/dotfiles/common/bash" ]]; then
+            export DOTFILES_HOME_DIR="${HOME}/dotfiles"
+        else
+            # Fallback to default
+            export DOTFILES_HOME_DIR="${HOME}/.configs/dotfiles"
+        fi
     fi
 fi
 
