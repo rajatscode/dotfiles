@@ -77,19 +77,10 @@ vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
   -- Colorscheme
   {
-    "catppuccin/nvim",
-    name = "catppuccin",
+    "Mofiqul/dracula.nvim",
     priority = 1000,
     config = function()
-      require("catppuccin").setup({
-        integrations = {
-          cmp = true,
-          gitsigns = true,
-          treesitter = true,
-          mason = true,
-        },
-      })
-      vim.cmd.colorscheme("catppuccin-mocha")
+      vim.cmd.colorscheme("dracula")
     end,
   },
 
@@ -126,7 +117,7 @@ require("lazy").setup({
         ensure_installed = {
           "lua", "vim", "vimdoc", "bash",
           "python",
-          "javascript", "typescript", "tsx", "jsx",
+          "javascript", "typescript", "tsx",
           "rust", "toml",
           "ocaml", "ocaml_interface",
           "html", "css", "scss", "json", "yaml",
@@ -167,7 +158,7 @@ require("lazy").setup({
 
       require("mason-lspconfig").setup({
         ensure_installed = {
-          "pyright", "ruff_lsp",
+          "pyright", "ruff",
           "ts_ls", "eslint",
           "rust_analyzer",
           "ocamllsp",
@@ -200,7 +191,7 @@ require("lazy").setup({
 
       -- Python: Pyright + Ruff
       lspconfig.pyright.setup({ capabilities = capabilities })
-      lspconfig.ruff_lsp.setup({
+      lspconfig.ruff.setup({
         capabilities = capabilities,
         on_attach = function(client, bufnr)
           client.server_capabilities.hoverProvider = false
@@ -377,11 +368,11 @@ require("lazy").setup({
     "nvim-lualine/lualine.nvim",
     dependencies = { "nvim-tree/nvim-web-devicons" },
     opts = {
-      options = { theme = "catppuccin" },
+      options = { theme = "dracula" },
       sections = {
         lualine_c = {
           { "filename" },
-          { "os.getenv('AGENT_SESSION') or ''", color = { fg = "#a6e3a1" } },
+          { "os.getenv('AGENT_SESSION') or ''", color = { fg = "#50fa7b" } },
         },
       },
     },
@@ -430,7 +421,7 @@ require("lazy").setup({
   {
     "iamcco/markdown-preview.nvim",
     ft = "markdown",
-    build = function() vim.fn["mkdp#util#install"]() end,
+    build = "cd app && npm install",
     keys = {
       { "<leader>mp", "<cmd>MarkdownPreview<cr>", desc = "Markdown Preview" },
     },
