@@ -25,7 +25,9 @@ set -euo pipefail
 AGENT_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/agents"
 AGENT_SESSIONS_DIR="$AGENT_CONFIG_DIR/sessions"
 AGENT_CONTEXTS_DIR="$AGENT_CONFIG_DIR/contexts"
-AGENT_TEMPLATES_DIR="$AGENT_CONFIG_DIR/templates"
+# Templates are stored in the dotfiles repo, not in the config directory
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}"
+AGENT_TEMPLATES_DIR="$DOTFILES_DIR/templates/agents"
 AGENT_CONFIG_FILE="$AGENT_CONFIG_DIR/config.yaml"
 
 # Default configuration (can be overridden in config.yaml)
@@ -76,7 +78,8 @@ die() {
 init_agent_dirs() {
     mkdir -p "$AGENT_SESSIONS_DIR"
     mkdir -p "$AGENT_CONTEXTS_DIR"
-    mkdir -p "$AGENT_TEMPLATES_DIR"
+    # Note: AGENT_TEMPLATES_DIR is in the dotfiles repo, not in ~/.config
+    # So we don't create it here - it should already exist in the repo
 
     # Create default config if it doesn't exist
     if [[ ! -f "$AGENT_CONFIG_FILE" ]]; then
