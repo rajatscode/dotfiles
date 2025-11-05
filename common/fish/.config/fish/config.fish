@@ -3,7 +3,35 @@
 
 ## Set DOTFILES_HOME_DIR if not already set
 if not set -q DOTFILES_HOME_DIR
-    set -gx DOTFILES_HOME_DIR (dirname (dirname (dirname (dirname (status --current-filename)))))
+    # Try to resolve symlink to get real path
+    set config_path (status --current-filename)
+    if test -L "$config_path"
+        # Resolve symlink (readlink works on most systems)
+        set real_path (readlink "$config_path" 2>/dev/null; or echo "$config_path")
+        if test -n "$real_path"
+            # Extract dotfiles dir from path like ~/.dotfiles/common/fish/.config/fish/config.fish
+            set -gx DOTFILES_HOME_DIR (dirname (dirname (dirname (dirname "$real_path"))))
+        end
+    end
+
+    # If still not found or not valid, try standard locations
+    if not set -q DOTFILES_HOME_DIR; or not test -d "$DOTFILES_HOME_DIR/common/fish"
+        if test -d "$HOME/.dotfiles/common/fish"
+            set -gx DOTFILES_HOME_DIR "$HOME/.dotfiles"
+        else if test -d "$HOME/dotfiles/common/fish"
+            set -gx DOTFILES_HOME_DIR "$HOME/dotfiles"
+        else if test -d "$HOME/.config/dotfiles/common/fish"
+            set -gx DOTFILES_HOME_DIR "$HOME/.config/dotfiles"
+        else
+            # Fallback to default
+            set -gx DOTFILES_HOME_DIR "$HOME/.dotfiles"
+        end
+    end
+end
+
+## Add bin directory to PATH (for agent tools)
+if test -d "$DOTFILES_HOME_DIR/bin"
+    set -gx PATH "$DOTFILES_HOME_DIR/bin" $PATH
 end
 
 ## Create alias symlink directory
