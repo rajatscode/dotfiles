@@ -357,12 +357,13 @@ apply_template() {
             mkdir -p "$(dirname "$target_file")"
 
             # Perform variable substitutions
+            # Use | as delimiter instead of / to handle branch names with slashes
             echo "$file_content" | \
-                sed "s/{{SESSION_NAME}}/$session_name/g" | \
-                sed "s/{{FEATURE_NAME}}/$feature_name/g" | \
-                sed "s/{{BRANCH}}/$branch_name/g" | \
-                sed "s/{{BASE_BRANCH}}/$base_branch/g" | \
-                sed "s/{{DATE}}/$date_now/g" \
+                sed "s|{{SESSION_NAME}}|$session_name|g" | \
+                sed "s|{{FEATURE_NAME}}|$feature_name|g" | \
+                sed "s|{{BRANCH}}|$branch_name|g" | \
+                sed "s|{{BASE_BRANCH}}|$base_branch|g" | \
+                sed "s|{{DATE}}|$date_now|g" \
                 > "$target_file"
 
             log_info "Created: $file_path"
