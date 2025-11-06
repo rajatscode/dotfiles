@@ -176,7 +176,7 @@ cmd_new() {
     local session_name=""
     local branch_name=""
     local template="$DEFAULT_TEMPLATE"
-    local base_branch="main"
+    local base_branch=""  # Will be set to current branch if not specified
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -209,6 +209,12 @@ cmd_new() {
     # Ensure we're in a git repo
     local git_root=$(get_git_root) || die "Not in a git repository"
     local repo_name=$(get_repo_name)
+
+    # Default base branch to current branch if not specified
+    if [[ -z "$base_branch" ]]; then
+        base_branch=$(git rev-parse --abbrev-ref HEAD)
+        log_info "Using current branch as base: $base_branch"
+    fi
 
     # Check if session already exists
     if session_exists "$session_name"; then
@@ -244,6 +250,7 @@ name: $session_name
 repo: $git_root
 worktree: $worktree_dir
 branch: $branch_name
+base_branch: $base_branch
 created: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 last_active: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 template: $template
@@ -498,6 +505,111 @@ cmd_sync() {
     }
 
     log_success "Session synced successfully!"
+}
+
+# Integrate session changes back to base branch (local merge, no PR)
+cmd_integrate() {
+    local session_name=""
+    local push_after=false
+    local close_after=false
+    local no_ff=false
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --push)
+                push_after=true
+                shift
+                ;;
+            --close)
+                close_after=true
+                shift
+                ;;
+            --no-ff)
+                no_ff=true
+                shift
+                ;;
+            *)
+                if [[ -z "$session_name" ]]; then
+                    session_name="$1"
+                else
+                    die "Unknown argument: $1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    [[ -z "$session_name" ]] && die "Session name is required. Usage: agent integrate <session-name> [--push] [--close] [--no-ff]"
+    session_exists "$session_name" || die "Session '$session_name' not found."
+
+    local worktree=$(get_session_value "$session_name" "worktree")
+    local branch=$(get_session_value "$session_name" "branch")
+    local base_branch=$(get_session_value "$session_name" "base_branch")
+    local git_root=$(get_session_value "$session_name" "repo")
+
+    [[ -z "$base_branch" ]] && die "No base_branch found in session metadata. This session may have been created with an older version of the agent script."
+
+    log_step "Integrating session '$session_name' into base branch '$base_branch'"
+
+    # Save current directory
+    local original_dir=$(pwd)
+
+    # Go to main repo to merge
+    cd "$git_root"
+
+    # Check if we're currently on the base branch
+    local current_branch=$(git rev-parse --abbrev-ref HEAD)
+
+    if [[ "$current_branch" != "$base_branch" ]]; then
+        log_info "Switching to base branch: $base_branch"
+        git checkout "$base_branch" || die "Failed to checkout base branch '$base_branch'"
+    fi
+
+    # Merge the agent branch
+    log_info "Merging $branch into $base_branch..."
+
+    local merge_opts=()
+    if $no_ff; then
+        merge_opts+=(--no-ff)
+    fi
+
+    if git merge "${merge_opts[@]}" "$branch"; then
+        log_success "Successfully merged $branch into $base_branch"
+
+        # Push if requested
+        if $push_after; then
+            log_info "Pushing $base_branch to origin..."
+            if git push origin "$base_branch"; then
+                log_success "Pushed $base_branch to origin"
+            else
+                log_error "Failed to push. You can push manually later with: git push origin $base_branch"
+            fi
+        fi
+
+        # Close session if requested
+        if $close_after; then
+            log_info "Closing session..."
+            cd "$original_dir"
+            cmd_close "$session_name" --delete-branch
+        else
+            log_info "Session '$session_name' is still active. Close it with: agent close $session_name"
+            cd "$original_dir"
+        fi
+    else
+        log_error "Merge failed. Please resolve conflicts manually."
+        log_info "After resolving conflicts, run:"
+        log_info "  git add ."
+        log_info "  git commit"
+        if $push_after; then
+            log_info "  git push origin $base_branch"
+        fi
+        if $close_after; then
+            log_info "  agent close $session_name"
+        fi
+        cd "$original_dir"
+        exit 1
+    fi
 }
 
 # Close a session (remove worktree and optionally delete branch)
@@ -1271,7 +1383,7 @@ ${BOLD}COMMANDS:${NC}
         Options:
             --branch=<name>      Git branch name (default: agent/<session-name>)
             --template=<name>    Session template (default: feature)
-            --base=<branch>      Base branch (default: main)
+            --base=<branch>      Base branch (default: current branch)
 
     ${CYAN}list${NC}
         List all active agent sessions
@@ -1286,6 +1398,13 @@ ${BOLD}COMMANDS:${NC}
 
     ${CYAN}sync${NC} <session-name>
         Sync session with upstream changes (fetch + rebase)
+
+    ${CYAN}integrate${NC} <session-name> [options]
+        Merge session changes back to base branch (local merge, no PR)
+        Options:
+            --push         Push base branch after merge
+            --close        Close session after successful integration
+            --no-ff        Force merge commit (no fast-forward)
 
     ${CYAN}close${NC} <session-name> [options]
         Close a session and clean up
@@ -1347,6 +1466,11 @@ ${BOLD}EXAMPLES:${NC}
     # Sync with main branch
     agent sync auth-feature
 
+    # Integrate changes back to base branch
+    agent integrate auth-feature              # Local merge only
+    agent integrate auth-feature --push       # Merge and push
+    agent integrate auth-feature --push --close  # Merge, push, and cleanup
+
     # Close session when done
     agent close auth-feature --archive --delete-branch
 
@@ -1397,6 +1521,9 @@ main() {
             ;;
         sync)
             cmd_sync "$@"
+            ;;
+        integrate)
+            cmd_integrate "$@"
             ;;
         close|rm)
             cmd_close "$@"
