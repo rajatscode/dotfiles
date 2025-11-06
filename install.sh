@@ -494,12 +494,6 @@ setup_vim() {
             log_step "Updating Vundle plugins..."
             vim +PluginUpdate +qall
             log_success "Vundle plugins updated"
-
-            # Fix TabNine Python 3.10+ compatibility
-            if [ -f "$DOTFILES_DIR/bin/fix-tabnine-ycm" ]; then
-                log_step "Fixing TabNine YCM compatibility with Python 3.10+..."
-                "$DOTFILES_DIR/bin/fix-tabnine-ycm" || log_warn "TabNine fix failed or not needed"
-            fi
         fi
     else
         if ask_user "Install Vundle (Vim plugin manager)?"; then
@@ -519,12 +513,6 @@ setup_vim() {
                 vim +PluginInstall +qall
                 log_success "Vim plugins installed"
 
-                # Fix TabNine Python 3.10+ compatibility
-                if [ -f "$DOTFILES_DIR/bin/fix-tabnine-ycm" ]; then
-                    log_step "Fixing TabNine YCM compatibility with Python 3.10+..."
-                    "$DOTFILES_DIR/bin/fix-tabnine-ycm" || log_warn "TabNine fix failed or not needed"
-                fi
-
                 log_info "Run ':PluginUpdate' in Vim to update plugins"
             else
                 log_error "Failed to install Vundle"
@@ -535,6 +523,65 @@ setup_vim() {
             log_warn "Note: .vimrc expects Vundle to be installed. Vim may show errors."
         fi
     fi
+}
+
+# ============================================================================
+# Setup Ollama AI Code Completion
+# ============================================================================
+
+setup_ollama() {
+    log_header "Ollama AI Code Completion Setup"
+
+    # Check if vim-ollama plugin is configured
+    if [ ! -f "$HOME/.vimrc" ] || ! grep -q "vim-ollama" "$HOME/.vimrc" 2>/dev/null; then
+        log_info "vim-ollama not configured, skipping Ollama setup"
+        return
+    fi
+
+    # Check if ollama is installed
+    if ! command -v ollama >/dev/null 2>&1; then
+        log_warn "Ollama not installed. Install it via Brewfile first."
+        return
+    fi
+
+    log_info "Setting up Ollama for local AI code completion"
+
+    # Start Ollama service (macOS with Homebrew)
+    if [ "$OS_TYPE" = "macos" ]; then
+        if ask_user "Start Ollama service automatically on boot?"; then
+            log_step "Starting Ollama service..."
+            brew services start ollama
+            log_success "Ollama service started and enabled on boot"
+
+            # Wait for service to be ready
+            log_step "Waiting for Ollama to be ready..."
+            sleep 2
+        else
+            log_warn "You'll need to start Ollama manually with: ollama serve"
+            if ask_user "Start Ollama now for model download?"; then
+                ollama serve &
+                sleep 2
+            else
+                log_info "Skipping model download (Ollama not running)"
+                return
+            fi
+        fi
+    fi
+
+    # Download recommended model
+    if ask_user "Download qwen2.5-coder:7b model (~4.7GB)?"; then
+        log_step "Downloading qwen2.5-coder:7b (this may take a few minutes)..."
+        ollama pull qwen2.5-coder:7b
+        log_success "Model downloaded successfully"
+
+        log_info "AI code completion is now ready in Vim!"
+        log_info "Press Tab to accept suggestions while typing"
+    else
+        log_info "Skipping model download"
+        log_info "To download later, run: ollama pull qwen2.5-coder:7b"
+    fi
+
+    log_success "Ollama setup complete"
 }
 
 # ============================================================================
@@ -810,6 +857,7 @@ main() {
     stow_configs
     setup_personal_configs
     setup_vim
+    setup_ollama
     setup_agent_tools
     setup_shell
     post_install

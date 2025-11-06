@@ -153,21 +153,7 @@ require("lazy").setup({
     config = function()
       require("mason").setup()
 
-      local lspconfig = require("lspconfig")
       local capabilities = require("cmp_nvim_lsp").default_capabilities()
-
-      require("mason-lspconfig").setup({
-        ensure_installed = {
-          "pyright", "ruff",
-          "ts_ls", "eslint",
-          "rust_analyzer",
-          "ocamllsp",
-          "html", "cssls", "tailwindcss", "emmet_ls",
-          "marksman",
-          "lua_ls", "bashls", "jsonls", "yamlls",
-        },
-        automatic_installation = true,
-      })
 
       -- LSP keymaps
       vim.api.nvim_create_autocmd("LspAttach", {
@@ -189,65 +175,78 @@ require("lazy").setup({
         end,
       })
 
-      -- Python: Pyright + Ruff
-      lspconfig.pyright.setup({ capabilities = capabilities })
-      lspconfig.ruff.setup({
-        capabilities = capabilities,
-        on_attach = function(client, bufnr)
-          client.server_capabilities.hoverProvider = false
-        end,
-      })
+      require("mason-lspconfig").setup({
+        ensure_installed = {
+          "pyright", "ruff",
+          "ts_ls", "eslint",
+          "rust_analyzer",
+          "ocamllsp",
+          "html", "cssls", "tailwindcss", "emmet_ls",
+          "marksman",
+          "lua_ls", "bashls", "jsonls", "yamlls",
+        },
+        automatic_installation = true,
+        handlers = {
+          -- Default handler
+          function(server_name)
+            require("lspconfig")[server_name].setup({
+              capabilities = capabilities,
+            })
+          end,
 
-      -- TypeScript/JavaScript
-      lspconfig.ts_ls.setup({ capabilities = capabilities })
-      lspconfig.eslint.setup({
-        capabilities = capabilities,
-        on_attach = function(client, bufnr)
-          vim.api.nvim_create_autocmd("BufWritePre", {
-            buffer = bufnr,
-            command = "EslintFixAll",
-          })
-        end,
-      })
+          -- Custom handlers for specific servers
+          ["ruff"] = function()
+            require("lspconfig").ruff.setup({
+              capabilities = capabilities,
+              on_attach = function(client, bufnr)
+                client.server_capabilities.hoverProvider = false
+              end,
+            })
+          end,
 
-      -- Rust
-      lspconfig.rust_analyzer.setup({
-        capabilities = capabilities,
-        settings = {
-          ["rust-analyzer"] = {
-            checkOnSave = { command = "clippy" },
-            cargo = { allFeatures = true },
-          },
+          ["eslint"] = function()
+            require("lspconfig").eslint.setup({
+              capabilities = capabilities,
+              on_attach = function(client, bufnr)
+                vim.api.nvim_create_autocmd("BufWritePre", {
+                  buffer = bufnr,
+                  command = "EslintFixAll",
+                })
+              end,
+            })
+          end,
+
+          ["rust_analyzer"] = function()
+            require("lspconfig").rust_analyzer.setup({
+              capabilities = capabilities,
+              settings = {
+                ["rust-analyzer"] = {
+                  checkOnSave = { command = "clippy" },
+                  cargo = { allFeatures = true },
+                },
+              },
+            })
+          end,
+
+          ["emmet_ls"] = function()
+            require("lspconfig").emmet_ls.setup({
+              capabilities = capabilities,
+              filetypes = { "html", "css", "scss", "javascriptreact", "typescriptreact" },
+            })
+          end,
+
+          ["lua_ls"] = function()
+            require("lspconfig").lua_ls.setup({
+              capabilities = capabilities,
+              settings = {
+                Lua = {
+                  diagnostics = { globals = { "vim" } },
+                },
+              },
+            })
+          end,
         },
       })
-
-      -- OCaml
-      lspconfig.ocamllsp.setup({ capabilities = capabilities })
-
-      -- Web
-      lspconfig.html.setup({ capabilities = capabilities })
-      lspconfig.cssls.setup({ capabilities = capabilities })
-      lspconfig.tailwindcss.setup({ capabilities = capabilities })
-      lspconfig.emmet_ls.setup({
-        capabilities = capabilities,
-        filetypes = { "html", "css", "scss", "javascriptreact", "typescriptreact" },
-      })
-
-      -- Markdown
-      lspconfig.marksman.setup({ capabilities = capabilities })
-
-      -- Others
-      lspconfig.lua_ls.setup({
-        capabilities = capabilities,
-        settings = {
-          Lua = {
-            diagnostics = { globals = { "vim" } },
-          },
-        },
-      })
-      lspconfig.bashls.setup({ capabilities = capabilities })
-      lspconfig.jsonls.setup({ capabilities = capabilities })
-      lspconfig.yamlls.setup({ capabilities = capabilities })
 
       -- Diagnostics configuration
       vim.diagnostic.config({
