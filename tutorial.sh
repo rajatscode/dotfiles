@@ -144,6 +144,7 @@ ${BOLD}What you'll master:${NC}
   ${TERMINAL} ${CYAN}Shell Power${NC} - Bash/Fish with Starship, powerful aliases
   ${COMPASS} ${CYAN}Navigation System${NC} - Directory aliasing, smart cd, location stacks
   ${GIT} ${CYAN}Git Mastery${NC} - 30+ shortcuts, workflow helpers
+  🎯 ${CYAN}Jujutsu (jj)${NC} - Next-gen VCS with powerful workflows
   ${TREE} ${CYAN}Git Worktrees${NC} - Parallel development with 'wt'
   ${TMUX} ${CYAN}Tmux Multiplexing${NC} - Terminal sessions, panes, windows
   ${EDITOR} ${CYAN}Editor Setup${NC} - Vim/Neovim with LSP, plugins
@@ -432,7 +433,285 @@ EOF
 }
 
 # ============================================================================
-# SECTION 4: Git Worktrees
+# SECTION 4: Jujutsu (jj) - Next-Gen VCS
+# ============================================================================
+
+section_jujutsu() {
+    print_header
+    print_section "🎯 Jujutsu (jj) - Next-Generation Version Control"
+
+    print_formatted << EOF
+${BOLD}Jujutsu (jj) is a next-generation version control system.${NC}
+
+${BOLD}Why Jujutsu?${NC}
+  • ${GREEN}Git-compatible${NC} - Works with existing Git repos
+  • ${GREEN}Powerful operations${NC} - Advanced rebasing and history editing
+  • ${GREEN}Simpler mental model${NC} - No staging area, automatic snapshots
+  • ${GREEN}Multi-branch workflows${NC} - Work on multiple changes simultaneously
+  • ${GREEN}Better conflict resolution${NC} - Conflicts as first-class citizens
+
+${BOLD}Key Differences from Git:${NC}
+  ${CYAN}Git:${NC}         Working dir → Staging → Commit
+  ${CYAN}Jujutsu:${NC}     Working dir → Automatic snapshots
+
+  ${CYAN}Git:${NC}         Manual branching, stashing for switching
+  ${CYAN}Jujutsu:${NC}     Built-in change tracking, no stashing needed
+
+${BOLD}When to use Jujutsu:${NC}
+  ✓ Complex rebases and history editing
+  ✓ Managing multiple concurrent changes
+  ✓ Experimental workflows
+  ✓ Advanced Git users wanting more power
+  ✓ Projects where clean history is important
+
+${BOLD}When to stick with Git:${NC}
+  ✓ Team doesn't know jj yet
+  ✓ Simple linear workflows
+  ✓ Tools that require git commands
+  ✓ CI/CD systems without jj support
+EOF
+
+    wait_for_user
+
+    print_subsection "Basic jj Commands"
+    print_formatted << EOF
+${CYAN}Getting Started:${NC}
+  ${BOLD}jj init --git${NC}                   Initialize new repo (git-compatible)
+  ${BOLD}jj init --git-repo .${NC}            Use existing git repo with jj
+  ${BOLD}jj clone <url>${NC}                  Clone a repository
+
+${CYAN}Basic Operations:${NC}
+  ${BOLD}jj status${NC}                       Show working directory status
+  ${BOLD}jj log${NC}                          Show commit history (graphical!)
+  ${BOLD}jj diff${NC}                         Show changes in working directory
+  ${BOLD}jj show${NC}                         Show change details
+
+${CYAN}Making Changes:${NC}
+  ${BOLD}jj new${NC}                          Start new change (no need to commit!)
+  ${BOLD}jj describe -m "message"${NC}        Set change description
+  ${BOLD}jj commit${NC}                       Finalize current change
+  ${BOLD}jj squash${NC}                       Squash change into parent
+
+${CYAN}Navigating Changes:${NC}
+  ${BOLD}jj checkout <change-id>${NC}         Switch to a change
+  ${BOLD}jj edit <change-id>${NC}             Edit a past change
+  ${BOLD}jj next${NC}                         Move to next change
+  ${BOLD}jj prev${NC}                         Move to previous change
+
+${CYAN}Our Aliases (from config):${NC}
+  ${BOLD}jj st${NC}         →  status
+  ${BOLD}jj l${NC}          →  log
+  ${BOLD}jj lg${NC}         →  log --graph
+  ${BOLD}jj co${NC}         →  checkout
+  ${BOLD}jj ci${NC}         →  commit
+  ${BOLD}jj d${NC}          →  diff
+  ${BOLD}jj ds${NC}         →  diff --summary
+EOF
+
+    wait_for_user
+
+    print_subsection "Jujutsu's Killer Features"
+    print_formatted << EOF
+${BOLD}1. Automatic Snapshots${NC}
+   ${DIM}jj automatically saves your work - no manual commits needed!${NC}
+
+   ${CYAN}jj new${NC}                    ${DIM}# Start new change${NC}
+   ${DIM}... edit files ...${NC}
+   ${CYAN}jj st${NC}                     ${DIM}# See what changed${NC}
+   ${DIM}... more edits ...${NC}
+   ${CYAN}jj describe -m "Add feature"${NC}  ${DIM}# Describe when ready${NC}
+   ${DIM}# Your work is automatically tracked!${NC}
+
+${BOLD}2. Working on Multiple Changes${NC}
+   ${DIM}Unlike git stash, jj lets you switch between changes seamlessly${NC}
+
+   ${CYAN}jj new -m "Feature A"${NC}     ${DIM}# Start feature A${NC}
+   ${DIM}... work on A ...${NC}
+   ${CYAN}jj new -m "Feature B"${NC}     ${DIM}# Start feature B${NC}
+   ${DIM}... work on B ...${NC}
+   ${CYAN}jj prev${NC}                   ${DIM}# Back to A (no stashing!)${NC}
+   ${DIM}... continue A ...${NC}
+   ${CYAN}jj next${NC}                   ${DIM}# Back to B${NC}
+
+${BOLD}3. Powerful History Editing${NC}
+   ${DIM}Edit any commit in history - not just the last one${NC}
+
+   ${CYAN}jj log${NC}                    ${DIM}# See history${NC}
+   ${CYAN}jj edit <change-id>${NC}       ${DIM}# Edit any past change${NC}
+   ${DIM}... fix the bug ...${NC}
+   ${CYAN}jj new${NC}                    ${DIM}# Back to tip${NC}
+   ${DIM}# All descendants automatically rebased!${NC}
+
+${BOLD}4. Git Interoperability${NC}
+   ${DIM}jj works seamlessly with git repos${NC}
+
+   ${CYAN}jj git fetch${NC}              ${DIM}# Fetch from git remote${NC}
+   ${CYAN}jj git push${NC}               ${DIM}# Push to git remote${NC}
+   ${CYAN}jj sync${NC}                   ${DIM}# Sync all remotes (our alias)${NC}
+   ${DIM}# Your team can still use git!${NC}
+
+${BOLD}5. Change IDs vs Commit IDs${NC}
+   ${DIM}jj uses stable change IDs that survive rebases${NC}
+
+   ${CYAN}Change ID:${NC}  kmkuslsw  ${DIM}(stable, survives rebases)${NC}
+   ${CYAN}Commit ID:${NC}  a3f4d9e   ${DIM}(changes on rebase)${NC}
+
+   ${DIM}Reference changes by their stable ID!${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "Real-World Workflows"
+    print_formatted << EOF
+${BOLD}Scenario 1: Feature Development${NC}
+
+  ${DIM}# Start work${NC}
+  ${CYAN}jj new -m "Add authentication"${NC}
+  ${DIM}... write auth code ...${NC}
+  ${CYAN}jj new -m "Add tests"${NC}
+  ${DIM}... write tests ...${NC}
+  ${CYAN}jj new -m "Update docs"${NC}
+  ${DIM}... write docs ...${NC}
+
+  ${DIM}# Oops, found bug in auth code${NC}
+  ${CYAN}jj log${NC}                      ${DIM}# See change IDs${NC}
+  ${CYAN}jj edit <auth-change-id>${NC}    ${DIM}# Edit auth change${NC}
+  ${DIM}... fix bug ...${NC}
+  ${CYAN}jj new${NC}                      ${DIM}# Back to tip${NC}
+  ${DIM}# Tests and docs automatically rebased!${NC}
+
+  ${DIM}# Squash all into one${NC}
+  ${CYAN}jj squash --from <first> --into <last>${NC}
+  ${CYAN}jj git push${NC}                 ${DIM}# Push to remote${NC}
+
+${BOLD}Scenario 2: Parallel Features${NC}
+
+  ${DIM}# Start feature A${NC}
+  ${CYAN}jj new -m "Feature A"${NC}
+  ${DIM}... work ...${NC}
+
+  ${DIM}# Need to start feature B${NC}
+  ${CYAN}jj new -m "Feature B" --before @${NC}  ${DIM}# Branch from parent${NC}
+  ${DIM}... work on B ...${NC}
+
+  ${DIM}# Back to A${NC}
+  ${CYAN}jj checkout <feature-a-id>${NC}
+  ${DIM}... continue A ...${NC}
+
+  ${DIM}# Both features tracked independently!${NC}
+
+${BOLD}Scenario 3: Clean Up History Before Push${NC}
+
+  ${DIM}# Made 5 messy commits${NC}
+  ${CYAN}jj log${NC}
+  ${DIM}fix typo${NC}
+  ${DIM}actually fix typo${NC}
+  ${DIM}WIP${NC}
+  ${DIM}Add feature${NC}
+  ${DIM}Fix lint${NC}
+
+  ${DIM}# Squash all the fixups${NC}
+  ${CYAN}jj squash --from <first> --into <last>${NC}
+  ${CYAN}jj describe -m "Add complete feature with tests"${NC}
+  ${CYAN}jj git push${NC}
+  ${DIM}# Clean history pushed!${NC}
+
+${BOLD}Scenario 4: Fix PR Review Comments${NC}
+
+  ${DIM}# Reviewer: "Fix the typo in function foo()"${NC}
+  ${CYAN}jj log${NC}                       ${DIM}# Find commit with foo()${NC}
+  ${CYAN}jj edit <commit-with-foo>${NC}    ${DIM}# Edit that specific commit${NC}
+  ${DIM}... fix typo ...${NC}
+  ${CYAN}jj new${NC}                       ${DIM}# Back to tip${NC}
+  ${DIM}# All later commits rebased${NC}
+  ${CYAN}jj git push --force${NC}          ${DIM}# Update PR${NC}
+  ${DIM}# Reviewer sees clean fix in original commit!${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "jj + Git: Best of Both Worlds"
+    print_formatted << EOF
+${BOLD}Use jj locally, Git for collaboration${NC}
+
+${CYAN}Your workflow:${NC}
+  1. ${CYAN}jj new${NC}                   ${DIM}# Use jj for local work${NC}
+  2. ${DIM}... powerful history editing ...${NC}
+  3. ${CYAN}jj git push${NC}              ${DIM}# Push to git remote${NC}
+  4. ${DIM}... team reviews on GitHub ...${NC}
+  5. ${CYAN}jj git fetch${NC}             ${DIM}# Fetch changes${NC}
+
+${BOLD}Migration path:${NC}
+  ${GREEN}Easy:${NC}    Start using jj in your existing git repos
+            ${CYAN}cd my-git-repo && jj init --git-repo .${NC}
+
+  ${GREEN}Learn:${NC}   Use jj for personal repos first
+            Get comfortable with the workflow
+
+  ${GREEN}Adopt:${NC}   Gradually use more jj features
+            Keep pushing to git remotes
+
+${BOLD}Common operations comparison:${NC}
+
+  ${BOLD}Git${NC}                          ${BOLD}Jujutsu${NC}
+  git status                     jj status
+  git add . && git commit        jj describe -m "msg"
+  git checkout -b new            jj new -m "msg"
+  git stash                      ${DIM}(not needed!)${NC}
+  git rebase -i                  jj rebase / jj edit
+  git cherry-pick                jj duplicate
+  git reset --hard HEAD~1        jj undo
+  git reflog                     jj op log
+
+${BOLD}Pro tips:${NC}
+  • ${CYAN}jj config${NC} is already set up in ~/.config/jj/config.toml
+  • Use ${CYAN}jj log${NC} frequently - it's beautiful and informative
+  • ${CYAN}jj undo${NC} can undo almost any operation
+  • Change IDs are stable - use them for scripting
+  • Works great with worktrees: ${CYAN}jj workspace add${NC}
+EOF
+
+    wait_for_user
+
+    print_subsection "Getting Started with jj"
+    print_formatted << EOF
+${BOLD}Try it in an existing project:${NC}
+
+  ${CYAN}cd ~/my-project${NC}
+  ${CYAN}jj init --git-repo .${NC}          ${DIM}# Start using jj${NC}
+  ${CYAN}jj log${NC}                        ${DIM}# See beautiful history${NC}
+  ${CYAN}jj new -m "Experiment"${NC}        ${DIM}# Start a change${NC}
+  ${DIM}... make changes ...${NC}
+  ${CYAN}jj st${NC}                         ${DIM}# See status${NC}
+  ${CYAN}jj diff${NC}                       ${DIM}# See diff${NC}
+  ${CYAN}jj commit${NC}                     ${DIM}# Finalize${NC}
+  ${CYAN}jj git push${NC}                   ${DIM}# Push to git remote${NC}
+
+${BOLD}Learn more:${NC}
+  ${CYAN}jj help${NC}                       General help
+  ${CYAN}jj help <command>${NC}             Command-specific help
+  ${CYAN}man jj${NC}                        Full manual
+
+  ${DIM}Docs: https://martinvonz.github.io/jj/${NC}
+  ${DIM}Tutorial: https://steveklabnik.github.io/jujutsu-tutorial/${NC}
+
+${BOLD}Our config:${NC}
+  ${CYAN}~/.config/jj/config.toml${NC}     Your jj configuration
+
+  Includes:
+    • Useful aliases (st, l, lg, d, ci, etc.)
+    • Color customization
+    • Git interop settings
+    • Editor configuration (vim)
+EOF
+
+    print_tip "Start with simple workflows - jj new, jj describe, jj git push. Advanced features come naturally!"
+
+    wait_for_user
+}
+
+# ============================================================================
+# SECTION 5: Git Worktrees
 # ============================================================================
 
 section_worktrees() {
@@ -1568,7 +1847,265 @@ EOF
 }
 
 # ============================================================================
-# SECTION 10: Next Steps
+# SECTION 10: Interactive Agent Q&A
+# ============================================================================
+
+section_agent_qa() {
+    print_header
+    print_section "${ROBOT} Interactive Q&A with AI Agent"
+
+    print_formatted << EOF
+${BOLD}Want to learn more? Ask an AI agent!${NC}
+
+Now that you've learned about the agent system, let's put it to use.
+If you have the agent configured (via ${CYAN}agent config${NC}), we can
+launch an interactive session where you can ask questions about
+anything covered in this tutorial.
+
+${BOLD}What you can ask about:${NC}
+  • Shell navigation and aliases
+  • Git workflows and shortcuts
+  • Jujutsu (jj) usage and commands
+  • Worktree workflows
+  • Tmux configuration
+  • Editor setup and keybindings
+  • Agent system usage
+  • Anything about your dotfiles!
+
+${BOLD}How it works:${NC}
+  1. We'll check if you have an AI tool configured
+  2. Launch it with context about your dotfiles
+  3. You can ask questions interactively
+  4. Exit anytime with ${CYAN}exit${NC} or ${CYAN}Ctrl+D${NC}
+
+${DIM}Note: Requires agent configuration via ${CYAN}agent config${NC}${NC}
+EOF
+
+    echo ""
+    if ask_user "Would you like to launch an interactive Q&A session?"; then
+        # Check if agent config exists
+        if [[ ! -f "$HOME/.config/agents/config.yaml" ]]; then
+            log_warn "Agent not configured yet!"
+            echo ""
+            echo -e "To set up the agent, run: ${GREEN}agent config${NC}"
+            echo ""
+            echo "Supported AI tools:"
+            echo "  • Claude Code (claude-code)"
+            echo "  • Cursor"
+            echo "  • Aider"
+            echo "  • VS Code (code)"
+            echo "  • Any tool that can accept context"
+            echo ""
+            if ask_user "Would you like to configure it now?"; then
+                # Run agent config interactively
+                agent config 2>/dev/null || {
+                    log_warn "Agent command not available. Install dotfiles first with:"
+                    echo "  ${CYAN}./install.sh${NC}"
+                }
+            else
+                log_info "Skipping interactive Q&A session"
+            fi
+            return 0
+        fi
+
+        # Agent is configured - prepare context
+        log_step "Preparing context for AI agent..."
+
+        local qa_context_dir=$(mktemp -d)
+        local qa_context_file="$qa_context_dir/tutorial-qa-context.md"
+
+        cat > "$qa_context_file" <<'QAEOF'
+# Dotfiles Tutorial Q&A Session
+
+You are an AI assistant helping a user understand their dotfiles configuration.
+The user has just completed a comprehensive tutorial covering the entire
+dotfiles system. Answer their questions clearly and concisely.
+
+## Context
+
+The user has access to a complete dotfiles setup including:
+
+### Shell Configuration
+- Bash/Fish/Zsh with Starship prompt
+- Modular configuration in ~/.bashrc.d/
+- Cross-shell compatibility
+
+### Navigation System
+- al/fal/lal - Directory aliasing
+- pl/gl/ol - Location stack
+- mkcd, pcd, vcd - Smart directory operations
+
+### Version Control
+- Git with 30+ shortcuts (gs, ga, gc, gco, gnew, gsync, etc.)
+- Jujutsu (jj) - Next-gen VCS with git compatibility
+- Both git and jj config files in the dotfiles
+
+### Git Worktrees
+- wt command wrapper for easy worktree management
+- Tab completion and fuzzy matching
+- Agent integration
+
+### Tmux
+- Prefix: Ctrl+a
+- Vim-style keybindings
+- Mouse support enabled
+- Session/window/pane management
+
+### Editors
+- Vim with Vundle plugins
+- Neovim with LSP, Treesitter, Telescope
+- Configured for Python, TypeScript, Rust, Go, OCaml
+
+### Window Management
+- i3/sway for Linux
+- yabai/skhd for macOS
+- Workspace-based organization
+
+### AI Agent System
+- agent command for session management
+- Worktree-based parallel development
+- Context sharing between sessions
+- Templates for different workflows
+
+## Your Role
+
+Answer questions about:
+1. How to use specific features
+2. Workflow recommendations
+3. Configuration options
+4. Troubleshooting common issues
+5. Best practices
+6. Integration between tools
+
+Be concise but thorough. Provide examples when helpful.
+Reference actual commands and file paths from the dotfiles.
+
+## User's Environment
+
+- Dotfiles directory: ~/.dotfiles or $DOTFILES_DIR
+- Config files: ~/.config/ (XDG standard)
+- Personal overrides: ~/.bash_profile, ~/.gitprofile, etc.
+
+## Tutorial Sections Covered
+
+1. Shell Power - Modular configuration, history, completion
+2. Navigation - Directory aliasing, location stack, smart cd
+3. Git Mastery - Shortcuts, workflows, WIP commits
+4. Jujutsu - Next-gen VCS, powerful history editing
+5. Git Worktrees - Parallel development, wt command
+6. Tmux - Sessions, windows, panes, keybindings
+7. Editors - Vim/Neovim setup, LSP, plugins
+8. Window Management - Tiling WMs, workspace organization
+9. AI Agent System - Parallel sessions, context sharing
+10. Complete Workflow - End-to-end development process
+
+Answer the user's questions about any of these topics!
+QAEOF
+
+        echo ""
+        print_formatted << EOF
+${GREEN}Context prepared!${NC}
+
+You can now ask questions like:
+  • "How do I create a git worktree?"
+  • "What's the difference between git and jujutsu?"
+  • "Show me tmux keybindings for splitting panes"
+  • "How do I share context between agent sessions?"
+  • "What are the best aliases for git workflows?"
+
+${BOLD}Launching AI agent...${NC}
+${DIM}Type 'exit' or press Ctrl+D to return to tutorial${NC}
+EOF
+
+        echo ""
+        sleep 2
+
+        # Check if agent command is available
+        if command -v agent &>/dev/null; then
+            # Get configured AI tool command
+            local ai_command=$(grep "^\s*command:" "$HOME/.config/agents/config.yaml" 2>/dev/null | sed 's/.*command: *//' | tr -d '"')
+            local context_method=$(grep "^\s*context_method:" "$HOME/.config/agents/config.yaml" 2>/dev/null | sed 's/.*context_method: *//' | tr -d '"')
+
+            if [[ -n "$ai_command" ]] && command -v "$ai_command" &>/dev/null; then
+                case "$context_method" in
+                    flag)
+                        local context_flag=$(grep "^\s*context_flag:" "$HOME/.config/agents/config.yaml" 2>/dev/null | sed 's/.*context_flag: *//' | tr -d '"')
+                        "$ai_command" "$context_flag" "$qa_context_file"
+                        ;;
+                    file)
+                        cp "$qa_context_file" "$HOME/.ai-context"
+                        "$ai_command"
+                        rm -f "$HOME/.ai-context"
+                        ;;
+                    clipboard)
+                        if command -v pbcopy &>/dev/null; then
+                            cat "$qa_context_file" | pbcopy
+                        elif command -v xclip &>/dev/null; then
+                            cat "$qa_context_file" | xclip -selection clipboard
+                        fi
+                        log_info "Context copied to clipboard. Paste it into your AI tool."
+                        read -p "Press Enter after you've pasted the context and are ready to continue..."
+                        "$ai_command"
+                        ;;
+                    env)
+                        local context_env=$(grep "^\s*context_env:" "$HOME/.config/agents/config.yaml" 2>/dev/null | sed 's/.*context_env: *//' | tr -d '"')
+                        export "$context_env=$(cat $qa_context_file)"
+                        "$ai_command"
+                        ;;
+                    manual|*)
+                        echo ""
+                        echo -e "${YELLOW}Manual mode:${NC}"
+                        echo "Context file: $qa_context_file"
+                        echo ""
+                        echo "Please:"
+                        echo "  1. Open your AI tool: $ai_command"
+                        echo "  2. Load/paste the context from: $qa_context_file"
+                        echo "  3. Ask your questions!"
+                        echo ""
+                        read -p "Press Enter when done..."
+                        ;;
+                esac
+            else
+                log_warn "AI tool '$ai_command' not found"
+                echo ""
+                echo -e "${CYAN}Context has been prepared at:${NC}"
+                echo "  $qa_context_file"
+                echo ""
+                echo "Copy this to your preferred AI tool to ask questions!"
+                echo ""
+                read -p "Press Enter to continue..."
+            fi
+        else
+            log_warn "Agent command not available"
+            echo ""
+            echo -e "${CYAN}Context has been prepared at:${NC}"
+            echo "  $qa_context_file"
+            echo ""
+            echo "To set up the agent system, run the installer:"
+            echo "  ${GREEN}./install.sh${NC}"
+            echo ""
+            read -p "Press Enter to continue..."
+        fi
+
+        # Cleanup
+        rm -rf "$qa_context_dir"
+
+        echo ""
+        log_success "Q&A session complete!"
+        wait_for_user
+    else
+        log_info "Skipping Q&A session - you can always ask questions later!"
+        echo ""
+        echo "To launch an AI agent anytime:"
+        echo "  ${GREEN}agent config${NC}        # Configure your AI tool"
+        echo "  ${GREEN}agent launch <session>${NC}  # Launch with a session"
+        echo ""
+        wait_for_user
+    fi
+}
+
+# ============================================================================
+# SECTION 11: Next Steps
 # ============================================================================
 
 section_next_steps() {
@@ -1691,6 +2228,7 @@ main() {
     section_shell
     section_navigation
     section_git
+    section_jujutsu
     section_worktrees
     section_tmux
     section_editors
@@ -1698,6 +2236,7 @@ main() {
     section_agents
     section_workflow
     section_next_steps
+    section_agent_qa
     cleanup
 
     echo ""
