@@ -3,6 +3,7 @@
 # Core tools
 stow
 git
+jujutsu
 fzf
 ripgrep
 fd
