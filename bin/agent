@@ -895,6 +895,9 @@ cmd_shepherd() {
         esac
     done
 
+    # Initialize agent directories (needed for session detection)
+    init_agent_dirs
+
     # Ensure we have gh CLI
     if ! command -v gh &> /dev/null; then
         die "GitHub CLI (gh) is required but not installed. Install from: https://cli.github.com/"
