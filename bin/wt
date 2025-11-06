@@ -9,6 +9,8 @@
 #   wt remove <name> [--force]
 #   wt switch <name>
 #   wt goto <name>
+#   wt integrate <source> [--into <target>]
+#   wt return [--merge]
 #   wt prune [--dry-run]
 #   wt path [name]
 #   wt branch [name]
@@ -300,6 +302,21 @@ cmd_add() {
     fi
 
     log_success "Worktree created: $worktree_path"
+
+    # Track parent worktree if we're creating from within another worktree
+    local current_wt=$(get_current_worktree 2>/dev/null || true)
+    local git_root=$(get_git_root)
+
+    if [[ -n "$current_wt" && "$current_wt" != "$git_root" ]]; then
+        # We're in a worktree, not the main repo - track it as parent
+        local parent_basename=$(basename "$current_wt")
+        local parent_name="${parent_basename#${WORKTREE_PREFIX}}"
+        parent_name="${parent_name#$(get_repo_name)-}"
+
+        (cd "$worktree_path" && git config worktree.parent "$parent_name")
+        log_info "Parent worktree tracked: $parent_name"
+    fi
+
     echo ""
     echo -e "${BOLD}Next steps:${NC}"
     echo -e "  ${GREEN}wt switch $name${NC}    # Switch to this worktree"
@@ -652,6 +669,185 @@ cmd_each() {
     done < <(git worktree list --porcelain)
 }
 
+# Integrate changes from another worktree
+cmd_integrate() {
+    local source=""
+    local target=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --into=*)
+                target="${1#*=}"
+                shift
+                ;;
+            --into)
+                target="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$source" ]]; then
+                    source="$1"
+                else
+                    die "Unknown argument: $1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    [[ -z "$source" ]] && die "Usage: wt integrate <source> [--into <target>]"
+
+    # Find source worktree/branch
+    local source_wt_path=$(find_worktree "$source" 2>/dev/null || true)
+    local source_branch=""
+
+    if [[ -n "$source_wt_path" ]]; then
+        # Source is a worktree - get its branch
+        local info=$(get_worktree_info "$source_wt_path")
+        eval "$info"
+        source_branch="$branch"
+        log_info "Found worktree '$source' on branch '$source_branch'"
+    elif git rev-parse --verify "$source" >/dev/null 2>&1; then
+        # Source is a branch name
+        source_branch="$source"
+        log_info "Using branch '$source_branch'"
+    else
+        die "Source not found: $source (not a worktree or branch)"
+    fi
+
+    # Determine target worktree
+    local target_wt_path=""
+    if [[ -z "$target" ]]; then
+        # Use current worktree
+        target_wt_path=$(get_current_worktree) || die "Not in a worktree. Use --into to specify target."
+        log_info "Merging into current worktree"
+    else
+        # Find specified target worktree
+        target_wt_path=$(find_worktree "$target") || die "Target worktree not found: $target"
+        log_info "Merging into worktree '$target'"
+    fi
+
+    # Check for uncommitted changes in target
+    if [[ -n "$(cd "$target_wt_path" && git status --porcelain)" ]]; then
+        log_warn "Target worktree has uncommitted changes"
+        echo ""
+        echo -e "${YELLOW}Uncommitted changes in target:${NC}"
+        (cd "$target_wt_path" && git status --short)
+        echo ""
+        read -p "Continue with merge? [y/N] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            die "Merge cancelled"
+        fi
+    fi
+
+    log_step "Merging '$source_branch' into $(basename "$target_wt_path")"
+
+    # Switch to target and merge
+    cd "$target_wt_path"
+
+    if git merge "$source_branch" --no-edit; then
+        log_success "Merge successful!"
+        echo ""
+        echo -e "${BOLD}Branch merged:${NC} ${GREEN}$source_branch${NC} → ${CYAN}$(basename "$target_wt_path")${NC}"
+
+        # Show brief status
+        if [[ -n "$(git status --porcelain)" ]]; then
+            echo ""
+            echo -e "${BOLD}Status:${NC}"
+            git status --short
+        fi
+    else
+        log_error "Merge conflicts detected"
+        echo ""
+        echo -e "${YELLOW}Resolve conflicts, then:${NC}"
+        echo -e "  ${GREEN}git add <files>${NC}"
+        echo -e "  ${GREEN}git commit${NC}"
+        echo ""
+        echo -e "${YELLOW}Or abort the merge:${NC}"
+        echo -e "  ${GREEN}git merge --abort${NC}"
+        exit 1
+    fi
+}
+
+# Return to parent worktree
+cmd_return() {
+    local do_merge=false
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --merge|-m)
+                do_merge=true
+                shift
+                ;;
+            *)
+                die "Unknown argument: $1"
+                ;;
+        esac
+    done
+
+    # Get current worktree
+    local current_wt_path=$(get_current_worktree) || die "Not in a worktree"
+
+    # Get parent from git config
+    local parent_name=$(cd "$current_wt_path" && git config --get worktree.parent 2>/dev/null || true)
+
+    if [[ -z "$parent_name" ]]; then
+        die "No parent worktree tracked. This worktree was not created from another worktree."
+    fi
+
+    log_info "Parent worktree: $parent_name"
+
+    # Find parent worktree
+    local parent_wt_path=$(find_worktree "$parent_name") || die "Parent worktree not found: $parent_name"
+
+    if $do_merge; then
+        # Get current branch
+        local current_branch=$(cd "$current_wt_path" && git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD)
+
+        log_step "Merging '$current_branch' into '$parent_name'"
+
+        # Check for uncommitted changes
+        if [[ -n "$(cd "$current_wt_path" && git status --porcelain)" ]]; then
+            log_warn "Current worktree has uncommitted changes"
+            echo ""
+            echo -e "${YELLOW}Commit or stash your changes before merging${NC}"
+            exit 1
+        fi
+
+        # Switch to parent and merge
+        cd "$parent_wt_path"
+
+        if git merge "$current_branch" --no-edit; then
+            log_success "Merged '$current_branch' into '$parent_name'"
+            echo ""
+            echo -e "${BOLD}Now in:${NC} ${CYAN}$parent_name${NC}"
+        else
+            log_error "Merge conflicts detected"
+            echo ""
+            echo -e "${YELLOW}Resolve conflicts, then:${NC}"
+            echo -e "  ${GREEN}git add <files>${NC}"
+            echo -e "  ${GREEN}git commit${NC}"
+            exit 1
+        fi
+    else
+        # Just switch back
+        cd "$parent_wt_path"
+        log_success "Returned to: $parent_name"
+    fi
+
+    # Execute shell if interactive
+    if [[ $- == *i* ]]; then
+        exec bash --init-file <(echo "
+            source ~/.bashrc
+            export WT_NAME='$parent_name'
+            cd '$parent_wt_path'
+        ")
+    fi
+}
+
 # Show help
 cmd_help() {
     cat <<EOF
@@ -684,6 +880,20 @@ ${BOLD}COMMANDS:${NC}
 
     ${CYAN}goto${NC} <name>
         Open worktree in a new shell
+
+    ${CYAN}integrate${NC} <source> [--into <target>]
+        Merge changes from another worktree/branch into target
+        Examples:
+            wt integrate bugfix                  # Merge 'bugfix' into current worktree
+            wt integrate bugfix --into feature-A # Merge 'bugfix' into 'feature-A'
+
+    ${CYAN}return${NC} [--merge]
+        Return to parent worktree (the worktree you created this one from)
+        Options:
+            --merge, -m     Merge current branch into parent before switching
+        Examples:
+            wt return                            # Just switch back to parent
+            wt return --merge                    # Merge changes and switch back
 
     ${CYAN}prune${NC} [--dry-run]
         Clean up stale worktree administrative files
@@ -734,6 +944,16 @@ ${BOLD}EXAMPLES:${NC}
     # ... work work work ...
     wt remove feature-auth
 
+    # Make fixes in another branch while working
+    wt switch feature-A         # Working on feature-A
+    wt add bugfix               # Create worktree for fix (tracks feature-A as parent)
+    wt switch bugfix            # Switch to fix
+    # ... make changes, commit ...
+    wt return --merge           # Return to feature-A and merge bugfix
+    # OR manually:
+    wt switch feature-A
+    wt integrate bugfix         # Merge bugfix into feature-A
+
     # List all worktrees
     wt list
 
@@ -772,6 +992,12 @@ main() {
             ;;
         goto|go|open)
             cmd_goto "$@"
+            ;;
+        integrate|merge)
+            cmd_integrate "$@"
+            ;;
+        return|ret|back)
+            cmd_return "$@"
             ;;
         prune)
             cmd_prune "$@"

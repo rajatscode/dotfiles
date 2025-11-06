@@ -90,8 +90,8 @@ Plugin 'w0rp/ale'
 Plugin 'wincent/command-t'
 " integrate grep like search within vim
 Plugin 'yegappan/grep'
-" use TabNine for autocompletion
-Plugin 'zxqfl/tabnine-vim'
+" local AI code completion via Ollama
+Plugin 'gergap/vim-ollama'
 
 call vundle#end()
 
@@ -105,8 +105,18 @@ try
   if (!empty($GOOGLE_JAVA_FMT_PATH))
     Glaive codefmt google_java_executable=`expand("java -jar $GOOGLE_JAVA_FMT_PATH")`
   endif
-catch 
+catch
 endtry
+
+" ============================================================================
+" vim-ollama: Local AI Code Completion
+" ============================================================================
+" Configure Ollama endpoint and model
+let g:ollama_model = 'qwen2.5-coder:7b'
+let g:ollama_endpoint = 'http://localhost:11434'
+
+" Enable auto-completion (ghost text)
+let g:ollama_auto_complete = 1
 
 for fpath in split(glob('$DOTFILES_HOME_DIR/vim/.vimrc.d/*.vim'), '\n')
   exe 'source' fpath

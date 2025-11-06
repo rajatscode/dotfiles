@@ -44,6 +44,11 @@ complete -c wt -f -n "__fish_use_subcommand" -a "sw" -d "Switch to a worktree"
 complete -c wt -f -n "__fish_use_subcommand" -a "goto" -d "Open worktree in new shell"
 complete -c wt -f -n "__fish_use_subcommand" -a "go" -d "Open worktree in new shell"
 complete -c wt -f -n "__fish_use_subcommand" -a "open" -d "Open worktree in new shell"
+complete -c wt -f -n "__fish_use_subcommand" -a "integrate" -d "Merge changes from another worktree"
+complete -c wt -f -n "__fish_use_subcommand" -a "merge" -d "Merge changes from another worktree"
+complete -c wt -f -n "__fish_use_subcommand" -a "return" -d "Return to parent worktree"
+complete -c wt -f -n "__fish_use_subcommand" -a "ret" -d "Return to parent worktree"
+complete -c wt -f -n "__fish_use_subcommand" -a "back" -d "Return to parent worktree"
 complete -c wt -f -n "__fish_use_subcommand" -a "prune" -d "Clean up stale worktree files"
 complete -c wt -f -n "__fish_use_subcommand" -a "path" -d "Show path to worktree"
 complete -c wt -f -n "__fish_use_subcommand" -a "pwd" -d "Show path to worktree"
@@ -92,3 +97,10 @@ complete -c wt -f -n "__fish_seen_subcommand_from clean cleanup" -s f -l force -
 
 # Options for 'each' command - suggest git subcommands
 complete -c wt -f -n "__fish_seen_subcommand_from each foreach; and not __fish_seen_subcommand_from status fetch pull push log diff branch checkout" -a "status fetch pull push log diff branch checkout"
+
+# Options for 'integrate' command
+complete -c wt -f -n "__fish_seen_subcommand_from integrate merge; and __fish_is_nth_token 2" -a "(__wt_worktrees; __wt_branches)"
+complete -c wt -f -n "__fish_seen_subcommand_from integrate merge" -l into -d "Target worktree" -a "(__wt_worktrees)"
+
+# Options for 'return' command
+complete -c wt -f -n "__fish_seen_subcommand_from return ret back" -s m -l merge -d "Merge current branch into parent"

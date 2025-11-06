@@ -46,6 +46,9 @@ brew "python@3.11"   # Python
 brew "go"            # Go language
 brew "rust"          # Rust language
 
+# AI Tools
+brew "ollama"        # Local LLM runtime for AI code completion
+
 # ============================================================================
 # macOS-Specific Window Management
 # ============================================================================
@@ -91,8 +94,9 @@ cask "font-hack-nerd-font"
 
 # Python
 brew "uv"              # Fast Python package installer
-brew "ruff"            # Fast Python linter/formatter  
+brew "ruff"            # Fast Python linter/formatter
 brew "mypy"            # Type checking
+brew "isort"           # Python import sorter (required by vim-isort)
 brew "pre-commit"      # Git hooks
 
 # TypeScript/JavaScript

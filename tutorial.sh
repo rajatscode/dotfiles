@@ -751,6 +751,11 @@ ${CYAN}Navigation:${NC}
   ${BOLD}wt list${NC}                        List all worktrees
   ${BOLD}wt switch <name>${NC}               Switch to worktree
   ${BOLD}wt goto <name>${NC}                 Open in new shell
+  ${BOLD}wt return [--merge]${NC}            Return to parent worktree
+
+${CYAN}Integration:${NC}
+  ${BOLD}wt integrate <src> [--into <tgt>]${NC}  Merge changes from another worktree
+  ${BOLD}wt return --merge${NC}              Merge and return to parent
 
 ${CYAN}Information:${NC}
   ${BOLD}wt path [name]${NC}                 Show path
@@ -783,7 +788,25 @@ ${BOLD}Scenario 1: Feature + Urgent Fix${NC}
   ${CYAN}wt switch feature-oauth${NC}
   ${DIM}# ... continue coding ...${NC}
 
-${BOLD}Scenario 2: Compare Approaches${NC}
+${BOLD}Scenario 2: Fix in Another Branch${NC}
+
+  ${DIM}# Working on feature-A${NC}
+  ${CYAN}wt switch feature-A${NC}
+  ${DIM}# ... coding ...${NC}
+
+  ${DIM}# Need to make changes in feature-B${NC}
+  ${CYAN}wt add bugfix${NC}                ${DIM}# Tracks feature-A as parent${NC}
+  ${CYAN}wt switch bugfix${NC}
+  ${DIM}# ... make changes, commit ...${NC}
+
+  ${DIM}# Return to feature-A and merge changes${NC}
+  ${CYAN}wt return --merge${NC}             ${DIM}# Merges bugfix into feature-A${NC}
+
+  ${DIM}# OR manually:${NC}
+  ${CYAN}wt switch feature-A${NC}
+  ${CYAN}wt integrate bugfix${NC}           ${DIM}# Merge bugfix into feature-A${NC}
+
+${BOLD}Scenario 3: Compare Approaches${NC}
 
   ${DIM}# Try two different implementations${NC}
   ${CYAN}wt add approach-rest${NC}
@@ -793,7 +816,7 @@ ${BOLD}Scenario 2: Compare Approaches${NC}
   ${DIM}# Compare results side-by-side${NC}
   ${DIM}# Keep the better one${NC}
 
-${BOLD}Scenario 3: Review Someone's PR${NC}
+${BOLD}Scenario 4: Review Someone's PR${NC}
 
   ${DIM}# Don't disrupt your work${NC}
   ${CYAN}wt add review-pr-123${NC}
@@ -891,23 +914,33 @@ ${CYAN}Session Management:${NC}
 
 ${CYAN}Windows (Tabs):${NC}
   ${BOLD}Ctrl+a c${NC}                 Create window
+  ${BOLD}Ctrl+a C${NC}                 Create window in background
   ${BOLD}Ctrl+a n${NC}                 Next window
   ${BOLD}Ctrl+a p${NC}                 Previous window
   ${BOLD}Ctrl+a 0-9${NC}               Jump to window number
   ${BOLD}Ctrl+a ,${NC}                 Rename window
 
 ${CYAN}Panes (Splits):${NC}
-  ${BOLD}Ctrl+a |${NC}                 Vertical split
-  ${BOLD}Ctrl+a "${NC}                 Horizontal split
-  ${BOLD}Ctrl+a arrows${NC}            Navigate panes
+  ${BOLD}Ctrl+a |${NC}                 Vertical split (side-by-side)
+  ${BOLD}Ctrl+a "${NC}                 Horizontal split (top-bottom)
+  ${BOLD}Ctrl+a h/j/k/l${NC}           Navigate panes (vim-style)
   ${BOLD}Ctrl+a x${NC}                 Close pane
   ${BOLD}Ctrl+Shift+arrows${NC}        Resize panes
 
+${CYAN}Pane Management:${NC}
+  ${BOLD}Ctrl+a m${NC}                 Join pane from another window (horizontal)
+  ${BOLD}Ctrl+a M${NC}                 Join pane from another window (vertical)
+  ${BOLD}Ctrl+a >${NC}                 Swap with next pane
+  ${BOLD}Ctrl+a <${NC}                 Swap with previous pane
+
 ${CYAN}Copy Mode (Vim bindings):${NC}
   ${BOLD}Ctrl+a [${NC}                 Enter copy mode
-  ${BOLD}Space${NC}                    Start selection
-  ${BOLD}Enter${NC}                    Copy selection
+  ${BOLD}h/j/k/l${NC}                  Navigate (vim-style)
+  ${BOLD}/${NC}                        Search forward
+  ${BOLD}v${NC}                        Begin selection
+  ${BOLD}y${NC}                        Copy selection and exit
   ${BOLD}Ctrl+a ]${NC}                 Paste
+  ${BOLD}Mouse select${NC}             Copy to system clipboard
 EOF
 
     wait_for_user
@@ -970,6 +1003,7 @@ ${GREEN}1. Mouse Support${NC}
    • Click to switch panes
    • Drag borders to resize
    • Scroll to browse history
+   • ${CYAN}Select text with mouse${NC} - automatically copies to system clipboard!
 
 ${GREEN}2. Copy Mode${NC}
    ${DIM}Vim keybindings in copy mode:${NC}
@@ -990,6 +1024,23 @@ ${GREEN}4. Status Bar${NC}
    • Window list
    • Current window (highlighted)
    • System info (customizable)
+
+${GREEN}5. Pane Joining & Moving${NC}
+   ${DIM}Need to combine panes from different windows?${NC}
+
+   ${YELLOW}Example: Viewing logs in window 3, want it split with current pane${NC}
+
+   ${CYAN}Ctrl+a m${NC}    ${DIM}# Choose window, join pane horizontally (side-by-side)${NC}
+   ${DIM}→ Select window 3${NC}
+   ${DIM}→ Pane from window 3 now joins your current pane!${NC}
+
+   ${CYAN}Ctrl+a M${NC}    ${DIM}# Same, but vertical split (top-bottom)${NC}
+
+   ${YELLOW}Rearranging panes:${NC}
+   ${CYAN}Ctrl+a >${NC}    ${DIM}# Swap with next pane${NC}
+   ${CYAN}Ctrl+a <${NC}    ${DIM}# Swap with previous pane${NC}
+
+   ${DIM}This is perfect for pulling a server log pane alongside your editor!${NC}
 EOF
 
     print_tip "Add 'alias t=tmux' to your ~/.bash_profile for quick access"
@@ -2151,9 +2202,9 @@ ${BOLD}Quick Reference Card:${NC}
 
 ${DIM}Navigation:${NC}    al, fal, lal, mkcd, pl/gl/ol, up, bk
 ${DIM}Git:${NC}           gs, ga, gc, gp, gco, gnew, gwip, gunwip, gsync
-${DIM}Worktrees:${NC}     wt add/list/switch/remove/each/info
+${DIM}Worktrees:${NC}     wt add/list/switch/remove/integrate/return/each/info
 ${DIM}Agent:${NC}         agent new/list/switch/close, anew, asw, aedit
-${DIM}Tmux:${NC}          Ctrl+a |/"/c/n/p/d/[/]
+${DIM}Tmux:${NC}          Ctrl+a |/"/c/C/n/p/d/[/], hjkl, m/M/</>
 ${DIM}Nvim:${NC}          Space e/ff/fg/fb, gd/gr/K, Space rn/ca/f
 ${DIM}Utilities:${NC}     updoot, plz, myip, weather, ports, freeport
 

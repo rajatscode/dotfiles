@@ -5,7 +5,7 @@ _wt_completion() {
     _init_completion || return
 
     # Commands
-    local commands="add new list ls remove rm delete switch sw goto go open prune path pwd branch br info show clean cleanup each foreach help"
+    local commands="add new list ls remove rm delete switch sw goto go open integrate merge return ret back prune path pwd branch br info show clean cleanup each foreach help"
 
     # Get list of worktree names (excluding main)
     _wt_get_worktrees() {
@@ -90,6 +90,25 @@ _wt_completion() {
             if [[ $cword -eq 2 ]]; then
                 local git_commands="status fetch pull push log diff branch checkout"
                 COMPREPLY=( $(compgen -W "$git_commands" -- "$cur") )
+            fi
+            ;;
+
+        integrate|merge)
+            # Complete with worktree/branch names for source
+            if [[ $cword -eq 2 ]]; then
+                local worktrees=$(_wt_get_worktrees)
+                local branches=$(_wt_get_branches)
+                COMPREPLY=( $(compgen -W "$worktrees $branches" -- "$cur") )
+            elif [[ $cur == --* ]]; then
+                COMPREPLY=( $(compgen -W "--into=" -- "$cur") )
+            elif [[ $prev == --into ]]; then
+                COMPREPLY=( $(compgen -W "$(_wt_get_worktrees)" -- "$cur") )
+            fi
+            ;;
+
+        return|ret|back)
+            if [[ $cur == --* ]]; then
+                COMPREPLY=( $(compgen -W "--merge" -- "$cur") )
             fi
             ;;
     esac
