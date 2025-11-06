@@ -3,7 +3,12 @@
   // Cross-platform, AI-first editor setup
 
   // Theme & Appearance
-  "theme": "One Dark",
+  "telemetry": {
+    "diagnostics": true,
+    "metrics": false
+  },
+  "base_keymap": "Emacs",
+  "theme": "Ayu Dark",
   "ui_font_size": 16,
   "buffer_font_size": 14,
   "buffer_font_family": "JetBrains Mono",
@@ -14,13 +19,13 @@
   "soft_wrap": "editor_width",
   "format_on_save": "on",
   "autosave": "on_focus_change",
-  "show_inline_completions": true,
+  "show_edit_predictions": true,
   "relative_line_numbers": true,
 
   // AI Inline Completions - Tabnine (Privacy-focused)
   // Install the Tabnine extension from Zed Extensions (Cmd+Shift+X)
   // Tabnine runs locally for maximum privacy and security
-  "inline_completions": {
+  "edit_predictions": {
     "disabled_globs": [
       ".env",
       "*.secret",
@@ -108,12 +113,11 @@
   ],
 
   // AI Assistant
-  "assistant": {
+  "agent": {
     "default_model": {
       "provider": "anthropic",
       "model": "claude-3-5-sonnet-20241022"
     },
-    "version": "2",
     "dock": "right",
     "default_width": 640
   },
