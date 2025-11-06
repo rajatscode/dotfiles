@@ -43,6 +43,7 @@ BLUE=$'\033[0;34m'
 MAGENTA=$'\033[0;35m'
 CYAN=$'\033[0;36m'
 BOLD=$'\033[1m'
+DIM=$'\033[2m'
 NC=$'\033[0m' # No Color
 
 # ============================================================================
@@ -858,30 +859,83 @@ EOF
 
     # Get AI tool configuration
     local ai_command=$(get_config_value 'ai_tool.command' 'claude-code')
+    local context_method=$(get_config_value 'ai_tool.context_method' 'manual')
+    local context_flag=$(get_config_value 'ai_tool.context_flag' '--context')
+    local context_env=$(get_config_value 'ai_tool.context_env' 'AGENT_CONTEXT')
+    local pass_directory=$(get_config_value 'ai_tool.pass_directory' 'true')
     local worktree=$(pwd)
 
     log_success "Context updated: $context_file"
     log_info "Launching AI tool: $ai_command"
+    log_info "Context method: $context_method"
     echo ""
 
-    # Create initial message that tells the AI to address the PR comments
-    local initial_message="Please address the PR review comments that have been added to the context."
-
-    # Launch AI tool with context
-    cd "$worktree"
-
-    # Launch with message
-    if command -v "$ai_command" &> /dev/null; then
-        exec "$ai_command" "$worktree" "$initial_message"
-    else
+    # Check if AI tool is configured
+    if ! command -v "$ai_command" &> /dev/null; then
         log_warn "AI command '$ai_command' not found."
         echo ""
         echo -e "${BOLD}Context file:${NC} $context_file"
-        echo -e "${BOLD}Launch your AI tool manually with:${NC} $ai_command $worktree"
+        echo -e "${BOLD}Install your AI tool or update config:${NC} agent config"
         echo ""
         log_info "Preview of PR comments:"
         tail -100 "$context_file"
+        return 1
     fi
+
+    # Build command based on context method
+    local launch_cmd="$ai_command"
+
+    case "$context_method" in
+        flag)
+            launch_cmd="$ai_command $context_flag \"$context_file\""
+            ;;
+        env)
+            export "$context_env=$context_file"
+            log_info "Set $context_env=$context_file"
+            ;;
+        clipboard)
+            if command -v pbcopy >/dev/null 2>&1; then
+                cat "$context_file" | pbcopy
+                log_info "Context copied to clipboard (pbcopy)"
+            elif command -v xclip >/dev/null 2>&1; then
+                cat "$context_file" | xclip -selection clipboard
+                log_info "Context copied to clipboard (xclip)"
+            elif command -v wl-copy >/dev/null 2>&1; then
+                cat "$context_file" | wl-copy
+                log_info "Context copied to clipboard (wl-copy)"
+            else
+                log_warn "No clipboard tool found. Context at: $context_file"
+            fi
+            ;;
+        file)
+            ln -sf "$context_file" "$worktree/.ai-context"
+            log_info "Created symlink: $worktree/.ai-context -> context file"
+            ;;
+        manual)
+            log_info "Manual mode - context file created"
+            echo ""
+            echo -e "${BOLD}Context file:${NC} $context_file"
+            echo "Share this with your AI tool after launching"
+            echo ""
+            ;;
+    esac
+
+    # Add directory argument if configured
+    if [[ "$pass_directory" == "true" ]]; then
+        launch_cmd="$launch_cmd \"$worktree\""
+    fi
+
+    # Add initial message to guide the AI
+    launch_cmd="$launch_cmd \"Please address the PR review comments that have been added to the context.\""
+
+    # Change to worktree
+    cd "$worktree" || die "Failed to cd to worktree: $worktree"
+
+    # Launch the tool
+    log_info "Executing: $launch_cmd"
+    echo ""
+
+    eval "$launch_cmd"
 }
 
 # ============================================================================
