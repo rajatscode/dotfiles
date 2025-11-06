@@ -438,8 +438,31 @@ cmd_context() {
     local context_dir=$(get_context_dir "$session_name")
     local context_file="$context_dir/context.md"
 
+    # Create context file if it doesn't exist (for sessions created with older versions)
     if [[ ! -f "$context_file" ]]; then
-        die "Context file not found: $context_file"
+        log_warn "Context file missing. Creating default context..."
+        mkdir -p "$context_dir"
+        local branch=$(get_session_value "$session_name" "branch")
+        cat > "$context_file" <<EOF
+# Session: $session_name
+
+## Branch
+\`$branch\`
+
+## Objective
+[Describe what this session is working on]
+
+## Approach
+[Outline the approach]
+
+## Progress
+- [ ] Task 1
+
+## Notes
+[Any important notes]
+EOF
+        log_success "Created: $context_file"
+        echo ""
     fi
 
     if $edit; then
@@ -1047,16 +1070,41 @@ cmd_config() {
 
 # Launch AI tool with context
 cmd_launch() {
-    local session_name="$1"
-    [[ -z "$session_name" ]] && die "Session name is required. Usage: agent launch <session-name>"
+    [[ $# -eq 0 ]] && die "Session name is required. Usage: agent launch <session-name>"
 
+    local session_name="$1"
     session_exists "$session_name" || die "Session '$session_name' not found."
 
     local worktree=$(get_session_value "$session_name" "worktree")
     local context_dir=$(get_context_dir "$session_name")
     local context_file="$context_dir/context.md"
 
-    [[ ! -f "$context_file" ]] && die "Context file not found: $context_file"
+    # Create context file if it doesn't exist (for sessions created with older versions)
+    if [[ ! -f "$context_file" ]]; then
+        log_warn "Context file missing. Creating default context..."
+        mkdir -p "$context_dir"
+        local branch=$(get_session_value "$session_name" "branch")
+        cat > "$context_file" <<EOF
+# Session: $session_name
+
+## Branch
+\`$branch\`
+
+## Objective
+[Describe what this session is working on]
+
+## Approach
+[Outline the approach]
+
+## Progress
+- [ ] Task 1
+
+## Notes
+[Any important notes]
+EOF
+        log_success "Created: $context_file"
+        echo ""
+    fi
 
     # Read AI tool configuration
     local ai_command=$(get_config_value 'ai_tool.command')
