@@ -494,6 +494,12 @@ setup_vim() {
             log_step "Updating Vundle plugins..."
             vim +PluginUpdate +qall
             log_success "Vundle plugins updated"
+
+            # Fix TabNine Python 3.10+ compatibility
+            if [ -f "$DOTFILES_DIR/bin/fix-tabnine-ycm" ]; then
+                log_step "Fixing TabNine YCM compatibility with Python 3.10+..."
+                "$DOTFILES_DIR/bin/fix-tabnine-ycm" || log_warn "TabNine fix failed or not needed"
+            fi
         fi
     else
         if ask_user "Install Vundle (Vim plugin manager)?"; then
@@ -512,6 +518,13 @@ setup_vim() {
                 log_step "Installing Vim plugins (this may take a few minutes)..."
                 vim +PluginInstall +qall
                 log_success "Vim plugins installed"
+
+                # Fix TabNine Python 3.10+ compatibility
+                if [ -f "$DOTFILES_DIR/bin/fix-tabnine-ycm" ]; then
+                    log_step "Fixing TabNine YCM compatibility with Python 3.10+..."
+                    "$DOTFILES_DIR/bin/fix-tabnine-ycm" || log_warn "TabNine fix failed or not needed"
+                fi
+
                 log_info "Run ':PluginUpdate' in Vim to update plugins"
             else
                 log_error "Failed to install Vundle"

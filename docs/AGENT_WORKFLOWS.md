@@ -270,6 +270,69 @@ agent sync feature-auth
 # This fetches and rebases onto origin/main
 ```
 
+### Integrating Changes Back to Base Branch
+
+When you're done with a session, use `agent integrate` to merge changes back to your base branch:
+
+```bash
+# Local merge only (no push)
+agent integrate feature-auth
+
+# Merge and push to remote
+agent integrate feature-auth --push
+
+# Merge, push, and close session in one command
+agent integrate feature-auth --push --close
+
+# Force a merge commit (no fast-forward)
+agent integrate feature-auth --no-ff
+```
+
+**How it works:**
+1. Switches to your base branch (the branch you created the session from)
+2. Merges the agent branch into the base branch
+3. Optionally pushes the result
+4. Optionally closes the session and cleans up
+
+**Important notes:**
+- The base branch is automatically tracked when you create the session
+- By default, `agent new` uses your **current branch** as the base (not main)
+- Use `--base=<branch>` to explicitly specify a different base branch
+- If conflicts occur, you'll need to resolve them manually
+
+**Example: Feature branch workflow**
+
+```bash
+# On your feature branch
+git checkout feature/oauth
+
+# Create agent session (will use feature/oauth as base)
+agent new add-tests
+
+# Work in the agent worktree...
+cd ~/myproject-wt-add-tests/
+# Make changes, commit them
+
+# Integrate back to feature/oauth
+agent integrate add-tests --push --close
+```
+
+**Example: Working from main**
+
+```bash
+# On main branch
+git checkout main
+
+# Create agent session (will use main as base)
+agent new fix-bug
+
+# Work in the agent worktree...
+# Make changes, commit them
+
+# Integrate back to main
+agent integrate fix-bug --push
+```
+
 ### Locking Sessions
 
 Prevent concurrent edits to shared context:
@@ -539,10 +602,16 @@ agent sync oauth-frontend
 agent sync oauth-backend
 agent sync oauth-tests
 
-# 7. When done, merge and close
-# Merge branches manually via PRs
+# 7. When done, integrate and close
+# Option A: Merge locally with integrate
+agent integrate oauth-frontend --push --close
+agent integrate oauth-backend --push --close
+agent integrate oauth-tests --push --close
+agent integrate oauth-main --push --close
 
-# Close sessions
+# Option B: Create PRs for review (manual process)
+# Push branches and create PRs via GitHub
+# Then close sessions after PRs are merged
 agent close oauth-frontend --archive --delete-branch
 agent close oauth-backend --archive --delete-branch
 agent close oauth-tests --archive --delete-branch

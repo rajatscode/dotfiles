@@ -77,6 +77,12 @@ else
     log_warn "GNU Stow not found. Install it to manage dotfiles with symlinks."
 fi
 
+# Fix TabNine Python 3.10+ compatibility if Vim is installed
+if [ -f "$DOTFILES_DIR/bin/fix-tabnine-ycm" ] && [ -d "$HOME/.vim/bundle/tabnine-vim" ]; then
+    log_info "Fixing TabNine YCM compatibility with Python 3.10+..."
+    "$DOTFILES_DIR/bin/fix-tabnine-ycm" || log_warn "TabNine fix failed or not needed"
+fi
+
 log_success "Dotfiles updated successfully to $TARGET_BRANCH!"
 log_info "Changes will take effect in new shell sessions."
 log_info "Or run: source ~/.bashrc"
