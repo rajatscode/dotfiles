@@ -82,10 +82,32 @@ init_agent_dirs() {
         die "$config_parent exists but is not a directory. Please remove it or use XDG_CONFIG_HOME to specify a different location."
     fi
 
+    # Helper function to create directory handling symlinks
+    safe_mkdir() {
+        local dir="$1"
+
+        # If it's a broken symlink, resolve and create the target
+        if [[ -L "$dir" && ! -e "$dir" ]]; then
+            local target=$(readlink "$dir")
+            # If target is relative, make it absolute
+            if [[ "$target" != /* ]]; then
+                target="$(dirname "$dir")/$target"
+            fi
+            log_info "Creating target directory for symlink: $target"
+            mkdir -p "$target"
+        # If it exists and is not a directory, error out
+        elif [[ -e "$dir" && ! -d "$dir" ]]; then
+            die "$dir exists but is not a directory. Please remove it."
+        # Otherwise just create normally
+        else
+            mkdir -p "$dir"
+        fi
+    }
+
     # Create base config directory first to ensure parent exists
-    mkdir -p "$AGENT_CONFIG_DIR"
-    mkdir -p "$AGENT_SESSIONS_DIR"
-    mkdir -p "$AGENT_CONTEXTS_DIR"
+    safe_mkdir "$AGENT_CONFIG_DIR"
+    safe_mkdir "$AGENT_SESSIONS_DIR"
+    safe_mkdir "$AGENT_CONTEXTS_DIR"
     # Note: AGENT_TEMPLATES_DIR is in the dotfiles repo, not in ~/.config
     # So we don't create it here - it should already exist in the repo
 
