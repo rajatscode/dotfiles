@@ -263,7 +263,7 @@ EOF
     local template_file="$AGENT_TEMPLATES_DIR/${template}.yaml"
     if [[ -f "$template_file" ]]; then
         log_info "Applying template: $template"
-        apply_template "$template_file" "$context_dir" "$session_name"
+        apply_template "$template_file" "$context_dir" "$session_name" "$branch_name" "$base_branch"
     else
         # Create default context files
         cat > "$context_dir/context.md" <<EOF
@@ -328,13 +328,136 @@ apply_template() {
     local template_file="$1"
     local context_dir="$2"
     local session_name="$3"
+    local branch_name="$4"
+    local base_branch="$5"
 
-    # Simple template engine: replace {{VAR}} with actual values
-    # This is a basic implementation - could be enhanced with more sophisticated templating
+    # Variable substitution map
+    local date_now=$(date +"%Y-%m-%d")
+    local feature_name=$(echo "$session_name" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
 
-    # For now, just copy template files if they exist
-    # (Real implementation would parse YAML and generate files)
-    log_warn "Template support is basic. Enhance as needed."
+    # Check if yq is available for YAML parsing
+    if command -v yq &>/dev/null; then
+        log_info "Using yq for template parsing"
+
+        # Extract file list from template
+        local files=$(yq eval '.files | keys | .[]' "$template_file" 2>/dev/null)
+
+        if [[ -z "$files" ]]; then
+            log_warn "Template has no files section, using fallback"
+            apply_template_fallback "$context_dir" "$session_name" "$branch_name" "$base_branch"
+            return
+        fi
+
+        # Process each file in the template
+        while IFS= read -r file_path; do
+            local target_file="$context_dir/$file_path"
+            local file_content=$(yq eval ".files.\"$file_path\"" "$template_file")
+
+            # Create parent directory if needed
+            mkdir -p "$(dirname "$target_file")"
+
+            # Perform variable substitutions
+            echo "$file_content" | \
+                sed "s/{{SESSION_NAME}}/$session_name/g" | \
+                sed "s/{{FEATURE_NAME}}/$feature_name/g" | \
+                sed "s/{{BRANCH}}/$branch_name/g" | \
+                sed "s/{{BASE_BRANCH}}/$base_branch/g" | \
+                sed "s/{{DATE}}/$date_now/g" \
+                > "$target_file"
+
+            log_info "Created: $file_path"
+        done <<< "$files"
+    else
+        log_warn "yq not found, using fallback template parsing"
+        apply_template_fallback "$context_dir" "$session_name" "$branch_name" "$base_branch"
+    fi
+}
+
+# Fallback template application when yq is not available
+apply_template_fallback() {
+    local context_dir="$1"
+    local session_name="$2"
+    local branch_name="$3"
+    local base_branch="$4"
+    local date_now=$(date +"%Y-%m-%d")
+
+    # Create standard context.md
+    cat > "$context_dir/context.md" <<EOF
+# Session: $session_name
+
+## Branch
+\`$branch_name\` (based on \`$base_branch\`)
+
+## Objective
+[Describe what this session is working on]
+
+## Requirements
+- [ ] Requirement 1
+- [ ] Requirement 2
+
+## Approach
+1. Design the solution
+2. Implement core functionality
+3. Add tests
+4. Document changes
+
+## Progress
+- [ ] Design complete
+- [ ] Implementation in progress
+- [ ] Tests written
+- [ ] Documentation updated
+
+## Notes
+[Add implementation notes here]
+
+## Dependencies
+[List any dependencies or blockers]
+EOF
+
+    # Create notes.md
+    cat > "$context_dir/notes.md" <<EOF
+# Development Notes
+
+## $date_now
+[Your notes here]
+EOF
+
+    # Create .gitkeep for shared-tempfiles
+    touch "$context_dir/shared-tempfiles/.gitkeep"
+
+    log_info "Created context files using fallback template"
+}
+
+# Heal missing context files for a session
+# Call this from commands that need context to exist
+ensure_session_context() {
+    local session_name="$1"
+
+    if ! session_exists "$session_name"; then
+        die "Session '$session_name' not found"
+    fi
+
+    local context_dir=$(get_context_dir "$session_name")
+    local context_file="$context_dir/context.md"
+
+    # Check if context.md exists
+    if [[ -f "$context_file" ]]; then
+        return 0  # Context exists, nothing to do
+    fi
+
+    log_warn "Session context missing. Creating default context..."
+
+    # Get session metadata
+    local branch=$(get_session_value "$session_name" "branch")
+    local base_branch=$(get_session_value "$session_name" "base_branch")
+
+    # Create context directory if missing
+    mkdir -p "$context_dir/shared-tempfiles"
+
+    # Use fallback template to create context
+    apply_template_fallback "$context_dir" "$session_name" "$branch" "$base_branch"
+
+    log_info "Context healed for session: $session_name"
 }
 
 # List all active sessions
@@ -391,6 +514,9 @@ cmd_switch() {
         die "Worktree directory not found: $worktree. Session may be corrupted."
     fi
 
+    # Ensure context files exist
+    ensure_session_context "$session_name"
+
     # Update last_active timestamp
     local session_file=$(get_session_file "$session_name")
     local tmp_file=$(mktemp)
@@ -443,35 +569,11 @@ cmd_context() {
 
     session_exists "$session_name" || die "Session '$session_name' not found."
 
+    # Ensure context files exist
+    ensure_session_context "$session_name"
+
     local context_dir=$(get_context_dir "$session_name")
     local context_file="$context_dir/context.md"
-
-    # Create context file if it doesn't exist (for sessions created with older versions)
-    if [[ ! -f "$context_file" ]]; then
-        log_warn "Context file missing. Creating default context..."
-        mkdir -p "$context_dir"
-        local branch=$(get_session_value "$session_name" "branch")
-        cat > "$context_file" <<EOF
-# Session: $session_name
-
-## Branch
-\`$branch\`
-
-## Objective
-[Describe what this session is working on]
-
-## Approach
-[Outline the approach]
-
-## Progress
-- [ ] Task 1
-
-## Notes
-[Any important notes]
-EOF
-        log_success "Created: $context_file"
-        echo ""
-    fi
 
     if $edit; then
         ${EDITOR:-vim} "$context_file"
@@ -822,8 +924,31 @@ cmd_shepherd() {
             if [[ -z "$current_branch" ]]; then
                 die "Not on a branch. Use --pr=<number> or --branch=<name>"
             fi
-            log_info "Finding PR for current branch: $current_branch"
-            pr_number=$(gh pr list --head "$current_branch" --json number --jq '.[0].number' 2>/dev/null)
+
+            # If current branch is an agent branch, look for PR on base_branch instead
+            local search_branch="$current_branch"
+            if [[ "$current_branch" == agent/* ]]; then
+                # Try to find the agent session and get its base_branch
+                local git_root=$(get_git_root 2>/dev/null) || true
+                local current_dir=$(pwd)
+
+                for session_file in "$AGENT_SESSIONS_DIR"/*.yaml 2>/dev/null; do
+                    [[ -e "$session_file" ]] || continue
+                    local session_branch=$(grep "^branch:" "$session_file" | cut -d' ' -f2-)
+                    if [[ "$session_branch" == "$current_branch" ]]; then
+                        local base_branch=$(grep "^base_branch:" "$session_file" | cut -d' ' -f2-)
+                        if [[ -n "$base_branch" ]]; then
+                            search_branch="$base_branch"
+                            log_info "Agent branch detected. Looking for PR on base branch: $base_branch"
+                            break
+                        fi
+                    fi
+                done
+            else
+                log_info "Finding PR for current branch: $current_branch"
+            fi
+
+            pr_number=$(gh pr list --head "$search_branch" --json number --jq '.[0].number' 2>/dev/null)
         fi
 
         if [[ -z "$pr_number" || "$pr_number" == "null" ]]; then
@@ -899,7 +1024,7 @@ cmd_shepherd() {
 
     # Determine if we're in an agent session
     local session_name=""
-    local context_file=""
+    local shepherd_file=""
     local worktree=$(pwd)
 
     if [[ -n "${AGENT_SESSION:-}" ]]; then
@@ -920,20 +1045,35 @@ cmd_shepherd() {
         done
     fi
 
-    # Get context file (create in session context dir)
+    # Get shepherd file location
     if [[ -n "$session_name" ]]; then
-        context_file="$(get_context_dir "$session_name")/context.md"
+        # Ensure session context exists first
+        ensure_session_context "$session_name"
+
+        # Create shepherd.md in session context dir (separate from context.md)
+        shepherd_file="$(get_context_dir "$session_name")/shepherd.md"
         log_info "Using session: $session_name"
+
+        # Store PR number in session metadata
+        local session_file=$(get_session_file "$session_name")
+        local tmp_file=$(mktemp)
+        if grep -q "^pr_number:" "$session_file"; then
+            sed "s/^pr_number:.*/pr_number: $pr_number/" "$session_file" > "$tmp_file"
+        else
+            sed "/^status:/a\\
+pr_number: $pr_number" "$session_file" > "$tmp_file"
+        fi
+        mv "$tmp_file" "$session_file"
     else
         # Not in a session, create temp context in global context dir
         local repo_name=$(get_repo_name)
-        context_file="$AGENT_CONTEXTS_DIR/${repo_name}/shepherd-pr-${pr_number}.md"
-        mkdir -p "$(dirname "$context_file")"
+        shepherd_file="$AGENT_CONTEXTS_DIR/${repo_name}/shepherd-pr-${pr_number}.md"
+        mkdir -p "$(dirname "$shepherd_file")"
         log_info "Not in a session. Creating shepherd context in global dir."
     fi
 
-    # Create/overwrite context file with PR review comments
-    cat > "$context_file" <<EOF
+    # Create/overwrite shepherd file with PR review comments
+    cat > "$shepherd_file" <<EOF
 # PR Review Comments - PR #$pr_number
 
 **Title:** $pr_title
@@ -969,19 +1109,19 @@ EOF
       ) | join("\n")
     ')
 
-    echo "$threads_content" >> "$context_file"
+    echo "$threads_content" >> "$shepherd_file"
 
-    log_success "Context written: $context_file"
+    log_success "Shepherd context written: $shepherd_file"
     echo ""
 
     # If dry-run, just show the comments and exit
     if $dry_run; then
         echo -e "${BOLD}${CYAN}Preview of PR Comments:${NC}"
         echo "────────────────────────────────────────────────────"
-        cat "$context_file"
+        cat "$shepherd_file"
         echo "────────────────────────────────────────────────────"
         echo ""
-        echo -e "${BOLD}Context saved to:${NC} $context_file"
+        echo -e "${BOLD}Shepherd context saved to:${NC} $shepherd_file"
         echo ""
         echo "To address these comments, run: ${GREEN}agent shepherd --pr=$pr_number${NC}"
         return 0
@@ -994,18 +1134,18 @@ EOF
     if ! command -v "$ai_command" &> /dev/null; then
         log_warn "AI command '$ai_command' not found."
         echo ""
-        echo -e "${BOLD}Context file:${NC} $context_file"
+        echo -e "${BOLD}Shepherd file:${NC} $shepherd_file"
         echo -e "${BOLD}Install your AI tool or update config:${NC} agent config"
         echo ""
         log_info "Preview of PR comments:"
-        cat "$context_file"
+        cat "$shepherd_file"
         return 1
     fi
 
     log_step "Launching: $ai_command"
     echo -e "  ${DIM}PR:${NC} #$pr_number"
     echo -e "  ${DIM}Worktree:${NC} $worktree"
-    echo -e "  ${DIM}Context:${NC} $context_file"
+    echo -e "  ${DIM}Shepherd:${NC} $shepherd_file"
     echo ""
     echo -e "${BOLD}${GREEN}→ Run this command in your agent:${NC} ${CYAN}/agent-instructions${NC}"
     echo ""
@@ -1322,36 +1462,12 @@ cmd_launch() {
         session_exists "$session_name" || die "Session '$session_name' not found."
     fi
 
+    # Ensure context files exist
+    ensure_session_context "$session_name"
+
     local worktree=$(get_session_value "$session_name" "worktree")
     local context_dir=$(get_context_dir "$session_name")
     local context_file="$context_dir/context.md"
-
-    # Create context file if it doesn't exist
-    if [[ ! -f "$context_file" ]]; then
-        log_warn "Context file missing. Creating default context..."
-        mkdir -p "$context_dir"
-        local branch=$(get_session_value "$session_name" "branch")
-        cat > "$context_file" <<EOF
-# Session: $session_name
-
-## Branch
-\`$branch\`
-
-## Objective
-[Describe what this session is working on]
-
-## Approach
-[Outline the approach]
-
-## Progress
-- [ ] Task 1
-
-## Notes
-[Any important notes]
-EOF
-        log_success "Created: $context_file"
-        echo ""
-    fi
 
     # Get AI command from config
     local ai_command=$(get_config_value 'ai_tool.command' 'claude-code')

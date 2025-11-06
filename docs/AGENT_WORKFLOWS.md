@@ -177,70 +177,90 @@ agent context refactor-api --edit
 agent close refactor-api --archive --delete-branch
 ```
 
-### PR Review Workflow (Shepherd)
+### PR Review Workflow with Agent Sessions
 
-The `shepherd` command helps you systematically address PR review comments with AI assistance:
+When you receive PR review comments, use the agent system to systematically address them:
+
+#### Recommended Workflow (Agent-Based)
 
 ```bash
-# Auto-detect PR from current branch
+# 1. You have a PR branch with review comments
+git checkout rajat/hchb-ar/specialist-assignment-to-db
+
+# 2. Create an agent session to address the comments
+agent new pr-review-fixes
+
+# 3. Switch to the agent worktree
+agent switch pr-review-fixes
+# OR: cd ~/myrepo-wt-pr-review-fixes
+
+# 4. Run shepherd to fetch PR comments
+agent shepherd
+
+# Shepherd will:
+# - Auto-detect the PR from your base branch (not the agent branch!)
+# - Fetch all unresolved review comments
+# - Create shepherd.md with all comments in your session context
+# - Launch your AI tool with both context.md and shepherd.md
+
+# 5. Address the comments in your AI tool
+# The AI tool will read:
+#   - context.md: Your session objectives
+#   - shepherd.md: All PR review comments with code context
+
+# 6. Make fixes, commit them
+git add .
+git commit -m "Address PR review comments"
+
+# 7. Integrate changes back to PR branch
+agent integrate pr-review-fixes --push --close
+
+# Your PR branch now has the fixes!
+# Push to update the PR:
+cd ~/myrepo  # back to main worktree
+git push
+```
+
+**What shepherd does:**
+
+1. Detects if you're in an agent session
+2. If in agent session, looks for PR on the **base branch** (not agent branch)
+3. Fetches unresolved review comments from GitHub
+4. Creates `shepherd.md` in your session context directory
+5. Stores PR number in session metadata
+6. Launches your AI tool with full context
+
+**Key Features:**
+
+- **Session isolation**: Work on PR fixes in isolated worktree
+- **Context separation**: `context.md` (objectives) + `shepherd.md` (PR comments)
+- **Smart PR detection**: Finds PR on base branch when in agent session
+- **Progress tracking**: Session tracks your PR review progress
+- **Easy integration**: Merge fixes back with `agent integrate`
+
+**Command Options:**
+
+```bash
+# Auto-detect PR from base branch (when in agent session)
 agent shepherd
 
 # Specify PR number explicitly
 agent shepherd --pr=123
 
-# Specify branch to find PR for
-agent shepherd --branch=feature/my-feature
-
-# Dry run (just show comments without taking action)
+# Dry run (preview comments without launching AI)
 agent shepherd --dry-run
-
-# Auto-apply high-confidence fixes
-agent shepherd --auto-apply
-```
-
-**What shepherd does:**
-
-1. Fetches all review comments from the PR using GitHub CLI
-2. For each comment, shows you:
-   - The comment text and author
-   - The file and line number
-   - The diff context
-3. Offers interactive options:
-   - **Investigate & suggest fix** - Analyzes the comment with AI and suggests code changes
-   - **View full file context** - Opens the file in your pager/editor
-   - **Mark as resolved** - Post a reply to the comment
-   - **Skip for now** - Move to the next comment
-
-**Example workflow:**
-
-```bash
-# You receive PR review comments
-# Switch to your PR branch
-git checkout feature/oauth
-
-# Run shepherd to address comments interactively
-agent shepherd
-
-# For each comment, shepherd will:
-# 1. Show the comment and context
-# 2. Ask what you want to do
-# 3. If you choose "investigate", it analyzes the code and suggests fixes
-# 4. You can approve the fix and it will be applied
-# 5. You can draft and post a response
-
-# When done, push your changes
-git push
 ```
 
 **Requirements:**
-- GitHub CLI (`gh`) must be installed and authenticated
-- You must be in a git repository with a PR
-- Optional: Claude CLI for AI-powered analysis (falls back to manual mode)
+- GitHub CLI (`gh`) must be installed and authenticated: `gh auth login`
+- Must be in a git repository with a PR
+- AI tool configured: `agent config`
 
 **Tips:**
-- Use `--dry-run` first to see all comments before taking action
-- The AI analysis is saved to a temp file so you can review it later
-- You can quit at any time with 'q' and resume later
+- Use `--dry-run` first to preview comments
+- Both `context.md` and `shepherd.md` are available to your AI tool
+- Run `/agent-instructions` in your AI tool to load both contexts
+- Session remembers the PR number for easy re-runs
 
 ## Advanced Usage
 

@@ -48,6 +48,7 @@ ncdu
 tree
 unzip
 jq
+yq
 
 # Fonts
 fonts-firacode

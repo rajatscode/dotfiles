@@ -47,6 +47,7 @@ ncdu
 tree
 unzip
 jq
+yq
 starship
 
 # Fonts
