@@ -237,14 +237,6 @@ cmd_new() {
     local context_dir=$(get_context_dir "$session_name")
     mkdir -p "$context_dir/shared-tempfiles"
 
-    # Create .claude/commands directory in worktree for slash commands
-    mkdir -p "$worktree/.claude/commands"
-
-    # Add .claude/ to worktree gitignore to avoid committing to repo
-    if [[ ! -f "$worktree/.gitignore" ]] || ! grep -q "^\.claude/" "$worktree/.gitignore" 2>/dev/null; then
-        echo ".claude/" >> "$worktree/.gitignore"
-    fi
-
     # Create session metadata
     local session_file=$(get_session_file "$session_name")
     cat > "$session_file" <<EOF
@@ -258,21 +250,6 @@ template: $template
 context_dir: $context_dir
 status: active
 notes: ""
-EOF
-
-    # Create slash command for reading session context
-    cat > "$worktree/.claude/commands/agent-instructions.md" <<EOF
-Read the session context and instructions from:
-
-$context_dir/context.md
-
-This file contains:
-- Your current objectives for this session
-- Implementation approach
-- Progress tracking
-- Any PR review comments or other instructions
-
-After reading the context, proceed with the tasks outlined.
 EOF
 
     # Apply template if it exists
@@ -898,21 +875,6 @@ EOF
         return 0
     fi
 
-    # Ensure .claude/commands exists for slash commands
-    mkdir -p "$worktree/.claude/commands"
-    cat > "$worktree/.claude/commands/agent-instructions.md" <<EOF
-Read the PR review comments and instructions from:
-
-$context_file
-
-This file contains:
-- PR details and review comments
-- Code context for each comment
-- Tasks to address each comment
-
-After reading the context, proceed to address each review comment.
-EOF
-
     # Get AI command from config
     local ai_command=$(get_config_value 'ai_tool.command' 'claude-code')
 
@@ -949,6 +911,34 @@ EOF
 setup_ai_tool_integration() {
     local ai_command=$(get_config_value 'ai_tool.command' 'claude-code')
 
+    # Setup Claude Code global slash command (handles both "claude" and "claude-code")
+    if [[ "$ai_command" == "claude-code" ]] || [[ "$ai_command" == "claude" ]] || command -v claude-code &>/dev/null || command -v claude &>/dev/null; then
+        local claude_commands_dir="${HOME}/.claude/commands"
+        mkdir -p "$claude_commands_dir"
+
+        cat > "$claude_commands_dir/agent-instructions.md" <<'EOF'
+---
+description: Read agent session context and instructions
+---
+
+# Agent Instructions
+
+Read the session context for your current working directory.
+
+First, check your current working directory and find the corresponding context file at:
+`~/.config/agents/contexts/<repo-name>/<session-name>/context.md`
+
+For agent worktrees (paths containing `wt-`), the context file contains:
+- Your current objectives for this session
+- Implementation approach
+- Progress tracking
+- Any PR review comments or other instructions
+
+After reading the context file, proceed with the tasks outlined.
+EOF
+        log_info "Created Claude Code global slash command: ~/.claude/commands/agent-instructions.md"
+    fi
+
     # Setup Codex global slash command
     if [[ "$ai_command" == "codex" ]] || command -v codex &>/dev/null; then
         local codex_prompts_dir="${HOME}/.codex/prompts"
@@ -973,10 +963,8 @@ To find your session:
 
 First, let me help you find the right context file. What's your current working directory?
 EOF
-        log_info "Created Codex slash command: ~/.codex/prompts/agent-instructions.md"
+        log_info "Created Codex global slash command: ~/.codex/prompts/agent-instructions.md"
     fi
-
-    # Claude Code slash commands are created per-worktree in cmd_new/cmd_launch/cmd_shepherd
 }
 
 # Get config value from YAML (simple parser)
@@ -1253,24 +1241,6 @@ EOF
         echo ""
     fi
 
-    # Ensure .claude/commands exists and has agent-instructions
-    mkdir -p "$worktree/.claude/commands"
-    if [[ ! -f "$worktree/.claude/commands/agent-instructions.md" ]]; then
-        cat > "$worktree/.claude/commands/agent-instructions.md" <<EOF
-Read the session context and instructions from:
-
-$context_file
-
-This file contains:
-- Your current objectives for this session
-- Implementation approach
-- Progress tracking
-- Any PR review comments or other instructions
-
-After reading the context, proceed with the tasks outlined.
-EOF
-    fi
-
     # Get AI command from config
     local ai_command=$(get_config_value 'ai_tool.command' 'claude-code')
 
@@ -1353,8 +1323,8 @@ ${BOLD}COMMANDS:${NC}
     ${CYAN}launch${NC} [session-name]
         Launch your configured AI tool with session context
         Auto-detects session if already in a worktree
-        Creates slash commands for easy context loading:
-          - Claude Code: /agent-instructions in .claude/commands/
+        Uses global slash commands for context loading:
+          - Claude Code: /agent-instructions in ~/.claude/commands/
           - Codex: /agent-instructions in ~/.codex/prompts/
           - Others: Manual file path provided
 
