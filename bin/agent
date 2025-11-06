@@ -358,7 +358,9 @@ cmd_switch() {
 
     # Update last_active timestamp
     local session_file=$(get_session_file "$session_name")
-    sed -i "s/^last_active:.*/last_active: $(date -u +"%Y-%m-%dT%H:%M:%SZ")/" "$session_file"
+    local tmp_file=$(mktemp)
+    sed "s/^last_active:.*/last_active: $(date -u +"%Y-%m-%dT%H:%M:%SZ")/" "$session_file" > "$tmp_file"
+    mv "$tmp_file" "$session_file"
 
     # Export environment variable for prompt integration
     export AGENT_SESSION="$session_name"
