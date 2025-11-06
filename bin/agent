@@ -237,6 +237,14 @@ cmd_new() {
     local context_dir=$(get_context_dir "$session_name")
     mkdir -p "$context_dir/shared-tempfiles"
 
+    # Create .claude/commands directory in worktree for slash commands
+    mkdir -p "$worktree/.claude/commands"
+
+    # Add .claude/ to worktree gitignore to avoid committing to repo
+    if [[ ! -f "$worktree/.gitignore" ]] || ! grep -q "^\.claude/" "$worktree/.gitignore" 2>/dev/null; then
+        echo ".claude/" >> "$worktree/.gitignore"
+    fi
+
     # Create session metadata
     local session_file=$(get_session_file "$session_name")
     cat > "$session_file" <<EOF
@@ -250,6 +258,21 @@ template: $template
 context_dir: $context_dir
 status: active
 notes: ""
+EOF
+
+    # Create slash command for reading session context
+    cat > "$worktree/.claude/commands/agent-instructions.md" <<EOF
+Read the session context and instructions from:
+
+$context_dir/context.md
+
+This file contains:
+- Your current objectives for this session
+- Implementation approach
+- Progress tracking
+- Any PR review comments or other instructions
+
+After reading the context, proceed with the tasks outlined.
 EOF
 
     # Apply template if it exists
@@ -672,6 +695,7 @@ cmd_current() {
 cmd_shepherd() {
     local pr_number=""
     local branch=""
+    local dry_run=false
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -682,6 +706,10 @@ cmd_shepherd() {
                 ;;
             --branch=*)
                 branch="${1#*=}"
+                shift
+                ;;
+            --dry-run)
+                dry_run=true
                 shift
                 ;;
             *)
@@ -783,10 +811,10 @@ cmd_shepherd() {
     # Determine if we're in an agent session
     local session_name=""
     local context_file=""
+    local worktree=$(pwd)
 
     if [[ -n "${AGENT_SESSION:-}" ]]; then
         session_name="$AGENT_SESSION"
-        context_file="$(get_context_dir "$session_name")/context.md"
     else
         # Try to infer from current directory
         local git_root=$(get_git_root 2>/dev/null) || true
@@ -794,34 +822,32 @@ cmd_shepherd() {
 
         for session_file in "$AGENT_SESSIONS_DIR"/*.yaml; do
             [[ -e "$session_file" ]] || continue
-            local worktree=$(grep "^worktree:" "$session_file" | cut -d' ' -f2-)
-            if [[ "$current_dir" == "$worktree"* ]]; then
+            local wt=$(grep "^worktree:" "$session_file" | cut -d' ' -f2-)
+            if [[ "$current_dir" == "$wt"* ]]; then
                 session_name=$(grep "^name:" "$session_file" | cut -d' ' -f2-)
-                context_file="$(get_context_dir "$session_name")/context.md"
+                worktree="$wt"
                 break
             fi
         done
     fi
 
-    # Create/append to context file
-    if [[ -n "$context_file" && -f "$context_file" ]]; then
-        log_info "Appending PR comments to session context: $session_name"
-        # Append to existing session context
-        cat >> "$context_file" <<EOF
-
----
-
-# PR Review Comments (added by agent shepherd)
-
-EOF
+    # Get context file (create in session context dir)
+    if [[ -n "$session_name" ]]; then
+        context_file="$(get_context_dir "$session_name")/context.md"
+        log_info "Using session: $session_name"
     else
-        # Create standalone context file
-        context_file="/tmp/agent-shepherd-context-$$.md"
-        log_info "Creating standalone context file"
-        cat > "$context_file" <<EOF
-# PR Review Comments - Shepherd Session
+        # Not in a session, create temp context in global context dir
+        local repo_name=$(get_repo_name)
+        context_file="$AGENT_CONTEXTS_DIR/${repo_name}/shepherd-pr-${pr_number}.md"
+        mkdir -p "$(dirname "$context_file")"
+        log_info "Not in a session. Creating shepherd context in global dir."
+    fi
 
-**PR:** #$pr_number - $pr_title
+    # Create/overwrite context file with PR review comments
+    cat > "$context_file" <<EOF
+# PR Review Comments - PR #$pr_number
+
+**Title:** $pr_title
 **URL:** $pr_url
 **State:** $pr_state
 
@@ -835,7 +861,6 @@ Please address the following unresolved review comments on this PR. For each com
 ---
 
 EOF
-    fi
 
     # Format each thread with all its comments using jq
     # This avoids bash loop subshell issues
@@ -857,18 +882,39 @@ EOF
 
     echo "$threads_content" >> "$context_file"
 
-    # Get AI tool configuration
-    local ai_command=$(get_config_value 'ai_tool.command' 'claude-code')
-    local context_method=$(get_config_value 'ai_tool.context_method' 'manual')
-    local context_flag=$(get_config_value 'ai_tool.context_flag' '--context')
-    local context_env=$(get_config_value 'ai_tool.context_env' 'AGENT_CONTEXT')
-    local pass_directory=$(get_config_value 'ai_tool.pass_directory' 'true')
-    local worktree=$(pwd)
-
-    log_success "Context updated: $context_file"
-    log_info "Launching AI tool: $ai_command"
-    log_info "Context method: $context_method"
+    log_success "Context written: $context_file"
     echo ""
+
+    # If dry-run, just show the comments and exit
+    if $dry_run; then
+        echo -e "${BOLD}${CYAN}Preview of PR Comments:${NC}"
+        echo "────────────────────────────────────────────────────"
+        cat "$context_file"
+        echo "────────────────────────────────────────────────────"
+        echo ""
+        echo -e "${BOLD}Context saved to:${NC} $context_file"
+        echo ""
+        echo "To address these comments, run: ${GREEN}agent shepherd --pr=$pr_number${NC}"
+        return 0
+    fi
+
+    # Ensure .claude/commands exists for slash commands
+    mkdir -p "$worktree/.claude/commands"
+    cat > "$worktree/.claude/commands/agent-instructions.md" <<EOF
+Read the PR review comments and instructions from:
+
+$context_file
+
+This file contains:
+- PR details and review comments
+- Code context for each comment
+- Tasks to address each comment
+
+After reading the context, proceed to address each review comment.
+EOF
+
+    # Get AI command from config
+    local ai_command=$(get_config_value 'ai_tool.command' 'claude-code')
 
     # Check if AI tool is configured
     if ! command -v "$ai_command" &> /dev/null; then
@@ -878,69 +924,60 @@ EOF
         echo -e "${BOLD}Install your AI tool or update config:${NC} agent config"
         echo ""
         log_info "Preview of PR comments:"
-        tail -100 "$context_file"
+        cat "$context_file"
         return 1
     fi
 
-    # Build command based on context method
-    local launch_cmd="$ai_command"
-
-    case "$context_method" in
-        flag)
-            launch_cmd="$ai_command $context_flag \"$context_file\""
-            ;;
-        env)
-            export "$context_env=$context_file"
-            log_info "Set $context_env=$context_file"
-            ;;
-        clipboard)
-            if command -v pbcopy >/dev/null 2>&1; then
-                cat "$context_file" | pbcopy
-                log_info "Context copied to clipboard (pbcopy)"
-            elif command -v xclip >/dev/null 2>&1; then
-                cat "$context_file" | xclip -selection clipboard
-                log_info "Context copied to clipboard (xclip)"
-            elif command -v wl-copy >/dev/null 2>&1; then
-                cat "$context_file" | wl-copy
-                log_info "Context copied to clipboard (wl-copy)"
-            else
-                log_warn "No clipboard tool found. Context at: $context_file"
-            fi
-            ;;
-        file)
-            ln -sf "$context_file" "$worktree/.ai-context"
-            log_info "Created symlink: $worktree/.ai-context -> context file"
-            ;;
-        manual)
-            log_info "Manual mode - context file created"
-            echo ""
-            echo -e "${BOLD}Context file:${NC} $context_file"
-            echo "Share this with your AI tool after launching"
-            echo ""
-            ;;
-    esac
-
-    # Add directory argument if configured
-    if [[ "$pass_directory" == "true" ]]; then
-        launch_cmd="$launch_cmd \"$worktree\""
-    fi
-
-    # Add initial message to guide the AI
-    launch_cmd="$launch_cmd \"Please address the PR review comments that have been added to the context.\""
-
-    # Change to worktree
-    cd "$worktree" || die "Failed to cd to worktree: $worktree"
-
-    # Launch the tool
-    log_info "Executing: $launch_cmd"
+    log_step "Launching: $ai_command"
+    echo -e "  ${DIM}PR:${NC} #$pr_number"
+    echo -e "  ${DIM}Worktree:${NC} $worktree"
+    echo -e "  ${DIM}Context:${NC} $context_file"
+    echo ""
+    echo -e "${BOLD}${GREEN}→ Run this command in your agent:${NC} ${CYAN}/agent-instructions${NC}"
     echo ""
 
-    eval "$launch_cmd"
+    # Change to worktree and launch
+    cd "$worktree" || die "Failed to cd to worktree: $worktree"
+    exec "$ai_command" "$worktree"
 }
 
 # ============================================================================
 # AI Tool Integration
 # ============================================================================
+
+# Setup global slash commands for AI tools
+setup_ai_tool_integration() {
+    local ai_command=$(get_config_value 'ai_tool.command' 'claude-code')
+
+    # Setup Codex global slash command
+    if [[ "$ai_command" == "codex" ]] || command -v codex &>/dev/null; then
+        local codex_prompts_dir="${HOME}/.codex/prompts"
+        mkdir -p "$codex_prompts_dir"
+
+        cat > "$codex_prompts_dir/agent-instructions.md" <<'EOF'
+---
+description: Read agent session context and instructions
+---
+
+# Agent Instructions
+
+Read the session context for your current working directory.
+
+The context file is located at:
+`~/.config/agents/contexts/<repo-name>/<session-name>/context.md`
+
+To find your session:
+1. Check if you're in an agent worktree (path contains `wt-`)
+2. The session context contains your objectives, approach, progress, and any PR review comments
+3. Read the context file and proceed with the tasks outlined
+
+First, let me help you find the right context file. What's your current working directory?
+EOF
+        log_info "Created Codex slash command: ~/.codex/prompts/agent-instructions.md"
+    fi
+
+    # Claude Code slash commands are created per-worktree in cmd_new/cmd_launch/cmd_shepherd
+}
 
 # Get config value from YAML (simple parser)
 get_config_value() {
@@ -1148,22 +1185,48 @@ cmd_config() {
 
     log_success "Configuration saved!"
     echo ""
+
+    # Setup AI tool integration (slash commands, etc.)
+    setup_ai_tool_integration
+
+    echo ""
     echo -e "${BOLD}Test your configuration:${NC}"
     echo -e "  ${GREEN}agent launch <session-name>${NC}"
 }
 
 # Launch AI tool with context
 cmd_launch() {
-    [[ $# -eq 0 ]] && die "Session name is required. Usage: agent launch <session-name>"
+    local session_name=""
 
-    local session_name="$1"
-    session_exists "$session_name" || die "Session '$session_name' not found."
+    # If no session name provided, try to auto-detect from current directory
+    if [[ $# -eq 0 ]]; then
+        local git_root=$(get_git_root 2>/dev/null) || die "Not in a git repository"
+        local current_dir=$(pwd)
+
+        for session_file in "$AGENT_SESSIONS_DIR"/*.yaml; do
+            [[ -e "$session_file" ]] || continue
+            local worktree=$(grep "^worktree:" "$session_file" | cut -d' ' -f2-)
+            if [[ "$current_dir" == "$worktree"* ]]; then
+                session_name=$(grep "^name:" "$session_file" | cut -d' ' -f2-)
+                break
+            fi
+        done
+
+        if [[ -z "$session_name" ]]; then
+            die "Not in an agent worktree. Usage: agent launch [session-name]"
+        fi
+
+        log_info "Auto-detected session: $session_name"
+    else
+        session_name="$1"
+        session_exists "$session_name" || die "Session '$session_name' not found."
+    fi
 
     local worktree=$(get_session_value "$session_name" "worktree")
     local context_dir=$(get_context_dir "$session_name")
     local context_file="$context_dir/context.md"
 
-    # Create context file if it doesn't exist (for sessions created with older versions)
+    # Create context file if it doesn't exist
     if [[ ! -f "$context_file" ]]; then
         log_warn "Context file missing. Creating default context..."
         mkdir -p "$context_dir"
@@ -1190,83 +1253,38 @@ EOF
         echo ""
     fi
 
-    # Read AI tool configuration
-    local ai_command=$(get_config_value 'ai_tool.command')
-    local context_method=$(get_config_value 'ai_tool.context_method' 'manual')
-    local context_flag=$(get_config_value 'ai_tool.context_flag' '--context')
-    local context_env=$(get_config_value 'ai_tool.context_env' 'AGENT_CONTEXT')
-    local pass_directory=$(get_config_value 'ai_tool.pass_directory' 'true')
+    # Ensure .claude/commands exists and has agent-instructions
+    mkdir -p "$worktree/.claude/commands"
+    if [[ ! -f "$worktree/.claude/commands/agent-instructions.md" ]]; then
+        cat > "$worktree/.claude/commands/agent-instructions.md" <<EOF
+Read the session context and instructions from:
 
-    # Check if AI tool is configured
-    if [[ -z "$ai_command" ]]; then
-        log_warn "AI tool not configured yet!"
-        echo ""
-        echo "Run: ${GREEN}agent config${NC} to configure your AI tool"
-        echo ""
-        echo -e "${BOLD}Manual launch:${NC}"
-        echo "  1. cd $worktree"
-        echo "  2. Launch your AI tool"
-        echo "  3. Share context: $context_file"
-        return 1
+$context_file
+
+This file contains:
+- Your current objectives for this session
+- Implementation approach
+- Progress tracking
+- Any PR review comments or other instructions
+
+After reading the context, proceed with the tasks outlined.
+EOF
     fi
 
-    log_step "Launching AI tool: $ai_command"
+    # Get AI command from config
+    local ai_command=$(get_config_value 'ai_tool.command' 'claude-code')
+
+    log_step "Launching: $ai_command"
     echo -e "  ${DIM}Session:${NC} $session_name"
     echo -e "  ${DIM}Worktree:${NC} $worktree"
     echo -e "  ${DIM}Context:${NC} $context_file"
     echo ""
-
-    # Build command based on context method
-    local launch_cmd="$ai_command"
-
-    case "$context_method" in
-        flag)
-            launch_cmd="$ai_command $context_flag \"$context_file\""
-            ;;
-        env)
-            export "$context_env=$context_file"
-            log_info "Set $context_env=$context_file"
-            ;;
-        clipboard)
-            if command -v pbcopy >/dev/null 2>&1; then
-                cat "$context_file" | pbcopy
-                log_info "Context copied to clipboard (pbcopy)"
-            elif command -v xclip >/dev/null 2>&1; then
-                cat "$context_file" | xclip -selection clipboard
-                log_info "Context copied to clipboard (xclip)"
-            elif command -v wl-copy >/dev/null 2>&1; then
-                cat "$context_file" | wl-copy
-                log_info "Context copied to clipboard (wl-copy)"
-            else
-                log_warn "No clipboard tool found. Context at: $context_file"
-            fi
-            ;;
-        file)
-            ln -sf "$context_file" "$worktree/.ai-context"
-            log_info "Created symlink: $worktree/.ai-context -> context.md"
-            ;;
-        manual)
-            log_info "Manual mode - no automatic context passing"
-            echo ""
-            echo -e "${BOLD}Context file:${NC} $context_file"
-            echo "Share this with your AI tool after launching"
-            echo ""
-            ;;
-    esac
-
-    # Add directory argument if configured
-    if [[ "$pass_directory" == "true" ]]; then
-        launch_cmd="$launch_cmd \"$worktree\""
-    fi
-
-    # Change to worktree
-    cd "$worktree" || die "Failed to cd to worktree: $worktree"
-
-    # Launch the tool
-    log_info "Executing: $launch_cmd"
+    echo -e "${BOLD}${GREEN}→ Run this command in your agent:${NC} ${CYAN}/agent-instructions${NC}"
     echo ""
 
-    eval "$launch_cmd"
+    # Change to worktree and launch
+    cd "$worktree" || die "Failed to cd to worktree: $worktree"
+    exec "$ai_command" "$worktree"
 }
 
 # Display help
@@ -1319,11 +1337,11 @@ ${BOLD}COMMANDS:${NC}
 
     ${CYAN}shepherd${NC} [options]
         Review and address PR comments interactively
+        Fetches unresolved PR review comments and launches your AI tool
         Options:
             --pr=<number>      PR number (auto-detected from branch if not provided)
             --branch=<name>    Branch name to find PR for
-            --dry-run          Show comments without taking action
-            --auto-apply       Automatically investigate and suggest fixes
+            --dry-run          Show comments without launching agent
 
     ${CYAN}config${NC} [--show|--reset]
         Configure AI tool integration for agent launch
@@ -1332,9 +1350,13 @@ ${BOLD}COMMANDS:${NC}
             --reset            Reset to defaults
         (Run without options for interactive setup)
 
-    ${CYAN}launch${NC} <session-name>
+    ${CYAN}launch${NC} [session-name]
         Launch your configured AI tool with session context
-        Automatically passes context based on your configuration
+        Auto-detects session if already in a worktree
+        Creates slash commands for easy context loading:
+          - Claude Code: /agent-instructions in .claude/commands/
+          - Codex: /agent-instructions in ~/.codex/prompts/
+          - Others: Manual file path provided
 
     ${CYAN}help${NC}
         Show this help message
@@ -1426,6 +1448,11 @@ main() {
             ;;
         config|configure)
             cmd_config "$@"
+            ;;
+        setup)
+            # Hidden command to setup AI tool integration
+            setup_ai_tool_integration
+            log_success "AI tool integration setup complete"
             ;;
         launch|run|start)
             cmd_launch "$@"
