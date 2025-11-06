@@ -524,28 +524,13 @@ cmd_switch() {
     sed "s/^last_active:.*/last_active: $(date -u +"%Y-%m-%dT%H:%M:%SZ")/" "$session_file" > "$tmp_file"
     mv "$tmp_file" "$session_file"
 
-    # Export environment variable for prompt integration
-    export AGENT_SESSION="$session_name"
-
-    # Change to worktree directory
-    cd "$worktree"
-
+    # Output session info (shell function will parse this and cd)
     log_success "Switched to session: $session_name"
     log_info "Working directory: $worktree"
 
-    # If running in an interactive shell, start a new shell with the session active
-    if [[ $- == *i* ]]; then
-        echo ""
-        echo -e "${BOLD}Entering session environment...${NC}"
-        echo -e "Type ${GREEN}exit${NC} to leave this session."
-        echo ""
-        exec bash --init-file <(echo "
-            source ~/.bashrc
-            export AGENT_SESSION='$session_name'
-            export PS1='${MAGENTA}[$session_name]${NC} \$PS1'
-            cd $worktree
-        ")
-    fi
+    # Note: The shell wrapper function will:
+    # - cd to the worktree directory
+    # - export AGENT_SESSION environment variable
 }
 
 # View or edit session context
@@ -1030,6 +1015,10 @@ cmd_shepherd() {
 
     if [[ -n "${AGENT_SESSION:-}" ]]; then
         session_name="$AGENT_SESSION"
+        # Get the worktree path from session metadata
+        if session_exists "$session_name"; then
+            worktree=$(get_session_value "$session_name" "worktree")
+        fi
     else
         # Try to infer from current directory
         local git_root=$(get_git_root 2>/dev/null) || true

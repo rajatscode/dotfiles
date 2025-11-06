@@ -103,6 +103,22 @@ This:
 - Removes the worktree
 - Optionally deletes the git branch
 
+### How Agent Switch Works
+
+**Important**: `agent switch` is a **shell function**, not just a script. This means:
+
+- It actually changes your current shell's directory (not just a subprocess)
+- It sets the `$AGENT_SESSION` environment variable in your shell
+- Works natively in bash, zsh, and fish
+
+**Behind the scenes:**
+1. Validates the session exists
+2. Ensures context files are present
+3. Changes your shell's directory to the worktree
+4. Exports `AGENT_SESSION` for detection by other commands
+
+**This is why `agent shepherd` can detect your session** - because `$AGENT_SESSION` is set and you're actually in the worktree directory!
+
 ## Common Workflows
 
 ### Parallel Feature Development
