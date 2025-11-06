@@ -17,8 +17,8 @@ function pcd
     if command cd $argv 2>/dev/null
         return 0
     else
-        set laststep (echo $argv | sed 's|.*/||')
-        set mainpath (string replace -r "/$laststep\$" '' $argv)
+        set laststep (basename $argv)
+        set mainpath (dirname $argv)
 
         # edge case - don't backoff into root or empty dir
         if test -n "$mainpath"
