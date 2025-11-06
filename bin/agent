@@ -898,13 +898,38 @@ get_config_value() {
         return
     fi
 
-    # Simple YAML parser: handles nested keys with dots (e.g., ai_tool.command)
-    local value=$(grep "^${key//./ }: " "$AGENT_CONFIG_FILE" 2>/dev/null | sed 's/^[^:]*: *//' | tr -d '"')
+    # Handle nested keys (e.g., ai_tool.command)
+    if [[ "$key" == *.* ]]; then
+        # Split on dot
+        local section="${key%%.*}"  # Everything before first dot
+        local subkey="${key#*.}"     # Everything after first dot
 
-    if [[ -z "$value" ]]; then
-        echo "$default"
+        # Use awk to find the section and then the subkey
+        local value=$(awk -v section="$section:" -v subkey="$subkey:" '
+            $0 ~ "^" section {in_section=1; next}
+            in_section && /^[^ ]/ {in_section=0}
+            in_section && $0 ~ "^[[:space:]]+" subkey {
+                sub(/^[[:space:]]*[^:]+:[[:space:]]*/, "")
+                gsub(/"/, "")
+                print
+                exit
+            }
+        ' "$AGENT_CONFIG_FILE")
+
+        if [[ -z "$value" ]]; then
+            echo "$default"
+        else
+            echo "$value"
+        fi
     else
-        echo "$value"
+        # Simple top-level key
+        local value=$(grep "^${key}: " "$AGENT_CONFIG_FILE" 2>/dev/null | sed 's/^[^:]*: *//' | tr -d '"')
+
+        if [[ -z "$value" ]]; then
+            echo "$default"
+        else
+            echo "$value"
+        fi
     fi
 }
 
