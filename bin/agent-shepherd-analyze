@@ -278,7 +278,7 @@ if [[ -n "$ai_output" ]]; then
             echo "$response"
             echo ""
 
-            read -p "Post this response to the PR comment? [y/N] " post_response
+            read -p "Post this response to the PR comment? [y/N] " post_response </dev/tty
             if [[ "$post_response" =~ ^[Yy]$ ]]; then
                 echo "$response" | gh pr comment "$pr_number" --body-file - && \
                     log_success "Response posted!" || \

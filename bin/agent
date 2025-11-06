@@ -814,7 +814,7 @@ EOF
         echo ""
 
         if ! $auto_apply; then
-            read -p "Choose action [1-4, q]: " action
+            read -p "Choose action [1-4, q]: " action </dev/tty
         else
             action="1"
             echo "Auto-apply mode: choosing action 1 (investigate & suggest fix)"
@@ -844,7 +844,7 @@ EOF
             3)
                 # Reply to comment
                 echo ""
-                read -p "Enter reply message (or press Enter to skip): " reply_msg
+                read -p "Enter reply message (or press Enter to skip): " reply_msg </dev/tty
                 if [[ -n "$reply_msg" ]]; then
                     gh api "repos/:owner/:repo/pulls/$pr_number/comments/$comment_id/replies" \
                         -X POST \
