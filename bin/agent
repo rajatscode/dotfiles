@@ -76,6 +76,14 @@ die() {
 
 # Initialize agent directories
 init_agent_dirs() {
+    # Check if ~/.config exists and is not a directory
+    local config_parent="${XDG_CONFIG_HOME:-$HOME/.config}"
+    if [[ -e "$config_parent" && ! -d "$config_parent" ]]; then
+        die "$config_parent exists but is not a directory. Please remove it or use XDG_CONFIG_HOME to specify a different location."
+    fi
+
+    # Create base config directory first to ensure parent exists
+    mkdir -p "$AGENT_CONFIG_DIR"
     mkdir -p "$AGENT_SESSIONS_DIR"
     mkdir -p "$AGENT_CONTEXTS_DIR"
     # Note: AGENT_TEMPLATES_DIR is in the dotfiles repo, not in ~/.config
