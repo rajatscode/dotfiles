@@ -77,6 +77,12 @@ else
     log_warn "GNU Stow not found. Install it to manage dotfiles with symlinks."
 fi
 
+# Check for yq (needed for agent template system)
+if ! command -v yq &>/dev/null; then
+    log_warn "yq (YAML processor) not found. Agent templates may not work correctly."
+    log_info "Install yq: brew install yq (macOS) or apt install yq (Ubuntu) or pacman -S yq (Arch)"
+fi
+
 # Fix TabNine Python 3.10+ compatibility if Vim is installed
 if [ -f "$DOTFILES_DIR/bin/fix-tabnine-ycm" ] && [ -d "$HOME/.vim/bundle/tabnine-vim" ]; then
     log_info "Fixing TabNine YCM compatibility with Python 3.10+..."
