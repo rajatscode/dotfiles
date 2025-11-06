@@ -765,7 +765,7 @@ cmd_shepherd() {
 
     # Process each comment
     local comment_idx=0
-    echo "$comments_json" | jq -c '.[]' | while read -r comment; do
+    while read -r comment; do
         ((comment_idx++))
 
         local comment_id=$(echo "$comment" | jq -r '.id')
@@ -869,7 +869,7 @@ EOF
         echo ""
         echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
         echo ""
-    done
+    done < <(echo "$comments_json" | jq -c '.[]')
 
     # Cleanup
     rm -rf "$shepherd_dir"
