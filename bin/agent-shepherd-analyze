@@ -3,19 +3,19 @@
 # agent-shepherd-analyze - Analyze PR review comments and suggest actions
 #
 # This script analyzes a PR review comment, investigates the relevant code,
-# and suggests actionable fixes or responses.
+# and suggests actionable fixes or responses using your configured AI tool.
 
 set -euo pipefail
 
 # Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+RED=$'\033[0;31m'
+GREEN=$'\033[0;32m'
+YELLOW=$'\033[1;33m'
+BLUE=$'\033[0;34m'
+MAGENTA=$'\033[0;35m'
+CYAN=$'\033[0;36m'
+BOLD=$'\033[1m'
+NC=$'\033[0m'
 
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
@@ -23,6 +23,29 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 log_step() { echo -e "${CYAN}▶${NC} $1"; }
 die() { log_error "$1"; exit 1; }
+
+# Configuration
+AGENT_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/agents"
+AGENT_CONFIG_FILE="$AGENT_CONFIG_DIR/config.yaml"
+
+# Get config value from YAML (simple parser)
+get_config_value() {
+    local key="$1"
+    local default="${2:-}"
+
+    if [[ ! -f "$AGENT_CONFIG_FILE" ]]; then
+        echo "$default"
+        return
+    fi
+
+    local value=$(grep "^${key//./ }: " "$AGENT_CONFIG_FILE" 2>/dev/null | sed 's/^[^:]*: *//' | tr -d '"')
+
+    if [[ -z "$value" ]]; then
+        echo "$default"
+    else
+        echo "$value"
+    fi
+}
 
 # Parse arguments
 comment_file=""
@@ -150,79 +173,119 @@ cat "$analysis_file"
 echo "────────────────────────────────────────────────────"
 echo ""
 
-# Check if we have claude command available
-if command -v claude &> /dev/null; then
-    log_info "Using Claude CLI to analyze comment..."
+# Read AI tool configuration
+ai_command=$(get_config_value 'ai_tool.command')
+context_method=$(get_config_value 'ai_tool.context_method' 'manual')
+context_flag=$(get_config_value 'ai_tool.context_flag' '--context')
+context_env=$(get_config_value 'ai_tool.context_env' 'AGENT_CONTEXT')
 
-    # Run Claude analysis
-    claude_output=$(claude --quiet < "$analysis_file" 2>/dev/null) || {
-        log_warn "Claude CLI failed, falling back to manual mode"
-        claude_output=""
-    }
+# Check if AI tool is configured
+if [[ -z "$ai_command" ]]; then
+    log_warn "AI tool not configured. Run: ${GREEN}agent config${NC}"
+    echo ""
+    log_info "Analysis prompt saved to: $analysis_file"
+    echo ""
+    echo -e "${BOLD}To analyze this comment:${NC}"
+    echo "  1. Copy the prompt above"
+    echo "  2. Paste into your AI tool"
+    echo "  3. Review the suggested action and apply changes manually"
+    echo ""
+    echo "For automatic analysis, run: ${GREEN}agent config${NC}"
+    exit 0
+fi
 
-    if [[ -n "$claude_output" ]]; then
-        echo "$claude_output"
+log_info "Using configured AI tool: $ai_command"
+echo ""
 
-        # Parse the YAML response
-        action=$(echo "$claude_output" | grep "^action:" | cut -d' ' -f2- | tr -d ' ')
-        confidence=$(echo "$claude_output" | grep "^confidence:" | cut -d' ' -f2- | tr -d ' ')
+# Prepare AI command based on context method
+ai_cmd="$ai_command"
 
+case "$context_method" in
+    flag)
+        ai_cmd="$ai_command $context_flag \"$analysis_file\""
+        ;;
+    env)
+        export "$context_env=$analysis_file"
+        log_info "Set $context_env=$analysis_file"
+        ;;
+    clipboard)
+        if command -v pbcopy >/dev/null 2>&1; then
+            cat "$analysis_file" | pbcopy
+            log_info "Analysis prompt copied to clipboard (pbcopy)"
+        elif command -v xclip >/dev/null 2>&1; then
+            cat "$analysis_file" | xclip -selection clipboard
+            log_info "Analysis prompt copied to clipboard (xclip)"
+        elif command -v wl-copy >/dev/null 2>&1; then
+            cat "$analysis_file" | wl-copy
+            log_info "Analysis prompt copied to clipboard (wl-copy)"
+        else
+            log_warn "No clipboard tool found"
+        fi
+        log_info "Paste the prompt into $ai_command and review the suggestions"
+        exit 0
+        ;;
+    file)
+        ln -sf "$analysis_file" ./.shepherd-prompt
+        log_info "Created .shepherd-prompt symlink"
+        ;;
+    manual)
+        log_info "Manual mode - analysis prompt saved to: $analysis_file"
         echo ""
-        log_info "Suggested Action: ${BOLD}$action${NC} (Confidence: $confidence)"
+        echo -e "${BOLD}Next steps:${NC}"
+        echo "  1. Copy the prompt above"
+        echo "  2. Paste into your AI tool"
+        echo "  3. Review the suggested action"
+        echo "  4. Apply changes manually if needed"
+        exit 0
+        ;;
+esac
+
+# Execute AI tool
+log_info "Executing: $ai_cmd"
+echo ""
+
+ai_output=$(eval "$ai_cmd" 2>&1) || {
+    log_warn "AI tool execution failed"
+    log_info "You can manually use the prompt at: $analysis_file"
+    exit 0
+}
+
+# Display output
+if [[ -n "$ai_output" ]]; then
+    echo "$ai_output"
+    echo ""
+
+    # Try to parse structured response (YAML format)
+    action=$(echo "$ai_output" | grep "^action:" | cut -d' ' -f2- | tr -d ' ' | head -1)
+    confidence=$(echo "$ai_output" | grep "^confidence:" | cut -d' ' -f2- | tr -d ' ' | head -1)
+
+    if [[ -n "$action" ]]; then
+        log_info "Suggested Action: ${BOLD}$action${NC} (Confidence: ${confidence:-UNKNOWN})"
         echo ""
 
         # If action is FIX and confidence is HIGH/MEDIUM, offer to apply
-        if [[ "$action" == "FIX" && ("$confidence" == "HIGH" || "$confidence" == "MEDIUM") ]]; then
-            if $auto_apply && [[ "$confidence" == "HIGH" ]]; then
-                apply_fix="y"
-                log_info "Auto-applying high-confidence fix..."
-            else
-                read -p "Would you like to apply this fix? [y/N] " apply_fix
-            fi
-
-            if [[ "$apply_fix" =~ ^[Yy]$ ]]; then
-                # Extract and apply changes
-                # This is a simplified version - in practice, you'd parse the YAML properly
-                log_warn "Automatic fix application not yet implemented."
-                log_info "Please review the suggested changes above and apply manually."
-                log_info "File: $comment_path:$comment_line"
-            fi
+        if [[ "$action" == "FIX" ]]; then
+            log_warn "Automatic fix application not yet implemented."
+            log_info "Please review the suggested changes above and apply manually."
+            log_info "File: $comment_path:$comment_line"
+            echo ""
         fi
 
-        # Offer to post response
-        echo ""
-        response=$(echo "$claude_output" | sed -n '/^response:/,/^$/p' | tail -n +2)
-        if [[ -n "$response" ]]; then
+        # Check for response to post
+        response=$(echo "$ai_output" | sed -n '/^response:/,/^$/p' | tail -n +2)
+        if [[ -n "$response" ]] && ! $auto_apply; then
             echo -e "${BOLD}Suggested Response:${NC}"
             echo "$response"
             echo ""
 
-            if ! $auto_apply; then
-                read -p "Post this response to the PR comment? [y/N] " post_response
-            else
-                post_response="n"
-            fi
-
+            read -p "Post this response to the PR comment? [y/N] " post_response
             if [[ "$post_response" =~ ^[Yy]$ ]]; then
-                # Post response using gh CLI
                 echo "$response" | gh pr comment "$pr_number" --body-file - && \
                     log_success "Response posted!" || \
                     log_error "Failed to post response"
             fi
         fi
     fi
-else
-    log_warn "Claude CLI not found. Install from: https://github.com/anthropics/claude-code"
-    echo ""
-    log_info "Analysis prompt saved to: $analysis_file"
-    echo ""
-    echo -e "${BOLD}To analyze this comment:${NC}"
-    echo "  1. Copy the prompt above"
-    echo "  2. Paste into Claude Code or your preferred AI"
-    echo "  3. Review the suggested action"
-    echo "  4. Apply changes manually if needed"
-    echo ""
-    echo "Or, install Claude CLI and re-run this command."
 fi
 
 # Cleanup
