@@ -12,6 +12,10 @@ curl
 wget
 build-essential
 
+# Note: jujutsu (jj) not available in default apt repos
+# Install from: https://github.com/martinvonz/jj/releases
+# Or use cargo: cargo install jj-cli
+
 # Shells
 fish
 bash-completion
