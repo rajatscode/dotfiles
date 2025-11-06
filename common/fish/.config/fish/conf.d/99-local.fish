@@ -5,6 +5,11 @@
 ## Personal Profile
 ## ============================================================================
 
+# Set personal profile paths (for bash compatibility)
+set -gx VIM_PERSONAL_PROFILE "$HOME/.vim_profile"
+set -gx GIT_PERSONAL_PROFILE "$HOME/.gitprofile"
+set -gx TMUX_PERSONAL_PROFILE "$HOME/.tmux.profile"
+
 # Source personal fish config if it exists
 # Check both personal.fish (created by installer) and local.fish (legacy)
 if test -f ~/.config/fish/personal.fish
