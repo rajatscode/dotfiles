@@ -671,8 +671,6 @@ cmd_current() {
 cmd_shepherd() {
     local pr_number=""
     local branch=""
-    local dry_run=false
-    local auto_apply=false
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -683,14 +681,6 @@ cmd_shepherd() {
                 ;;
             --branch=*)
                 branch="${1#*=}"
-                shift
-                ;;
-            --dry-run)
-                dry_run=true
-                shift
-                ;;
-            --auto-apply)
-                auto_apply=true
                 shift
                 ;;
             *)
@@ -707,11 +697,9 @@ cmd_shepherd() {
     # Determine PR number
     if [[ -z "$pr_number" ]]; then
         if [[ -n "$branch" ]]; then
-            # Get PR for specific branch
             log_info "Finding PR for branch: $branch"
             pr_number=$(gh pr list --head "$branch" --json number --jq '.[0].number' 2>/dev/null)
         else
-            # Get PR for current branch
             local current_branch=$(git branch --show-current 2>/dev/null)
             if [[ -z "$current_branch" ]]; then
                 die "Not on a branch. Use --pr=<number> or --branch=<name>"
@@ -729,154 +717,171 @@ cmd_shepherd() {
     echo ""
 
     # Get PR info
-    local pr_info=$(gh pr view "$pr_number" --json title,body,reviews,reviewRequests,state 2>/dev/null)
+    local pr_info=$(gh pr view "$pr_number" --json title,url,state 2>/dev/null)
     if [[ -z "$pr_info" ]]; then
         die "Failed to fetch PR #$pr_number. Check your permissions and network."
     fi
 
     local pr_title=$(echo "$pr_info" | jq -r '.title')
+    local pr_url=$(echo "$pr_info" | jq -r '.url')
     local pr_state=$(echo "$pr_info" | jq -r '.state')
 
     echo -e "${BOLD}PR: #$pr_number${NC}"
     echo -e "${CYAN}$pr_title${NC}"
     echo -e "State: $pr_state"
+    echo -e "URL: $pr_url"
     echo ""
 
-    # Get review comments
-    log_info "Fetching review comments..."
-    local comments_json=$(gh api "repos/:owner/:repo/pulls/$pr_number/comments" 2>/dev/null)
+    # Fetch unresolved review threads with all comments
+    log_info "Fetching unresolved review comments..."
 
-    if [[ -z "$comments_json" || "$comments_json" == "[]" ]]; then
-        log_success "No review comments found! 🎉"
+    local threads_json=$(gh api graphql -f query='
+      query($pr: Int!) {
+        repository(owner: "august-innovations", name: "august") {
+          pullRequest(number: $pr) {
+            reviewThreads(first: 100) {
+              nodes {
+                isResolved
+                comments(first: 20) {
+                  nodes {
+                    id
+                    body
+                    path
+                    line
+                    originalLine
+                    diffHunk
+                    author {
+                      login
+                    }
+                    createdAt
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ' -F pr="$pr_number" 2>/dev/null)
+
+    if [[ -z "$threads_json" || "$threads_json" == "null" ]]; then
+        die "Failed to fetch review threads. Check your permissions and network."
+    fi
+
+    # Extract unresolved threads (with all comments in each thread)
+    local unresolved_threads=$(echo "$threads_json" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)]')
+    local thread_count=$(echo "$unresolved_threads" | jq 'length')
+
+    if [[ "$thread_count" == "0" ]]; then
+        log_success "No unresolved review comments found! 🎉"
         return 0
     fi
 
-    # Count comments
-    local total_comments=$(echo "$comments_json" | jq 'length')
-    log_info "Found $total_comments review comments"
+    log_info "Found $thread_count unresolved review threads"
     echo ""
 
-    # Create temporary working directory for this shepherd session
-    local shepherd_dir="/tmp/agent-shepherd-$$"
-    mkdir -p "$shepherd_dir"
+    # Determine if we're in an agent session
+    local session_name=""
+    local context_file=""
 
-    # Save comments to file for processing
-    echo "$comments_json" > "$shepherd_dir/comments.json"
+    if [[ -n "${AGENT_SESSION:-}" ]]; then
+        session_name="$AGENT_SESSION"
+        context_file="$(get_context_dir "$session_name")/context.md"
+    else
+        # Try to infer from current directory
+        local git_root=$(get_git_root 2>/dev/null) || true
+        local current_dir=$(pwd)
 
-    # Process each comment
-    local comment_idx=0
-    while read -r comment; do
-        ((comment_idx++))
+        for session_file in "$AGENT_SESSIONS_DIR"/*.yaml 2>/dev/null; do
+            [[ -e "$session_file" ]] || continue
+            local worktree=$(grep "^worktree:" "$session_file" | cut -d' ' -f2-)
+            if [[ "$current_dir" == "$worktree"* ]]; then
+                session_name=$(grep "^name:" "$session_file" | cut -d' ' -f2-)
+                context_file="$(get_context_dir "$session_name")/context.md"
+                break
+            fi
+        done
+    fi
 
-        local comment_id=$(echo "$comment" | jq -r '.id')
-        local comment_body=$(echo "$comment" | jq -r '.body')
-        local comment_path=$(echo "$comment" | jq -r '.path')
-        local comment_line=$(echo "$comment" | jq -r '.line // .original_line')
-        local comment_user=$(echo "$comment" | jq -r '.user.login')
-        local created_at=$(echo "$comment" | jq -r '.created_at')
-        local diff_hunk=$(echo "$comment" | jq -r '.diff_hunk')
+    # Create/append to context file
+    if [[ -n "$context_file" && -f "$context_file" ]]; then
+        log_info "Appending PR comments to session context: $session_name"
+        # Append to existing session context
+        cat >> "$context_file" <<EOF
 
-        echo -e "${BOLD}${MAGENTA}Comment $comment_idx/$total_comments${NC}"
-        echo -e "${BOLD}File:${NC} $comment_path:$comment_line"
-        echo -e "${BOLD}Author:${NC} $comment_user ($(date -d "$created_at" "+%b %d, %Y" 2>/dev/null || echo "$created_at"))"
-        echo -e "${BOLD}Comment:${NC}"
-        echo "$comment_body" | sed 's/^/  /'
-        echo ""
-        echo -e "${BOLD}Context:${NC}"
-        echo "$diff_hunk" | sed 's/^/  /'
-        echo ""
+---
 
-        # Save comment details for analysis
-        cat > "$shepherd_dir/comment-$comment_idx.json" <<EOF
-{
-  "id": $comment_id,
-  "path": "$comment_path",
-  "line": $comment_line,
-  "user": "$comment_user",
-  "body": $(echo "$comment" | jq -c '.body'),
-  "diff_hunk": $(echo "$comment" | jq -c '.diff_hunk')
-}
+# PR Review Comments (added by agent shepherd)
+
 EOF
+    else
+        # Create standalone context file
+        context_file="/tmp/agent-shepherd-context-$$.md"
+        log_info "Creating standalone context file"
+        cat > "$context_file" <<EOF
+# PR Review Comments - Shepherd Session
 
-        if $dry_run; then
-            echo -e "${YELLOW}[DRY RUN]${NC} Would analyze and suggest action for this comment"
-            echo ""
-            continue
-        fi
+**PR:** #$pr_number - $pr_title
+**URL:** $pr_url
+**State:** $pr_state
 
-        # Interactive prompt for action
-        echo -e "${BOLD}What would you like to do?${NC}"
-        echo "  1) Investigate & suggest fix"
-        echo "  2) View full file context"
-        echo "  3) Mark as resolved (reply)"
-        echo "  4) Skip for now"
-        echo "  q) Quit shepherd"
-        echo ""
+## Task
 
-        if ! $auto_apply; then
-            read -p "Choose action [1-4, q]: " action </dev/tty
-        else
-            action="1"
-            echo "Auto-apply mode: choosing action 1 (investigate & suggest fix)"
-        fi
+Please address the following unresolved review comments on this PR. For each comment:
+1. Review the comment and the code context
+2. Make the necessary changes to address the feedback
+3. Ensure the changes are correct and don't introduce new issues
 
-        case "$action" in
-            1)
-                # Call helper script to analyze and suggest fix
-                if [[ -x "$(dirname "${BASH_SOURCE[0]}")/agent-shepherd-analyze" ]]; then
-                    "$(dirname "${BASH_SOURCE[0]}")/agent-shepherd-analyze" \
-                        --comment="$shepherd_dir/comment-$comment_idx.json" \
-                        --pr="$pr_number" \
-                        ${auto_apply:+--auto-apply}
-                else
-                    log_warn "Helper script 'agent-shepherd-analyze' not found."
-                    log_info "You can manually investigate: $comment_path:$comment_line"
-                fi
-                ;;
-            2)
-                # Show full file
-                if [[ -f "$comment_path" ]]; then
-                    ${PAGER:-less} "+${comment_line}g" "$comment_path"
-                else
-                    log_error "File not found: $comment_path"
-                fi
-                ;;
-            3)
-                # Reply to comment
-                echo ""
-                read -p "Enter reply message (or press Enter to skip): " reply_msg </dev/tty
-                if [[ -n "$reply_msg" ]]; then
-                    gh api "repos/:owner/:repo/pulls/$pr_number/comments/$comment_id/replies" \
-                        -X POST \
-                        -f body="$reply_msg" >/dev/null 2>&1 && \
-                        log_success "Reply posted!" || \
-                        log_error "Failed to post reply"
-                fi
-                ;;
-            4)
-                log_info "Skipping comment"
-                ;;
-            q|Q)
-                log_info "Exiting shepherd"
-                rm -rf "$shepherd_dir"
-                exit 0
-                ;;
-            *)
-                log_warn "Invalid choice, skipping"
-                ;;
-        esac
+---
 
-        echo ""
-        echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
-        echo ""
-    done < <(echo "$comments_json" | jq -c '.[]')
+EOF
+    fi
 
-    # Cleanup
-    rm -rf "$shepherd_dir"
+    # Format each thread with all its comments using jq
+    # This avoids bash loop subshell issues
+    local threads_content=$(echo "$unresolved_threads" | jq -r '
+      to_entries | map(
+        "## Thread \(.key + 1): `\(.value.comments.nodes[0].path):\(.value.comments.nodes[0].line // .value.comments.nodes[0].originalLine)`\n\n" +
+        "### Code Context\n\n```diff\n\(.value.comments.nodes[0].diffHunk)\n```\n\n" +
+        "### Discussion\n\n" +
+        (.value.comments.nodes | to_entries | map(
+          if .key == 0 then
+            "**Original Comment** by @\(.value.author.login) (\(.value.createdAt)):\n\n\(.value.body)\n"
+          else
+            "\n**Reply** by @\(.value.author.login) (\(.value.createdAt)):\n\n\(.value.body)\n"
+          end
+        ) | join("\n")) +
+        "\n\n---\n"
+      ) | join("\n")
+    ')
 
+    echo "$threads_content" >> "$context_file"
+
+    # Get AI tool configuration
+    local ai_command=$(get_config_value 'ai_tool.command' 'claude-code')
+    local worktree=$(pwd)
+
+    log_success "Context updated: $context_file"
+    log_info "Launching AI tool: $ai_command"
     echo ""
-    log_success "Shepherd session complete!"
-    log_info "Review the PR: gh pr view $pr_number --web"
+
+    # Create initial message that tells the AI to address the PR comments
+    local initial_message="Please address the PR review comments that have been added to the context."
+
+    # Launch AI tool with context
+    cd "$worktree"
+
+    # Launch with message
+    if command -v "$ai_command" &> /dev/null; then
+        exec "$ai_command" "$worktree" "$initial_message"
+    else
+        log_warn "AI command '$ai_command' not found."
+        echo ""
+        echo -e "${BOLD}Context file:${NC} $context_file"
+        echo -e "${BOLD}Launch your AI tool manually with:${NC} $ai_command $worktree"
+        echo ""
+        log_info "Preview of PR comments:"
+        tail -100 "$context_file"
+    fi
 }
 
 # ============================================================================
