@@ -17,11 +17,6 @@ common/fish/.config/fish/fish_variables
 common/fish/.config/fish/personal.fish
 common/fish/.config/fish/local.fish
 
-# Agent harness runtime data
-common/agents/.config/agents/sessions/*
-common/agents/.config/agents/contexts/*
-!common/agents/.config/agents/templates
-
 # Backup directories
 dotfiles-backup-*/
 
