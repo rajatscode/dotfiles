@@ -791,7 +791,7 @@ cmd_shepherd() {
         local git_root=$(get_git_root 2>/dev/null) || true
         local current_dir=$(pwd)
 
-        for session_file in "$AGENT_SESSIONS_DIR"/*.yaml 2>/dev/null; do
+        for session_file in "$AGENT_SESSIONS_DIR"/*.yaml; do
             [[ -e "$session_file" ]] || continue
             local worktree=$(grep "^worktree:" "$session_file" | cut -d' ' -f2-)
             if [[ "$current_dir" == "$worktree"* ]]; then
