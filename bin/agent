@@ -535,6 +535,35 @@ cmd_switch() {
     # - export AGENT_SESSION environment variable
 }
 
+# Leave current agent session
+cmd_leave() {
+    # Get session name from environment variable
+    local session_name="${AGENT_SESSION}"
+
+    if [[ -z "$session_name" ]]; then
+        die "Not in an agent session. AGENT_SESSION environment variable not set."
+    fi
+
+    # Validate session exists
+    session_exists "$session_name" || die "Session '$session_name' not found."
+
+    # Get repo path from session metadata
+    local repo_path=$(get_session_value "$session_name" "repo")
+
+    if [[ -z "$repo_path" || ! -d "$repo_path" ]]; then
+        log_warn "Original repo path not found or invalid: $repo_path"
+        echo "Left agent session"
+        return 0
+    fi
+
+    # Output message that shell wrapper will parse
+    log_success "Left agent session, returned to: $repo_path"
+
+    # Note: The shell wrapper function will:
+    # - unset AGENT_SESSION environment variable
+    # - cd back to the original repo directory
+}
+
 # View or edit session context
 cmd_context() {
     local session_name="$1"
@@ -1626,6 +1655,9 @@ main() {
             ;;
         switch|sw)
             cmd_switch "$@"
+            ;;
+        leave)
+            cmd_leave "$@"
             ;;
         context|ctx)
             cmd_context "$@"
