@@ -14,11 +14,17 @@ fi
 
 echo "Fixing TabNine YCM compatibility with Python 3.10+..."
 
-# Find all Python files with the old import
-files_to_fix=$(find "$TABNINE_DIR/third_party/ycmd" -name "*.py" -type f -exec grep -l "from collections import.*Mapping" {} \; 2>/dev/null || true)
+# Find all Python files with old imports
+files_with_import=$(find "$TABNINE_DIR/third_party/ycmd" -name "*.py" -type f -exec grep -l "from collections import.*Mapping" {} \; 2>/dev/null || true)
+
+# Find all Python files using collections.Mapping directly
+files_with_usage=$(find "$TABNINE_DIR/third_party/ycmd" -name "*.py" -type f -exec grep -l "collections\.Mapping" {} \; 2>/dev/null || true)
+
+# Combine and deduplicate
+files_to_fix=$(echo -e "$files_with_import\n$files_with_usage" | sort -u | grep -v '^$' || true)
 
 if [[ -z "$files_to_fix" ]]; then
-    echo "No files found with old collections.Mapping import. Already fixed or different issue."
+    echo "No files found with old collections.Mapping usage. Already fixed!"
     exit 0
 fi
 
@@ -32,8 +38,11 @@ for file in $files_to_fix; do
     # Create backup
     cp "$file" "$file.bak"
 
-    # Replace the import
+    # Replace import statements
     sed -i '' 's/from collections import \(.*\)Mapping/from collections.abc import \1Mapping/g' "$file"
+
+    # Replace direct usage of collections.Mapping
+    sed -i '' 's/collections\.Mapping/collections.abc.Mapping/g' "$file"
 done
 
 echo ""
