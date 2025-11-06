@@ -117,9 +117,9 @@ let g:ale_lint_on_enter = 0
 let g:gitgutter_enabled=0
 nnoremap <silent> <leader>d :GitGutterToggle<cr>
 
-" vim-werewolf config: alabaster by day, zellner/zenburn by night
-let g:werewolf_day_themes = ['alabaster']
-let g:werewolf_night_themes = ['zellner', 'zenburn']
+" vim-werewolf config: dracula by day, zenburn by night
+let g:werewolf_day_themes = ['dracula']
+let g:werewolf_night_themes = ['zenburn']
 let g:werewolf_day_start = 6
 let g:werewolf_day_end = 18
 let g:werewolf_change_automatically = 1
