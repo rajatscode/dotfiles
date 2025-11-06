@@ -2,6 +2,10 @@
 
 # Dotfiles Update Script
 # Updates dotfiles from git repo
+#
+# Usage:
+#   dotfiles-update           # Update current branch
+#   dotfiles-update <branch>  # Switch to and update specific branch
 
 set -e
 
@@ -14,6 +18,9 @@ NC='\033[0m'
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[✓]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[!]${NC} $1"; }
+
+# Parse arguments
+BRANCH="${1:-}"
 
 # Find dotfiles directory
 DOTFILES_DIR="${DOTFILES_HOME_DIR:-${HOME}/dotfiles}"
@@ -46,8 +53,25 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 # Pull latest changes
-log_info "Pulling latest changes..."
-git pull --rebase
+if [ -n "$BRANCH" ]; then
+    log_info "Switching to branch: $BRANCH"
+    git fetch origin
+
+    # Check if branch exists locally
+    if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+        # Branch exists locally, checkout and pull
+        git checkout "$BRANCH"
+        log_info "Pulling latest changes from $BRANCH..."
+        git pull --rebase origin "$BRANCH"
+    else
+        # Branch doesn't exist locally, create tracking branch
+        log_info "Creating local branch tracking origin/$BRANCH..."
+        git checkout -b "$BRANCH" "origin/$BRANCH"
+    fi
+else
+    log_info "Pulling latest changes..."
+    git pull --rebase
+fi
 
 # Re-apply stow if needed (optional)
 if command -v stow &>/dev/null; then
