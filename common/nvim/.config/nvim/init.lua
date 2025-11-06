@@ -153,7 +153,6 @@ require("lazy").setup({
     config = function()
       require("mason").setup()
 
-      local lspconfig = require("lspconfig")
       local capabilities = require("cmp_nvim_lsp").default_capabilities()
 
       require("mason-lspconfig").setup({
@@ -168,6 +167,21 @@ require("lazy").setup({
         },
         automatic_installation = true,
       })
+
+      -- Setup function that works with both old and new APIs
+      local function setup_server(name, opts)
+        opts = opts or {}
+        opts.capabilities = capabilities
+
+        -- Use native vim.lsp.config if available (Neovim 0.11+)
+        if vim.lsp.config and vim.lsp.config[name] then
+          vim.lsp.config[name] = opts
+          vim.lsp.enable(name)
+        else
+          -- Fallback to lspconfig for older Neovim versions
+          require("lspconfig")[name].setup(opts)
+        end
+      end
 
       -- LSP keymaps
       vim.api.nvim_create_autocmd("LspAttach", {
@@ -190,18 +204,16 @@ require("lazy").setup({
       })
 
       -- Python: Pyright + Ruff
-      lspconfig.pyright.setup({ capabilities = capabilities })
-      lspconfig.ruff.setup({
-        capabilities = capabilities,
+      setup_server("pyright")
+      setup_server("ruff", {
         on_attach = function(client, bufnr)
           client.server_capabilities.hoverProvider = false
         end,
       })
 
       -- TypeScript/JavaScript
-      lspconfig.ts_ls.setup({ capabilities = capabilities })
-      lspconfig.eslint.setup({
-        capabilities = capabilities,
+      setup_server("ts_ls")
+      setup_server("eslint", {
         on_attach = function(client, bufnr)
           vim.api.nvim_create_autocmd("BufWritePre", {
             buffer = bufnr,
@@ -211,8 +223,7 @@ require("lazy").setup({
       })
 
       -- Rust
-      lspconfig.rust_analyzer.setup({
-        capabilities = capabilities,
+      setup_server("rust_analyzer", {
         settings = {
           ["rust-analyzer"] = {
             checkOnSave = { command = "clippy" },
@@ -222,32 +233,30 @@ require("lazy").setup({
       })
 
       -- OCaml
-      lspconfig.ocamllsp.setup({ capabilities = capabilities })
+      setup_server("ocamllsp")
 
       -- Web
-      lspconfig.html.setup({ capabilities = capabilities })
-      lspconfig.cssls.setup({ capabilities = capabilities })
-      lspconfig.tailwindcss.setup({ capabilities = capabilities })
-      lspconfig.emmet_ls.setup({
-        capabilities = capabilities,
+      setup_server("html")
+      setup_server("cssls")
+      setup_server("tailwindcss")
+      setup_server("emmet_ls", {
         filetypes = { "html", "css", "scss", "javascriptreact", "typescriptreact" },
       })
 
       -- Markdown
-      lspconfig.marksman.setup({ capabilities = capabilities })
+      setup_server("marksman")
 
       -- Others
-      lspconfig.lua_ls.setup({
-        capabilities = capabilities,
+      setup_server("lua_ls", {
         settings = {
           Lua = {
             diagnostics = { globals = { "vim" } },
           },
         },
       })
-      lspconfig.bashls.setup({ capabilities = capabilities })
-      lspconfig.jsonls.setup({ capabilities = capabilities })
-      lspconfig.yamlls.setup({ capabilities = capabilities })
+      setup_server("bashls")
+      setup_server("jsonls")
+      setup_server("yamlls")
 
       -- Diagnostics configuration
       vim.diagnostic.config({
