@@ -128,7 +128,9 @@ get_git_root() {
 
 # Get repo name from path
 get_repo_name() {
-    basename "$(get_git_root)"
+    local root_path=$(basename "$(get_git_root)")
+    # Strip -wt-* suffix if this is a worktree
+    echo "$root_path" | sed 's/-wt-.*//'
 }
 
 # Get session metadata file path

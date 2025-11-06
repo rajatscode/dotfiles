@@ -11,8 +11,37 @@ function agent --description 'Agent session manager with directory switching sup
         return 1
     end
 
+    # Special handling for 'agent leave'
+    if test "$argv[1]" = "leave"
+        if test -z "$AGENT_SESSION"
+            echo "Not in an agent session" >&2
+            return 1
+        end
+
+        # Get the session's repo path to cd back to
+        set -l repo_path ($agent_script list 2>/dev/null | grep -A 3 "^$AGENT_SESSION\$" | grep "Path:" | sed 's/.*Path: *//' | sed 's/-wt-.*//')
+
+        if test -z "$repo_path"
+            # Fallback: just unset and stay in current directory
+            set -e AGENT_SESSION
+            echo "Left agent session"
+            return 0
+        end
+
+        # Unset the session variable
+        set -e AGENT_SESSION
+
+        # Change back to main repo
+        if test -d "$repo_path"
+            cd "$repo_path"
+            echo "Left agent session, returned to: $repo_path"
+        else
+            echo "Left agent session"
+        end
+
+        return 0
     # Special handling for 'agent switch'
-    if test "$argv[1]" = "switch"
+    else if test "$argv[1]" = "switch"
         set -l session_name $argv[2]
 
         if test -z "$session_name"

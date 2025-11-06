@@ -10,8 +10,30 @@ agent() {
         return 1
     fi
 
+    # Special handling for 'agent leave'
+    if [[ "$1" == "leave" ]]; then
+        if [[ -z "$AGENT_SESSION" ]]; then
+            echo "Not in an agent session" >&2
+            return 1
+        fi
+
+        # Get the session's repo path to cd back to
+        local repo_path=$("$agent_script" list 2>/dev/null | grep -A 3 "^$AGENT_SESSION$" | grep "Path:" | sed 's/.*Path: *//' | sed 's/-wt-.*//')
+
+        # Unset the session variable
+        unset AGENT_SESSION
+
+        # Change back to main repo
+        if [[ -n "$repo_path" && -d "$repo_path" ]]; then
+            cd "$repo_path"
+            echo "Left agent session, returned to: $repo_path"
+        else
+            echo "Left agent session"
+        fi
+
+        return 0
     # Special handling for 'agent switch'
-    if [[ "$1" == "switch" ]]; then
+    elif [[ "$1" == "switch" ]]; then
         local session_name="$2"
 
         if [[ -z "$session_name" ]]; then
