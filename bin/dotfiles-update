@@ -22,55 +22,52 @@ log_warn() { echo -e "${YELLOW}[!]${NC} $1"; }
 # Parse arguments
 BRANCH="${1:-}"
 
-# Find dotfiles directory
-DOTFILES_DIR="${DOTFILES_HOME_DIR:-${HOME}/dotfiles}"
+# Use DOTFILES_DIR if set, otherwise default to ~/.dotfiles (the standard install location)
+DOTFILES_DIR="${DOTFILES_DIR:-${HOME}/.dotfiles}"
 
 if [ ! -d "$DOTFILES_DIR/.git" ]; then
-    DOTFILES_DIR="${HOME}/.config/dotfiles"
-    if [ ! -d "$DOTFILES_DIR/.git" ]; then
-        echo "Error: Could not find dotfiles git repository"
-        echo "Tried: \$DOTFILES_HOME_DIR, ~/dotfiles, ~/.config/dotfiles"
-        exit 1
-    fi
+    echo "Error: Could not find dotfiles git repository at $DOTFILES_DIR"
+    echo "Make sure \$DOTFILES_DIR points to your dotfiles installation"
+    exit 1
 fi
 
 log_info "Updating dotfiles from: $DOTFILES_DIR"
 
 cd "$DOTFILES_DIR"
 
-# Check for uncommitted changes
-if [ -n "$(git status --porcelain)" ]; then
-    log_warn "You have uncommitted changes in your dotfiles repo."
-    read -p "Stash changes and update? [y/N] " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        git stash
-        stashed=true
-    else
-        echo "Update cancelled."
-        exit 0
-    fi
+# Fetch latest from origin
+log_info "Fetching from origin..."
+git fetch origin
+
+# Determine target branch
+if [ -n "$BRANCH" ]; then
+    TARGET_BRANCH="$BRANCH"
+else
+    # Use current branch
+    TARGET_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 fi
 
-# Pull latest changes
-if [ -n "$BRANCH" ]; then
-    log_info "Switching to branch: $BRANCH"
-    git fetch origin
+log_info "Force resetting to origin/$TARGET_BRANCH..."
 
-    # Check if branch exists locally
+# Check if remote branch exists
+if ! git rev-parse --verify "origin/$TARGET_BRANCH" &>/dev/null; then
+    echo "Error: Branch origin/$TARGET_BRANCH does not exist"
+    exit 1
+fi
+
+# Force reset to match remote exactly (no merge conflicts possible)
+git reset --hard "origin/$TARGET_BRANCH"
+
+# Checkout the branch if we're switching
+if [ -n "$BRANCH" ] && [ "$(git rev-parse --abbrev-ref HEAD)" != "$BRANCH" ]; then
     if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
-        # Branch exists locally, checkout and pull
         git checkout "$BRANCH"
-        log_info "Pulling latest changes from $BRANCH..."
-        git pull --rebase origin "$BRANCH"
     else
-        # Branch doesn't exist locally, create tracking branch
-        log_info "Creating local branch tracking origin/$BRANCH..."
+        log_info "Creating local branch $BRANCH tracking origin/$BRANCH..."
         git checkout -b "$BRANCH" "origin/$BRANCH"
     fi
-else
-    log_info "Pulling latest changes..."
-    git pull --rebase
+    # Reset again to ensure we're exactly on the remote
+    git reset --hard "origin/$BRANCH"
 fi
 
 # Re-apply stow if needed (optional)
@@ -80,12 +77,6 @@ else
     log_warn "GNU Stow not found. Install it to manage dotfiles with symlinks."
 fi
 
-# Pop stash if we stashed
-if [ "${stashed:-false}" = true ]; then
-    log_info "Reapplying your changes..."
-    git stash pop
-fi
-
-log_success "Dotfiles updated successfully!"
+log_success "Dotfiles updated successfully to $TARGET_BRANCH!"
 log_info "Changes will take effect in new shell sessions."
 log_info "Or run: source ~/.bashrc"
