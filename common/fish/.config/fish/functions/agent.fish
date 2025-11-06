@@ -18,21 +18,24 @@ function agent --description 'Agent session manager with directory switching sup
             return 1
         end
 
-        # Get the session's repo path to cd back to
-        set -l repo_path ($agent_script list 2>/dev/null | grep -A 3 "^$AGENT_SESSION\$" | grep "Path:" | sed 's/.*Path: *//' | sed 's/-wt-.*//')
+        # Get the repo path from session metadata
+        set -l output ($agent_script leave 2>&1)
+        set -l exit_code $status
 
-        if test -z "$repo_path"
-            # Fallback: just unset and stay in current directory
-            set -e AGENT_SESSION
-            echo "Left agent session"
-            return 0
+        if test $exit_code -ne 0
+            echo $output
+            return $exit_code
         end
+
+        # Extract repo path from output
+        # Script outputs: "Left agent session, returned to: /path/to/repo"
+        set -l repo_path (echo $output | grep "returned to:" | sed 's/.*returned to: //')
 
         # Unset the session variable
         set -e AGENT_SESSION
 
-        # Change back to main repo
-        if test -d "$repo_path"
+        # Change directory if we got a path
+        if test -n "$repo_path"; and test -d "$repo_path"
             cd "$repo_path"
             echo "Left agent session, returned to: $repo_path"
         else

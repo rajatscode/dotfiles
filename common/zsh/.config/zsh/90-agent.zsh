@@ -17,13 +17,23 @@ agent() {
             return 1
         fi
 
-        # Get the session's repo path to cd back to
-        local repo_path=$("$agent_script" list 2>/dev/null | grep -A 3 "^$AGENT_SESSION$" | grep "Path:" | sed 's/.*Path: *//' | sed 's/-wt-.*//')
+        # Get the repo path from session metadata
+        local output=$("$agent_script" leave 2>&1)
+        local exit_code=$?
+
+        if [[ $exit_code -ne 0 ]]; then
+            echo "$output"
+            return $exit_code
+        fi
+
+        # Extract repo path from output
+        # Script outputs: "Left agent session, returned to: /path/to/repo"
+        local repo_path=$(echo "$output" | grep "returned to:" | sed 's/.*returned to: //')
 
         # Unset the session variable
         unset AGENT_SESSION
 
-        # Change back to main repo
+        # Change directory if we got a path
         if [[ -n "$repo_path" && -d "$repo_path" ]]; then
             cd "$repo_path"
             echo "Left agent session, returned to: $repo_path"
