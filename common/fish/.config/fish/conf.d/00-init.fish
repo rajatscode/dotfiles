@@ -50,10 +50,10 @@ mkdir -p $DOTFILES_INSTALLS_DIR 2>/dev/null
 
 ## Set default editor (respect user's EDITOR if set)
 if test -z "$EDITOR"
-    if command -v nvim &>/dev/null
-        set -x EDITOR nvim
-    else if command -v vim &>/dev/null
+    if command -v vim &>/dev/null
         set -x EDITOR vim
+    else if command -v nvim &>/dev/null
+        set -x EDITOR nvim
     else
         set -x EDITOR vi
     end
