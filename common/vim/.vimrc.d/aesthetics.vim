@@ -48,11 +48,10 @@ if $COLORTERM == 'gnome-terminal'
   set t_Co=256
 endif
 
-" Set colorscheme to alabaster (minimal, by tonsky)
+" Set colorscheme to dracula (vibrant dark)
 " Note: vim-werewolf settings (in plugins.vim) should override these
-silent! colorscheme zellner
-silent! colorscheme alabaster
-set background=light
+silent! colorscheme dracula
+set background=dark
 
 " Turn on syntax highlighting
 syntax enable

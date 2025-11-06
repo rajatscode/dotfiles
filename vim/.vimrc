@@ -36,8 +36,8 @@ Plugin 'airblade/vim-gitgutter'
 Plugin 'ardagnir/united-front'
 " install peaksea colorscheme
 Plugin 'calincru/peaksea.vim'
-" install alabaster colorscheme (minimalist, by tonsky)
-Plugin 'agudulin/vim-colors-alabaster'
+" install dracula colorscheme
+Plugin 'dracula/vim', { 'name': 'dracula' }
 " Ctrl-P - fuzzy finder
 Plugin 'ctrlpvim/ctrlp.vim'
 " Golang support for vim
