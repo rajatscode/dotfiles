@@ -88,9 +88,6 @@ let g:lightline = {
                   \ 'subseparator': { 'left': ' ', 'right': ' ' }
                   \ }
 
-" vim-fugitive - make sure fugitive#head is set
-au BufReadPre,BufNewFile * silent echom fugitive#head()
-
 " Vimroom
 let g:goyo_width=100
 let g:goyo_margin_top = 2

@@ -38,8 +38,8 @@ if command -v pyenv &>/dev/null
 end
 
 # Rust (cargo)
-if test -f $HOME/.cargo/env
-    source $HOME/.cargo/env
+if test -d $HOME/.cargo/bin; and not contains $HOME/.cargo/bin $PATH
+    set -gx PATH $HOME/.cargo/bin $PATH
 end
 
 ## ============================================================================
