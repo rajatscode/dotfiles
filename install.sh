@@ -276,6 +276,25 @@ install_packages() {
 # Stow Configuration
 # ============================================================================
 
+# Helper function to remove conflicting files before stowing
+remove_conflicting_files() {
+    local module="$1"
+    local source_dir="$2"
+
+    # Find all files that would be stowed
+    find "$source_dir/$module" -type f 2>/dev/null | while read -r source_file; do
+        # Get the relative path from the module directory
+        local rel_path="${source_file#$source_dir/$module/}"
+        local target_file="$HOME/$rel_path"
+
+        # If target exists and is NOT a symlink, remove it
+        if [ -e "$target_file" ] && [ ! -L "$target_file" ]; then
+            log_warn "Removing conflicting file: ~/$rel_path"
+            rm -f "$target_file"
+        fi
+    done
+}
+
 stow_configs() {
     log_header "Installing Configuration Modules"
 
@@ -335,6 +354,8 @@ stow_configs() {
     for module in "${selected_modules[@]}"; do
         if [ -d "$DOTFILES_DIR/common/$module" ]; then
             log_info "Stowing: $module"
+            # Remove conflicting files before stowing
+            remove_conflicting_files "$module" "$DOTFILES_DIR/common"
             stow -R -t ~ -d "$DOTFILES_DIR/common" "$module" 2>&1 | grep -v "BUG in find_stowed_path" || true
             log_success "Installed: $module"
         else
