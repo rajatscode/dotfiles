@@ -71,7 +71,7 @@
 	prereleaseSuffix = -rc
 
 [pull]
-	rebase = true
+	rebase = false
 
 [push]
 	default = current
