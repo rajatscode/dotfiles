@@ -515,6 +515,16 @@ setup_vim() {
             log_step "Updating Vundle plugins..."
             vim +PluginUpdate +qall
             log_success "Vundle plugins updated"
+
+            # Compile YouCompleteMe if it was installed/updated
+            if [ -d "$HOME/.vim/bundle/YouCompleteMe" ] && [ -f "$HOME/.vim/bundle/YouCompleteMe/install.py" ]; then
+                log_step "Compiling YouCompleteMe..."
+                if (cd "$HOME/.vim/bundle/YouCompleteMe" && python3 install.py --all 2>&1); then
+                    log_success "YouCompleteMe compiled successfully"
+                else
+                    log_warn "YouCompleteMe compilation failed - you may need to run it manually"
+                fi
+            fi
         fi
     else
         if ask_user "Install Vundle (Vim plugin manager)?"; then
@@ -533,6 +543,16 @@ setup_vim() {
                 log_step "Installing Vim plugins (this may take a few minutes)..."
                 vim +PluginInstall +qall
                 log_success "Vim plugins installed"
+
+                # Compile YouCompleteMe if it was installed
+                if [ -d "$HOME/.vim/bundle/YouCompleteMe" ] && [ -f "$HOME/.vim/bundle/YouCompleteMe/install.py" ]; then
+                    log_step "Compiling YouCompleteMe (this may take a few minutes)..."
+                    if (cd "$HOME/.vim/bundle/YouCompleteMe" && python3 install.py --all 2>&1); then
+                        log_success "YouCompleteMe compiled successfully"
+                    else
+                        log_warn "YouCompleteMe compilation failed - you may need to run it manually"
+                    fi
+                fi
 
                 log_info "Run ':PluginUpdate' in Vim to update plugins"
             else
