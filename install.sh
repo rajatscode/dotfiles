@@ -566,6 +566,7 @@ setup_vim() {
                             log_success "YouCompleteMe compiled successfully"
                         else
                             log_warn "YouCompleteMe compilation failed - you may need to run it manually"
+                        fi
                     fi
                 fi
 
