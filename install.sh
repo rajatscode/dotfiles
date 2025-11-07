@@ -287,8 +287,14 @@ remove_conflicting_files() {
         local rel_path="${source_file#$source_dir/$module/}"
         local target_file="$HOME/$rel_path"
 
-        # If target exists and is NOT a symlink, remove it
-        if [ -e "$target_file" ] && [ ! -L "$target_file" ]; then
+        # Safety checks:
+        # 1. Target must be under $HOME
+        # 2. Target must exist and NOT be a symlink
+        # 3. Target must NOT be inside DOTFILES_DIR or DOTFILES_REPO
+        if [[ "$target_file" == "$HOME"* ]] && \
+           [[ "$target_file" != "$DOTFILES_DIR"* ]] && \
+           [[ "$target_file" != "$DOTFILES_REPO"* ]] && \
+           [ -e "$target_file" ] && [ ! -L "$target_file" ]; then
             log_warn "Removing conflicting file: ~/$rel_path"
             rm -f "$target_file"
         fi
