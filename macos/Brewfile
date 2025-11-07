@@ -41,6 +41,7 @@ brew "vim"           # Classic vim
 # ============================================================================
 
 brew "gh"            # GitHub CLI
+brew "cmake"         # Build system (required for YCM)
 brew "node"          # JavaScript runtime
 brew "python@3.11"   # Python
 brew "go"            # Go language

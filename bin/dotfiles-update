@@ -91,11 +91,16 @@ if [ -f "$HOME/.vimrc" ] && [ -d "$HOME/.vim/bundle/Vundle.vim" ]; then
 
         # Compile YouCompleteMe if it was just installed/updated
         if [ -d "$HOME/.vim/bundle/YouCompleteMe" ] && [ -f "$HOME/.vim/bundle/YouCompleteMe/install.py" ]; then
-            log_info "Compiling YouCompleteMe..."
-            if (cd "$HOME/.vim/bundle/YouCompleteMe" && python3 install.py --all 2>&1); then
-                log_success "YouCompleteMe compiled successfully"
+            if ! command -v cmake >/dev/null 2>&1; then
+                log_warn "cmake not found - skipping YouCompleteMe compilation"
+                log_info "Install cmake: brew install cmake (macOS) or apt install cmake (Linux)"
             else
-                log_warn "YouCompleteMe compilation failed - you may need to run it manually"
+                log_info "Compiling YouCompleteMe..."
+                if (cd "$HOME/.vim/bundle/YouCompleteMe" && python3 install.py --all 2>&1); then
+                    log_success "YouCompleteMe compiled successfully"
+                else
+                    log_warn "YouCompleteMe compilation failed - you may need to run it manually"
+                fi
             fi
         fi
     else
