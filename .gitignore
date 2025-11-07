@@ -1,11 +1,12 @@
 # installs directory for installed content
 .installs/**
 
+# AI stuff
+**.claude/settings.local.json
+
 # Vim bundles
 vim/.vim/bundle
 vim/.vimrc.d/plugin-config.vim
-
-# Pimped Dotfiles - Additional Ignores
 
 # Personal configurations (not tracked)
 *profile
