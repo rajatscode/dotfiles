@@ -529,7 +529,8 @@ setup_vim() {
                     log_info "Install cmake: brew install cmake (macOS) or apt install cmake (Linux)"
                 else
                     log_step "Compiling YouCompleteMe..."
-                    if (cd "$HOME/.vim/bundle/YouCompleteMe" && python3 install.py --all 2>&1); then
+                    # Use --ts-completer --clangd-completer instead of --all (Go support is broken)
+                    if (cd "$HOME/.vim/bundle/YouCompleteMe" && python3 install.py --ts-completer --clangd-completer 2>&1); then
                         log_success "YouCompleteMe compiled successfully"
                     else
                         log_warn "YouCompleteMe compilation failed - you may need to run it manually"
@@ -562,7 +563,8 @@ setup_vim() {
                         log_info "Install cmake: brew install cmake (macOS) or apt install cmake (Linux)"
                     else
                         log_step "Compiling YouCompleteMe (this may take a few minutes)..."
-                        if (cd "$HOME/.vim/bundle/YouCompleteMe" && python3 install.py --all 2>&1); then
+                        # Use --ts-completer --clangd-completer instead of --all (Go support is broken)
+                        if (cd "$HOME/.vim/bundle/YouCompleteMe" && python3 install.py --ts-completer --clangd-completer 2>&1); then
                             log_success "YouCompleteMe compiled successfully"
                         else
                             log_warn "YouCompleteMe compilation failed - you may need to run it manually"
