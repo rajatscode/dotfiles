@@ -108,7 +108,7 @@ get_worktree_path() {
         echo "${git_root}/${WORKTREE_PREFIX}${name}"
     else
         # Create as sibling directory
-        echo "${git_root}${WORKTREE_LOCATION}/${repo_name}-${WORKTREE_PREFIX}${name}"
+        echo "${git_root}/${WORKTREE_LOCATION}/${repo_name}-${WORKTREE_PREFIX}${name}"
     fi
 }
 
@@ -124,9 +124,7 @@ find_worktree() {
             local wt_basename=$(basename "$wt_path")
 
             # Strip prefix if present
-            local wt_name="${wt_basename#${WORKTREE_PREFIX}}"
-            # Strip repo name prefix if present
-            wt_name="${wt_name#$(get_repo_name)-}"
+            local wt_name="${wt_basename#$(get_repo_name)-${WORKTREE_PREFIX}}"
 
             if [[ "$wt_name" == "$search_name" ]]; then
                 exact_matches+=("$wt_path")
@@ -303,7 +301,7 @@ cmd_add() {
 
     log_success "Worktree created: $worktree_path"
 
-    # Track parent worktree if we're creating from within another worktree
+    # Track parent worktree (where we created this from)
     local current_wt=$(get_current_worktree 2>/dev/null || true)
     local git_root=$(get_git_root)
 
@@ -315,6 +313,11 @@ cmd_add() {
 
         (cd "$worktree_path" && git config worktree.parent "$parent_name")
         log_info "Parent worktree tracked: $parent_name"
+    else
+        # We're in the main repo - track the current branch as parent
+        local current_branch=$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")
+        (cd "$worktree_path" && git config worktree.parent "$current_branch")
+        log_info "Parent branch tracked: $current_branch"
     fi
 
     echo ""
@@ -370,16 +373,14 @@ cmd_list() {
                 [[ "$show_all" == false ]] && continue
             fi
 
-            ((count++))
+            ((++count))
 
             local wt_basename=$(basename "$wt_path")
-            local wt_name="${wt_basename#${WORKTREE_PREFIX}}"
-            wt_name="${wt_name#$(get_repo_name)-}"
+            local wt_name="${wt_basename#$(get_repo_name)-${WORKTREE_PREFIX}}"
 
             # Get branch info
             local info=$(get_worktree_info "$wt_path")
             eval "$info"
-
             # Mark current worktree
             local marker=" "
             if [[ "$wt_path" == "$current_wt" ]]; then
@@ -798,10 +799,37 @@ cmd_return() {
         die "No parent worktree tracked. This worktree was not created from another worktree."
     fi
 
-    log_info "Parent worktree: $parent_name"
+    log_info "Parent: $parent_name"
 
-    # Find parent worktree
-    local parent_wt_path=$(find_worktree "$parent_name") || die "Parent worktree not found: $parent_name"
+    # Find parent worktree, branch, or main repo
+    local parent_wt_path
+    local is_branch=false
+
+    if [[ "$parent_name" == "main" ]]; then
+        # Parent is the main repository
+        parent_wt_path=$(get_git_root)
+    else
+        # Try to find as a worktree first
+        parent_wt_path=$(find_worktree "$parent_name" 2>/dev/null || true)
+
+        if [[ -z "$parent_wt_path" ]]; then
+            # Not a worktree - check if it's a branch in main repo
+            local git_root=$(get_git_root)
+            if (cd "$git_root" && git rev-parse --verify "$parent_name" >/dev/null 2>&1); then
+                parent_wt_path="$git_root"
+                is_branch=true
+                log_info "Parent is a branch in main repository"
+            else
+                die "Parent not found as worktree or branch: $parent_name"
+            fi
+        fi
+    fi
+
+    # Checkout parent branch if needed
+    if $is_branch; then
+        log_step "Checking out branch: $parent_name"
+        (cd "$parent_wt_path" && git checkout "$parent_name" 2>/dev/null) || die "Failed to checkout branch: $parent_name"
+    fi
 
     if $do_merge; then
         # Get current branch
