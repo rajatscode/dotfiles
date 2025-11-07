@@ -4,6 +4,12 @@
 [include]
 	path = ~/.gitprofile
 
+[filter "lfs"]
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+
 [core]
 	editor = vim
 	excludesfile = ~/.gitignore_global
@@ -70,6 +76,7 @@
 [push]
 	default = current
 	followTags = true
+	autoSetupRemote = true
 
 [grep]
 	lineNumber = true

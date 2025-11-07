@@ -89,6 +89,16 @@ if [ -f "$DOTFILES_DIR/bin/fix-tabnine-ycm" ] && [ -d "$HOME/.vim/bundle/tabnine
     "$DOTFILES_DIR/bin/fix-tabnine-ycm" || log_warn "TabNine fix failed or not needed"
 fi
 
+# Update Vim plugins if Vundle is installed
+if [ -f "$HOME/.vimrc" ] && [ -d "$HOME/.vim/bundle/Vundle.vim" ]; then
+    log_info "Installing/updating Vim plugins..."
+    if vim +PluginInstall +qall 2>&1; then
+        log_success "Vim plugins updated"
+    else
+        log_warn "Failed to update Vim plugins"
+    fi
+fi
+
 log_success "Dotfiles updated successfully to $TARGET_BRANCH!"
 log_info "Changes will take effect in new shell sessions."
 log_info "Or run: source ~/.bashrc"
