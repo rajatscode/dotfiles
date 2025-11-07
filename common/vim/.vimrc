@@ -92,6 +92,8 @@ Plugin 'w0rp/ale'
 Plugin 'wincent/command-t'
 " integrate grep like search within vim
 Plugin 'yegappan/grep'
+" code completion engine with LSP support
+Plugin 'ycm-core/YouCompleteMe'
 " local AI code completion via Ollama
 Plugin 'gergap/vim-ollama'
 
