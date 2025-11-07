@@ -67,13 +67,16 @@ augroup python
   autocmd BufNewFile,BufRead *.jinja set syntax=htmljinja
   autocmd BufNewFile,BufRead *.mako set ft=mako
 
+  " turn off vim-sleuth FIRST, before it detects anything
+  autocmd FileType python let b:sleuth_automatic = 0
+
   autocmd FileType python :autocmd! BufWritePost * Isort
   autocmd FileType python AutoFormatBuffer black
 
   autocmd FileType python syn keyword pythonDecorator True None False self
   autocmd FileType python map <buffer> F :set foldmethod=indent<cr>
   autocmd FileType python setlocal
-        \ shiftwidth=4 softtabstop=4 expandtab
+        \ shiftwidth=4 softtabstop=4 tabstop=4 expandtab
         \ colorcolumn=88 textwidth=88
         \ ai si et sta
         \ backspace=indent,eol,start fo=croql
@@ -92,9 +95,6 @@ augroup python
   autocmd FileType python set cindent
   autocmd FileType python set cinkeys-=0#
   autocmd FileType python set indentkeys-=0#
-
-  " turn off vim-sleuth, which messes up expandtab for Python
-  autocmd FileType python let b:sleuth_automatic = 0
 augroup END
 
 augroup css
