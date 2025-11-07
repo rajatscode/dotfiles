@@ -82,7 +82,6 @@
 	lineNumber = true
 
 [merge]
-	ff = only
 	conflictstyle = diff3
 
 [format]
