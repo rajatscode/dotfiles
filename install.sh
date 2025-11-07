@@ -524,7 +524,10 @@ setup_vim() {
 
             # Compile YouCompleteMe if it was installed/updated
             if [ -d "$HOME/.vim/bundle/YouCompleteMe" ] && [ -f "$HOME/.vim/bundle/YouCompleteMe/install.py" ]; then
-                if ! command -v cmake >/dev/null 2>&1; then
+                # Check if already compiled
+                if compgen -G "$HOME/.vim/bundle/YouCompleteMe/third_party/ycmd/ycm_core*.so" > /dev/null; then
+                    log_info "YouCompleteMe already compiled, skipping"
+                elif ! command -v cmake >/dev/null 2>&1; then
                     log_warn "cmake not found - skipping YouCompleteMe compilation"
                     log_info "Install cmake: brew install cmake (macOS) or apt install cmake (Linux)"
                 else
@@ -558,7 +561,10 @@ setup_vim() {
 
                 # Compile YouCompleteMe if it was installed
                 if [ -d "$HOME/.vim/bundle/YouCompleteMe" ] && [ -f "$HOME/.vim/bundle/YouCompleteMe/install.py" ]; then
-                    if ! command -v cmake >/dev/null 2>&1; then
+                    # Check if already compiled
+                    if compgen -G "$HOME/.vim/bundle/YouCompleteMe/third_party/ycmd/ycm_core*.so" > /dev/null; then
+                        log_info "YouCompleteMe already compiled, skipping"
+                    elif ! command -v cmake >/dev/null 2>&1; then
                         log_warn "cmake not found - skipping YouCompleteMe compilation"
                         log_info "Install cmake: brew install cmake (macOS) or apt install cmake (Linux)"
                     else
