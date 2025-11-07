@@ -110,15 +110,8 @@ try
 catch
 endtry
 
-" ============================================================================
-" vim-ollama: Local AI Code Completion
-" ============================================================================
-" Configure Ollama endpoint and model
-let g:ollama_model = 'qwen2.5-coder:7b'
-let g:ollama_endpoint = 'http://localhost:11434'
-
-" Enable auto-completion (ghost text)
-let g:ollama_auto_complete = 1
+" vim-ollama configuration is in ~/.vim/config/ollama.vim
+" Run :Ollama config to edit settings
 
 for fpath in split(glob('$DOTFILES_HOME_DIR/vim/.vimrc.d/*.vim'), '\n')
   exe 'source' fpath
