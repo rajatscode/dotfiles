@@ -524,11 +524,16 @@ setup_vim() {
 
             # Compile YouCompleteMe if it was installed/updated
             if [ -d "$HOME/.vim/bundle/YouCompleteMe" ] && [ -f "$HOME/.vim/bundle/YouCompleteMe/install.py" ]; then
-                log_step "Compiling YouCompleteMe..."
-                if (cd "$HOME/.vim/bundle/YouCompleteMe" && python3 install.py --all 2>&1); then
-                    log_success "YouCompleteMe compiled successfully"
+                if ! command -v cmake >/dev/null 2>&1; then
+                    log_warn "cmake not found - skipping YouCompleteMe compilation"
+                    log_info "Install cmake: brew install cmake (macOS) or apt install cmake (Linux)"
                 else
-                    log_warn "YouCompleteMe compilation failed - you may need to run it manually"
+                    log_step "Compiling YouCompleteMe..."
+                    if (cd "$HOME/.vim/bundle/YouCompleteMe" && python3 install.py --all 2>&1); then
+                        log_success "YouCompleteMe compiled successfully"
+                    else
+                        log_warn "YouCompleteMe compilation failed - you may need to run it manually"
+                    fi
                 fi
             fi
         fi
@@ -552,11 +557,15 @@ setup_vim() {
 
                 # Compile YouCompleteMe if it was installed
                 if [ -d "$HOME/.vim/bundle/YouCompleteMe" ] && [ -f "$HOME/.vim/bundle/YouCompleteMe/install.py" ]; then
-                    log_step "Compiling YouCompleteMe (this may take a few minutes)..."
-                    if (cd "$HOME/.vim/bundle/YouCompleteMe" && python3 install.py --all 2>&1); then
-                        log_success "YouCompleteMe compiled successfully"
+                    if ! command -v cmake >/dev/null 2>&1; then
+                        log_warn "cmake not found - skipping YouCompleteMe compilation"
+                        log_info "Install cmake: brew install cmake (macOS) or apt install cmake (Linux)"
                     else
-                        log_warn "YouCompleteMe compilation failed - you may need to run it manually"
+                        log_step "Compiling YouCompleteMe (this may take a few minutes)..."
+                        if (cd "$HOME/.vim/bundle/YouCompleteMe" && python3 install.py --all 2>&1); then
+                            log_success "YouCompleteMe compiled successfully"
+                        else
+                            log_warn "YouCompleteMe compilation failed - you may need to run it manually"
                     fi
                 fi
 
