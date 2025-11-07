@@ -123,3 +123,13 @@ let g:werewolf_night_themes = ['zenburn']
 let g:werewolf_day_start = 6
 let g:werewolf_day_end = 18
 let g:werewolf_change_automatically = 1
+
+" YouCompleteMe - fast LSP-based completion
+let g:ycm_autoclose_preview_window_after_completion = 1
+let g:ycm_autoclose_preview_window_after_insertion = 1
+let g:ycm_key_list_select_completion = ['<TAB>', '<Down>']
+let g:ycm_key_list_previous_completion = ['<S-TAB>', '<Up>']
+" Disable YCM diagnostics (we have ALE for that)
+let g:ycm_show_diagnostics_ui = 0
+" Don't ask about loading config files
+let g:ycm_confirm_extra_conf = 0
