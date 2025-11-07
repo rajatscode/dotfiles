@@ -83,6 +83,7 @@ set shiftround
 " Default to 4 spaces per tab
 set shiftwidth=4
 set tabstop=4
+set softtabstop=4
 
 " Briefly jump to matching bracket when inserting bracket
 set showmatch
