@@ -1,7 +1,7 @@
 # config.fish - Main Fish Shell Configuration
 # This file sources all configuration modules
 
-## DOTFILES_HOME_DIR and PATH are set in conf.d/00-init.fish
+## DOTFILES_DIR and PATH are set in conf.d/00-init.fish
 ## This ensures they're available early, before any other config files load
 
 ## Create alias symlink directory
@@ -54,12 +54,37 @@ if status is-interactive
         end
 
         if test "$should_sync" = "true"
-            # Check for uncommitted changes first (don't overwrite user's work!)
-            if git -C $dotfiles_dir diff-index --quiet HEAD -- 2>/dev/null
-                # Clean working tree, safe to sync
-                fish -c "cd $dotfiles_dir && git fetch origin >/dev/null 2>&1 && git pull origin main >/dev/null 2>&1 && echo $current_time > $last_sync_file" &
-            end
-            # If dirty, skip sync silently - user is working on dotfiles
+            # All checks inside background process to avoid TOCTOU race conditions
+            fish -c "
+                cd $dotfiles_dir || exit 0
+
+                # Check for uncommitted changes
+                if not git diff-index --quiet HEAD -- 2>/dev/null
+                    # Dirty working tree, skip sync
+                    exit 0
+                end
+
+                # Fetch to get latest remote info
+                git fetch origin >/dev/null 2>&1 || exit 0
+
+                # Check if local is ahead of remote (has local commits)
+                set local_commit (git rev-parse HEAD 2>/dev/null)
+                set remote_commit (git rev-parse @{u} 2>/dev/null; or git rev-parse origin/main 2>/dev/null)
+
+                if test -n \"\$local_commit\" -a -n \"\$remote_commit\" -a \"\$local_commit\" != \"\$remote_commit\"
+                    # Check if local is ahead (has commits not in remote)
+                    if git merge-base --is-ancestor \"\$remote_commit\" \"\$local_commit\" 2>/dev/null
+                        # Local is ahead, skip sync to preserve local work
+                        exit 0
+                    end
+                end
+
+                # Safe to pull: local is behind or equal to remote, working tree is clean
+                # Use --ff-only to prevent merge commits
+                if git pull --ff-only origin main >/dev/null 2>&1
+                    echo $current_time > $last_sync_file
+                end
+            " &
         end
     end
 

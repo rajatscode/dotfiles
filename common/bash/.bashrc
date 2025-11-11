@@ -15,7 +15,7 @@ esac
 # ============================================================================
 
 # Determine dotfiles directory
-if [[ -z "${DOTFILES_HOME_DIR}" ]]; then
+if [[ -z "${DOTFILES_DIR}" ]]; then
     # Try to find dotfiles directory
     # First, check if this bashrc is symlinked and get the source directory
     if [[ -L "${HOME}/.bashrc" ]]; then
@@ -23,26 +23,26 @@ if [[ -z "${DOTFILES_HOME_DIR}" ]]; then
         bashrc_real_path="$(readlink -f "${HOME}/.bashrc" 2>/dev/null || readlink "${HOME}/.bashrc")"
         if [[ -n "$bashrc_real_path" ]]; then
             # Extract dotfiles dir from path like /path/to/dotfiles/common/bash/.bashrc
-            export DOTFILES_HOME_DIR="$(dirname "$(dirname "$(dirname "$bashrc_real_path")")")"
+            export DOTFILES_DIR="$(dirname "$(dirname "$(dirname "$bashrc_real_path")")")"
         fi
     fi
 
     # If still not found, try standard locations
-    if [[ -z "${DOTFILES_HOME_DIR}" ]] || [[ ! -d "${DOTFILES_HOME_DIR}/common/bash" ]]; then
+    if [[ -z "${DOTFILES_DIR}" ]] || [[ ! -d "${DOTFILES_DIR}/common/bash" ]]; then
         if [[ -f "${HOME}/.config/dotfiles/.bashrc" ]] || [[ -d "${HOME}/.config/dotfiles/common/bash" ]]; then
-            export DOTFILES_HOME_DIR="${HOME}/.config/dotfiles"
+            export DOTFILES_DIR="${HOME}/.config/dotfiles"
         elif [[ -f "${HOME}/.dotfiles/.bashrc" ]] || [[ -d "${HOME}/.dotfiles/common/bash" ]]; then
-            export DOTFILES_HOME_DIR="${HOME}/.dotfiles"
+            export DOTFILES_DIR="${HOME}/.dotfiles"
         elif [[ -f "${HOME}/dotfiles/.bashrc" ]] || [[ -d "${HOME}/dotfiles/common/bash" ]]; then
-            export DOTFILES_HOME_DIR="${HOME}/dotfiles"
+            export DOTFILES_DIR="${HOME}/dotfiles"
         else
             # Fallback to default
-            export DOTFILES_HOME_DIR="${HOME}/.configs/dotfiles"
+            export DOTFILES_DIR="${HOME}/.configs/dotfiles"
         fi
     fi
 fi
 
-export BASHRC_HOME_DIR="$DOTFILES_HOME_DIR/common/bash"
+export BASHRC_HOME_DIR="$DOTFILES_DIR/common/bash"
 
 # Environment variables
 export BASHRC_STORED_VARS="${HOME}/.bash_stored_vars"
@@ -53,8 +53,8 @@ export VIM_PERSONAL_PROFILE="${HOME}/.vim_profile"
 export ALIAS_SYMLINK_DIR="${HOME}/.aliased_symlinks"
 
 # Add bin directory to PATH (for agent tools)
-if [[ -d "$DOTFILES_HOME_DIR/bin" ]]; then
-    export PATH="$DOTFILES_HOME_DIR/bin:$PATH"
+if [[ -d "$DOTFILES_DIR/bin" ]]; then
+    export PATH="$DOTFILES_DIR/bin:$PATH"
 fi
 
 # ============================================================================
@@ -86,17 +86,37 @@ _dotfiles_auto_sync() {
     fi
 
     if [[ "$should_sync" == "true" ]]; then
-        # Check for uncommitted changes first (don't overwrite user's work!)
-        if git -C "$dotfiles_dir" diff-index --quiet HEAD -- 2>/dev/null; then
-            # Clean working tree, safe to sync
-            (
-                cd "$dotfiles_dir" && \
-                git fetch origin >/dev/null 2>&1 && \
-                git pull origin main >/dev/null 2>&1 && \
+        # All checks inside background process to avoid TOCTOU race conditions
+        (
+            cd "$dotfiles_dir" || exit 0
+
+            # Check for uncommitted changes
+            if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+                # Dirty working tree, skip sync
+                exit 0
+            fi
+
+            # Fetch to get latest remote info
+            git fetch origin >/dev/null 2>&1 || exit 0
+
+            # Check if local is ahead of remote (has local commits)
+            local local_commit=$(git rev-parse HEAD 2>/dev/null)
+            local remote_commit=$(git rev-parse @{u} 2>/dev/null || git rev-parse origin/main 2>/dev/null)
+
+            if [[ -n "$local_commit" ]] && [[ -n "$remote_commit" ]] && [[ "$local_commit" != "$remote_commit" ]]; then
+                # Check if local is ahead (has commits not in remote)
+                if git merge-base --is-ancestor "$remote_commit" "$local_commit" 2>/dev/null; then
+                    # Local is ahead, skip sync to preserve local work
+                    exit 0
+                fi
+            fi
+
+            # Safe to pull: local is behind or equal to remote, working tree is clean
+            # Use --ff-only to prevent merge commits
+            if git pull --ff-only origin main >/dev/null 2>&1; then
                 echo "$current_time" > "$last_sync_file"
-            ) &
-        fi
-        # If dirty, skip sync silently - user is working on dotfiles
+            fi
+        ) &
     fi
 }
 
