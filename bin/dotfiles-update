@@ -113,5 +113,11 @@ if [ -f "$HOME/.vimrc" ] && [ -d "$HOME/.vim/bundle/Vundle.vim" ]; then
 fi
 
 log_success "Dotfiles updated successfully to $TARGET_BRANCH!"
-log_info "Changes will take effect in new shell sessions."
-log_info "Or run: source ~/.bashrc"
+log_info ""
+log_info "Changes will take effect:"
+log_info "  • Immediately for new shells"
+log_info "  • In existing shells, reload your config:"
+log_info "    - bash: source ~/.bashrc"
+log_info "    - zsh:  source ~/.zshrc"
+log_info "    - fish: source ~/.config/fish/config.fish (or restart shell)"
+log_info ""

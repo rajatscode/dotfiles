@@ -341,7 +341,7 @@ install_configs() {
     # Define available modules by category
     local shell_modules=("bash" "zsh" "fish")
     local vcs_modules=("git" "hg" "jj")
-    local editor_modules=("vim" "nvim")
+    local editor_modules=("vim" "nvim" "zed")
     local other_modules=("tmux" "starship")
     local selected_modules=()
 
@@ -437,6 +437,16 @@ install_configs() {
                     backup_existing_config "$HOME/.config/jj/config.toml"
                     cp "$DOTFILES_DIR/common/jj/.jjconfig.toml" "$HOME/.config/jj/config.toml"
                     log_success "  → Copied jj config"
+                fi
+                ;;
+            zed)
+                # Zed config - JSON doesn't support includes, so copy with note
+                log_info "  → Zed uses template (JSON has no include support)"
+                if [ -f "$DOTFILES_DIR/templates/loaders/settings.json" ]; then
+                    mkdir -p "$HOME/.config/zed"
+                    backup_existing_config "$HOME/.config/zed/settings.json"
+                    cp "$DOTFILES_DIR/templates/loaders/settings.json" "$HOME/.config/zed/settings.json"
+                    log_success "  → Copied zed config (edit directly for customizations)"
                 fi
                 ;;
             *)

@@ -1,0 +1,27 @@
+// ~/.config/zed/settings.json - User Zed configuration
+//
+// NOTE: JSON doesn't support file inclusion, so this config is copied from dotfiles.
+// To keep it updated, run: dotfiles-update && cp ~/.dotfiles/common/zed/.config/zed/settings.json ~/.config/zed/settings.json
+//
+// For local customizations, edit this file directly.
+// The dotfiles zed config serves as a template.
+
+{
+  // Zed Editor Configuration
+  // Cross-platform, AI-first editor setup
+
+  // Theme & Appearance
+  "telemetry": {
+    "diagnostics": true,
+    "metrics": false
+  },
+  "base_keymap": "Emacs",
+  "theme": "Ayu Dark",
+  "ui_font_size": 16,
+  "buffer_font_size": 14,
+  "buffer_font_family": "JetBrains Mono",
+  "tab_size": 2,
+
+  // Add your local customizations anywhere in this file
+  // Changes will not be overwritten by dotfiles updates
+}
