@@ -8,28 +8,28 @@
 # ============================================================================
 
 # Determine dotfiles directory
-if not set -q DOTFILES_HOME_DIR
+if not set -q DOTFILES_DIR
     # Try standard locations
     for dotfiles_candidate in "$HOME/.dotfiles" "$HOME/dotfiles" "$HOME/.config/dotfiles"
         if test -f "$dotfiles_candidate/common/fish/.config/fish/config.fish"
-            set -gx DOTFILES_HOME_DIR $dotfiles_candidate
+            set -gx DOTFILES_DIR $dotfiles_candidate
             break
         end
     end
 
     # If still not found, warn user
-    if not set -q DOTFILES_HOME_DIR
-        echo "Warning: Dotfiles not found. Please set DOTFILES_HOME_DIR environment variable."
+    if not set -q DOTFILES_DIR
+        echo "Warning: Dotfiles not found. Please set DOTFILES_DIR environment variable."
         echo "Expected location: ~/.dotfiles/common/fish/.config/fish/config.fish"
         return
     end
 end
 
 # Source the main dotfiles fish configuration
-if test -f "$DOTFILES_HOME_DIR/common/fish/.config/fish/config.fish"
-    source "$DOTFILES_HOME_DIR/common/fish/.config/fish/config.fish"
+if test -f "$DOTFILES_DIR/common/fish/.config/fish/config.fish"
+    source "$DOTFILES_DIR/common/fish/.config/fish/config.fish"
 else
-    echo "Warning: Dotfiles config.fish not found at $DOTFILES_HOME_DIR/common/fish/.config/fish/config.fish"
+    echo "Warning: Dotfiles config.fish not found at $DOTFILES_DIR/common/fish/.config/fish/config.fish"
 end
 
 # ============================================================================

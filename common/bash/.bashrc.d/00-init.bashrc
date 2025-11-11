@@ -5,7 +5,7 @@
 shopt -s expand_aliases
 
 ## Create installs directory for downloaded tools
-export DOTFILES_INSTALLS_DIR="$DOTFILES_HOME_DIR/.installs"
+export DOTFILES_INSTALLS_DIR="$DOTFILES_DIR/.installs"
 mkdir -p "$DOTFILES_INSTALLS_DIR"
 
 ## Set default editor (respect user's EDITOR if set)

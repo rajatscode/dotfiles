@@ -282,8 +282,20 @@ backup_existing_config() {
     local backup_dir="$HOME/.dotfiles_backup_$(date +%Y%m%d)"
 
     if [ -e "$config_file" ] || [ -L "$config_file" ]; then
+        # Check if file is already a dotfiles loader (skip backup if so)
+        if [ -f "$config_file" ] && grep -q "Source Dotfiles Configuration\|sources the dotfiles" "$config_file" 2>/dev/null; then
+            log_info "  → Skipping backup (already a dotfiles loader)"
+            rm "$config_file"
+            return
+        fi
+
         mkdir -p "$backup_dir"
         local backup_file="$backup_dir/$(basename "$config_file")"
+
+        # If backup already exists, add timestamp to avoid overwriting
+        if [ -e "$backup_file" ]; then
+            backup_file="$backup_dir/$(basename "$config_file").$(date +%H%M%S)"
+        fi
 
         if [ -L "$config_file" ]; then
             log_info "  → Removing old symlink: $config_file"
@@ -315,11 +327,6 @@ install_loader() {
 
     # Install loader
     cp "$DOTFILES_DIR/templates/loaders/$loader_template" "$target_file"
-
-    # Set DOTFILES_DIR in the loader if not already set
-    if ! grep -q "export DOTFILES_DIR=" "$target_file" 2>/dev/null; then
-        sed -i "1i export DOTFILES_DIR=\"$DOTFILES_DIR\"" "$target_file" 2>/dev/null || true
-    fi
 
     log_success "  → Installed loader: $target_file"
 }
