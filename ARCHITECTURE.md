@@ -5,7 +5,7 @@
 This is a next-generation dotfiles setup designed for:
 - **Cross-platform support**: Linux, macOS, Windows WSL
 - **Multiple tool support**: Choose your shell (bash/zsh/fish), VCS (git/hg/jj), editor (vim/nvim/zed)
-- **Modular management**: Using GNU Stow for symlink management
+- **Loader-based management**: Config files source dotfiles (resilient to external modifications)
 - **AI-first workflows**: Built-in harness for parallelized AI coding sessions
 - **Navigation system**: Directory navigation and aliasing
 - **Easy adoption**: Interactive installer with per-tool selection
@@ -136,12 +136,16 @@ A comprehensive bash script that:
 - **Creates personal override files** (.bash_profile, .gitprofile, etc.)
 - **Validates installation**
 
-### 2. Modular Configuration System
+### 2. Loader-Based Configuration System
 
-Uses **GNU Stow** for symlink management:
-- Each directory under `common/`, `macos/`, `linux/`, `windows/` is a stow "package"
-- Running `stow -t ~ bash` from `common/` creates `~/.bashrc` → `dotfiles/common/bash/.bashrc`
-- Easy to adopt individual modules without all-or-nothing approach
+Uses **loader files** instead of symlinks:
+- Your actual config files (`~/.bashrc`, `~/.vimrc`, etc.) source the dotfiles
+- Example: `~/.bashrc` contains `source ~/.dotfiles/common/bash/.bashrc`
+- External tools (npm, pnpm, etc.) can safely modify your configs
+- Easy to add local customizations after the source line
+- Dotfiles git repo stays clean and conflict-free
+- Each directory under `common/`, `macos/`, `linux/` contains versioned configs
+- Loader templates in `templates/loaders/` are copied (not symlinked) to home directory
 - Safe to version control (no private data in repo)
 
 ### 3. AI Agent Parallelization Harness
@@ -387,26 +391,30 @@ export AGENT_SESSION=$(agent current 2>/dev/null)
 - Aliases and functions
 - Editor settings
 - General git config (aliases, defaults)
+- Loader templates
 
 **Local only** (private, not version-controlled):
 - Git user name/email (`~/.gitprofile`)
 - SSH keys
 - API tokens/credentials
-- Machine-specific paths (`~/.bash_profile`)
-- Custom aliases (`~/.bash_aliases`)
+- Local customizations in config files (after dotfiles source line)
+- Backup files created during migration
 
-### Loading Order (Bash Example)
+### Loading Order (Bash Example with Loader Pattern)
 
 ```
-1. .bashrc (main file)
-   ├── Sources vars.sh (env variables)
-   ├── Sources .bashrc.d/*.bashrc (numbered order)
-   │   ├── 00-init.bashrc
-   │   ├── 10-navigation.bashrc
-   │   ├── 20-aliases.bashrc
-   │   ├── ...
-   │   └── 99-local.bashrc
-   └── Sources ~/.bash_profile (user overrides)
+1. ~/.bashrc (your actual file, NOT a symlink)
+   ├── Sets DOTFILES_DIR
+   ├── Sources ~/.dotfiles/common/bash/.bashrc
+   │   ├── Sources vars.sh (env variables)
+   │   ├── Sources .bashrc.d/*.bashrc (numbered order)
+   │   │   ├── 00-init.bashrc
+   │   │   ├── 10-navigation.bashrc
+   │   │   ├── 20-aliases.bashrc
+   │   │   ├── ...
+   │   │   └── 99-local.bashrc
+   │   └── Sets up git config includes
+   └── Your local customizations (directly in ~/.bashrc)
 ```
 
 ---

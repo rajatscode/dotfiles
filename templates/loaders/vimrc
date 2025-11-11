@@ -1,0 +1,60 @@
+" ~/.vimrc - User vim configuration
+"
+" This file sources the dotfiles vim configuration and allows for local customization.
+" The dotfiles are managed separately and can be updated without affecting your local changes.
+
+" ============================================================================
+" Source Dotfiles Configuration
+" ============================================================================
+
+" Determine dotfiles directory
+if empty($DOTFILES_DIR)
+    " Try standard locations
+    for dotfiles_candidate in ['~/.dotfiles', '~/dotfiles', '~/.config/dotfiles']
+        let expanded = expand(dotfiles_candidate)
+        if filereadable(expanded . '/common/vim/.vimrc')
+            let $DOTFILES_DIR = expanded
+            break
+        endif
+    endfor
+
+    " If still not found, warn user
+    if empty($DOTFILES_DIR)
+        echohl WarningMsg
+        echo "Warning: Dotfiles not found. Please set DOTFILES_DIR environment variable."
+        echo "Expected location: ~/.dotfiles/common/vim/.vimrc"
+        echohl None
+        finish
+    endif
+endif
+
+" Source the main dotfiles vim configuration
+let dotfiles_vimrc = $DOTFILES_DIR . '/common/vim/.vimrc'
+if filereadable(dotfiles_vimrc)
+    execute 'source ' . dotfiles_vimrc
+else
+    echohl WarningMsg
+    echo "Warning: Dotfiles vimrc not found at " . dotfiles_vimrc
+    echohl None
+endif
+
+" ============================================================================
+" Local Customizations
+" ============================================================================
+
+" Add your local customizations below this line
+" This section will not be modified by dotfiles updates
+
+" Example: Local key mappings
+" nnoremap <leader>p :echo "Hello from local vimrc"<CR>
+
+" Example: Local settings
+" set number relativenumber
+
+" Example: Local plugin configurations
+" let g:my_custom_plugin_setting = 1
+
+" Source additional local vim config if it exists
+if filereadable(expand('~/.vimrc.local'))
+    source ~/.vimrc.local
+endif
