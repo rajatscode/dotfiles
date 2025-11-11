@@ -72,15 +72,29 @@ alias myalias="cd ~/projects"
 
 ## Updating
 
-Updating is simple since dotfiles are sourced, not symlinked:
+The loader pattern maintains two copies of your dotfiles:
+- `~/dotfiles` - Your work repository (edit here)
+- `~/.dotfiles` - Installed copy (sourced by your configs)
+
+### Updating from Remote (Git)
 
 ```bash
-# Update dotfiles from git
-cd ~/dotfiles
-git pull
-
-# Or use the update command if available
+# Update the installed copy from remote
 dotfiles-update
+```
+
+### Syncing Local Changes
+
+```bash
+# Work on ~/dotfiles freely
+cd ~/dotfiles
+# ... make changes ...
+
+# Sync to installation when ready
+dotfiles-sync
+
+# Or check what would be synced first
+dotfiles-sync --check
 ```
 
 Changes take effect immediately for new shell sessions.

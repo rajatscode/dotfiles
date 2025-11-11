@@ -11,28 +11,28 @@
 # ============================================================================
 
 # Determine dotfiles directory
-if [[ -z "${DOTFILES_DIR}" ]]; then
+if [[ -z "${DOTFILES_HOME_DIR}" ]]; then
     # Try standard locations
     for dotfiles_candidate in "$HOME/.dotfiles" "$HOME/dotfiles" "$HOME/.config/dotfiles"; do
         if [[ -f "$dotfiles_candidate/common/zsh/.zshrc" ]]; then
-            export DOTFILES_DIR="$dotfiles_candidate"
+            export DOTFILES_HOME_DIR="$dotfiles_candidate"
             break
         fi
     done
 
     # If still not found, warn user
-    if [[ -z "${DOTFILES_DIR}" ]]; then
-        echo "Warning: Dotfiles not found. Please set DOTFILES_DIR environment variable."
+    if [[ -z "${DOTFILES_HOME_DIR}" ]]; then
+        echo "Warning: Dotfiles not found. Please set DOTFILES_HOME_DIR environment variable."
         echo "Expected location: ~/.dotfiles/common/zsh/.zshrc"
         return
     fi
 fi
 
 # Source the main dotfiles zsh configuration
-if [[ -f "$DOTFILES_DIR/common/zsh/.zshrc" ]]; then
-    source "$DOTFILES_DIR/common/zsh/.zshrc"
+if [[ -f "$DOTFILES_HOME_DIR/common/zsh/.zshrc" ]]; then
+    source "$DOTFILES_HOME_DIR/common/zsh/.zshrc"
 else
-    echo "Warning: Dotfiles zshrc not found at $DOTFILES_DIR/common/zsh/.zshrc"
+    echo "Warning: Dotfiles zshrc not found at $DOTFILES_HOME_DIR/common/zsh/.zshrc"
 fi
 
 # ============================================================================

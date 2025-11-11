@@ -86,13 +86,17 @@ _dotfiles_auto_sync() {
     fi
 
     if [[ "$should_sync" == "true" ]]; then
-        # Sync silently in background
-        (
-            cd "$dotfiles_dir" && \
-            git fetch origin >/dev/null 2>&1 && \
-            git pull origin main >/dev/null 2>&1 && \
-            echo "$current_time" > "$last_sync_file"
-        ) &
+        # Check for uncommitted changes first (don't overwrite user's work!)
+        if git -C "$dotfiles_dir" diff-index --quiet HEAD -- 2>/dev/null; then
+            # Clean working tree, safe to sync
+            (
+                cd "$dotfiles_dir" && \
+                git fetch origin >/dev/null 2>&1 && \
+                git pull origin main >/dev/null 2>&1 && \
+                echo "$current_time" > "$last_sync_file"
+            ) &
+        fi
+        # If dirty, skip sync silently - user is working on dotfiles
     fi
 }
 
