@@ -115,7 +115,7 @@ endtry
 " vim-ollama configuration is in ~/.vim/config/ollama.vim
 " Run :Ollama config to edit settings
 
-for fpath in split(glob('$DOTFILES_HOME_DIR/vim/.vimrc.d/*.vim'), '\n')
+for fpath in split(glob('$DOTFILES_DIR/common/vim/.vimrc.d/*.vim'), '\n')
   exe 'source' fpath
 endfor
 

@@ -1,5 +1,5 @@
 # 99-local.fish - Local overrides and machine-specific configs
-# This file sources user's personal profile and provides extension points
+# This file provides extension points for development environment managers
 
 ## ============================================================================
 ## Personal Profile
@@ -10,13 +10,16 @@ set -gx VIM_PERSONAL_PROFILE "$HOME/.vim_profile"
 set -gx GIT_PERSONAL_PROFILE "$HOME/.gitprofile"
 set -gx TMUX_PERSONAL_PROFILE "$HOME/.tmux.profile"
 
-# Source personal fish config if it exists
-# Check both personal.fish (created by installer) and local.fish (legacy)
-if test -f ~/.config/fish/personal.fish
-    source ~/.config/fish/personal.fish
-else if test -f ~/.config/fish/local.fish
-    source ~/.config/fish/local.fish
-end
+# NOTE: With the new loader pattern, personal configs should be added to
+# your ~/.config/fish/config.fish file after the line that sources the dotfiles.
+# The ~/.config/fish/personal.fish file is no longer used by default.
+# If you have an existing personal.fish, you can source it here for backward compatibility.
+# Uncomment the next lines if you want to preserve backward compatibility:
+# if test -f ~/.config/fish/personal.fish
+#     source ~/.config/fish/personal.fish
+# else if test -f ~/.config/fish/local.fish
+#     source ~/.config/fish/local.fish
+# end
 
 ## ============================================================================
 ## Local Bin Directories

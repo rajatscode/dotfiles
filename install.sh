@@ -273,41 +273,77 @@ install_packages() {
 }
 
 # ============================================================================
-# Stow Configuration
+# Loader Configuration (New Pattern)
 # ============================================================================
 
-# Helper function to remove conflicting files before stowing
-remove_conflicting_files() {
-    local module="$1"
-    local source_dir="$2"
+# Helper function to backup existing config files
+backup_existing_config() {
+    local config_file="$1"
+    local backup_dir="$HOME/.dotfiles_backup_$(date +%Y%m%d)"
 
-    # Find all files that would be stowed
-    find "$source_dir/$module" -type f 2>/dev/null | while read -r source_file; do
-        # Get the relative path from the module directory
-        local rel_path="${source_file#$source_dir/$module/}"
-        local target_file="$HOME/$rel_path"
-
-        # Safety checks:
-        # 1. Target must be under $HOME
-        # 2. Target must exist and NOT be a symlink
-        # 3. Target must NOT be inside DOTFILES_DIR or DOTFILES_REPO
-        if [[ "$target_file" == "$HOME"* ]] && \
-           [[ "$target_file" != "$DOTFILES_DIR"* ]] && \
-           [[ "$target_file" != "$DOTFILES_REPO"* ]] && \
-           [ -e "$target_file" ] && [ ! -L "$target_file" ]; then
-            log_warn "Removing conflicting file: ~/$rel_path"
-            rm -f "$target_file"
+    if [ -e "$config_file" ] || [ -L "$config_file" ]; then
+        # Check if file is already a dotfiles loader (skip backup if so)
+        if [ -f "$config_file" ] && grep -q "Source Dotfiles Configuration\|sources the dotfiles" "$config_file" 2>/dev/null; then
+            log_info "  → Skipping backup (already a dotfiles loader)"
+            rm "$config_file"
+            return
         fi
-    done
+
+        mkdir -p "$backup_dir"
+        local backup_file="$backup_dir/$(basename "$config_file")"
+
+        # If backup already exists, add timestamp to avoid overwriting
+        if [ -e "$backup_file" ]; then
+            backup_file="$backup_dir/$(basename "$config_file").$(date +%H%M%S)"
+        fi
+
+        if [ -L "$config_file" ]; then
+            log_info "  → Removing old symlink: $config_file"
+            rm "$config_file"
+        else
+            log_info "  → Backing up to: $backup_file"
+            cp -a "$config_file" "$backup_file"
+            rm "$config_file"
+        fi
+    fi
 }
 
-stow_configs() {
-    log_header "Installing Configuration Modules"
+# Install loader file for a specific module
+install_loader() {
+    local module="$1"
+    local target_file="$2"
+    local loader_template="$3"
 
-    # Check if stow is installed
-    if ! command -v stow >/dev/null 2>&1; then
-        die "GNU Stow is not installed. Please install it first."
+    if [ ! -f "$DOTFILES_DIR/templates/loaders/$loader_template" ]; then
+        log_warn "Loader template not found: $loader_template"
+        return 1
     fi
+
+    # Create parent directory if needed
+    mkdir -p "$(dirname "$target_file")"
+
+    # Backup existing config
+    backup_existing_config "$target_file"
+
+    # Install loader
+    cp "$DOTFILES_DIR/templates/loaders/$loader_template" "$target_file"
+
+    log_success "  → Installed loader: $target_file"
+}
+
+install_configs() {
+    log_header "Installing Configuration Loaders"
+
+    log_info "${BOLD}${CYAN}New Pattern: Loaders instead of Symlinks${NC}"
+    echo ""
+    echo "This installation uses a new pattern where your config files"
+    echo "source the dotfiles instead of being symlinked."
+    echo ""
+    echo "Benefits:"
+    echo "  ✓ External tools (npm, pnpm, etc.) can safely modify your configs"
+    echo "  ✓ Your dotfiles git repo stays clean"
+    echo "  ✓ Easy to add local customizations"
+    echo ""
 
     # Define available modules by category
     local shell_modules=("bash" "zsh" "fish")
@@ -355,46 +391,80 @@ stow_configs() {
         done
     fi
 
-    # Stow selected modules
-    log_step "Installing selected modules..."
+    # Install loaders for selected modules
+    log_step "Installing configuration loaders..."
+
     for module in "${selected_modules[@]}"; do
-        if [ -d "$DOTFILES_DIR/common/$module" ]; then
-            log_info "Stowing: $module"
-            # Remove conflicting files before stowing
-            remove_conflicting_files "$module" "$DOTFILES_DIR/common"
-            stow -R -t ~ -d "$DOTFILES_DIR/common" "$module" 2>&1 | grep -v "BUG in find_stowed_path" || true
-            log_success "Installed: $module"
-        else
-            log_warn "Module not found: $module"
-        fi
+        log_info "Installing: $module"
+
+        case "$module" in
+            bash)
+                install_loader "bash" "$HOME/.bashrc" "bashrc"
+                ;;
+            zsh)
+                install_loader "zsh" "$HOME/.zshrc" "zshrc"
+                ;;
+            fish)
+                install_loader "fish" "$HOME/.config/fish/config.fish" "config.fish"
+                ;;
+            vim)
+                install_loader "vim" "$HOME/.vimrc" "vimrc"
+                ;;
+            nvim)
+                install_loader "nvim" "$HOME/.config/nvim/init.lua" "init.lua"
+                ;;
+            git)
+                install_loader "git" "$HOME/.gitconfig" "gitconfig"
+                ;;
+            tmux)
+                install_loader "tmux" "$HOME/.tmux.conf" "tmux.conf"
+                ;;
+            starship)
+                # Starship doesn't support file inclusion, so we copy the config
+                log_info "  → Starship uses direct copy (no file inclusion support)"
+                if [ -f "$DOTFILES_DIR/common/starship/.config/starship.toml" ]; then
+                    mkdir -p "$HOME/.config"
+                    backup_existing_config "$HOME/.config/starship.toml"
+                    cp "$DOTFILES_DIR/common/starship/.config/starship.toml" "$HOME/.config/starship.toml"
+                    log_success "  → Copied starship config"
+                fi
+                ;;
+            hg)
+                # Mercurial config can use %include directive
+                if [ -f "$DOTFILES_DIR/common/hg/.hgrc" ]; then
+                    backup_existing_config "$HOME/.hgrc"
+                    echo "%include $DOTFILES_DIR/common/hg/.hgrc" > "$HOME/.hgrc"
+                    log_success "  → Installed hg config with %include"
+                fi
+                ;;
+            jj)
+                # Jujutsu config - copy for now
+                if [ -f "$DOTFILES_DIR/common/jj/.jjconfig.toml" ]; then
+                    mkdir -p "$HOME/.config/jj"
+                    backup_existing_config "$HOME/.config/jj/config.toml"
+                    cp "$DOTFILES_DIR/common/jj/.jjconfig.toml" "$HOME/.config/jj/config.toml"
+                    log_success "  → Copied jj config"
+                fi
+                ;;
+            zed)
+                # Zed config - JSON doesn't support includes, so copy with note
+                log_info "  → Zed uses template (JSON has no include support)"
+                if [ -f "$DOTFILES_DIR/templates/loaders/settings.json" ]; then
+                    mkdir -p "$HOME/.config/zed"
+                    backup_existing_config "$HOME/.config/zed/settings.json"
+                    cp "$DOTFILES_DIR/templates/loaders/settings.json" "$HOME/.config/zed/settings.json"
+                    log_success "  → Copied zed config (edit directly for customizations)"
+                fi
+                ;;
+            *)
+                log_warn "Unknown module: $module"
+                ;;
+        esac
     done
 
-    # Stow OS-specific configs
-    if [ -d "$DOTFILES_DIR/$OS_TYPE" ]; then
-        log_step "Installing OS-specific configs..."
-
-        if [ "$OS_TYPE" = "macos" ]; then
-            if ask_user "Install macOS window management (yabai/skhd)?"; then
-                [ -d "$DOTFILES_DIR/macos/yabai" ] && stow -R -t ~ -d "$DOTFILES_DIR/macos" yabai 2>&1 | grep -v "BUG in find_stowed_path" || true
-                [ -d "$DOTFILES_DIR/macos/skhd" ] && stow -R -t ~ -d "$DOTFILES_DIR/macos" skhd 2>&1 | grep -v "BUG in find_stowed_path" || true
-                log_success "Window management configs installed"
-            fi
-
-        elif [ "$OS_TYPE" = "linux" ]; then
-            if ask_user "Install i3/sway window manager config?"; then
-                [ -d "$DOTFILES_DIR/linux/i3" ] && stow -R -t ~ -d "$DOTFILES_DIR/linux" i3 2>&1 | grep -v "BUG in find_stowed_path" || true
-                [ -d "$DOTFILES_DIR/linux/sway" ] && stow -R -t ~ -d "$DOTFILES_DIR/linux" sway 2>&1 | grep -v "BUG in find_stowed_path" || true
-                log_success "Window manager configs installed"
-            fi
-
-            if ask_user "Install Alacritty terminal config?"; then
-                [ -d "$DOTFILES_DIR/linux/alacritty" ] && stow -R -t ~ -d "$DOTFILES_DIR/linux" alacritty 2>&1 | grep -v "BUG in find_stowed_path" || true
-                log_success "Alacritty config installed"
-            fi
-        fi
-    fi
-
-    log_success "Configuration modules installed"
+    log_success "Configuration loaders installed"
+    log_info ""
+    log_info "${CYAN}Note: Your old configs have been backed up to ~/.dotfiles_backup_*${NC}"
 }
 
 # ============================================================================
@@ -422,73 +492,20 @@ EOF
         log_info "~/.gitprofile already exists"
     fi
 
-    # Shell personal profiles
-    if [ ! -f "$HOME/.bash_profile" ]; then
-        cat > "$HOME/.bash_profile" <<EOF
-# Personal bash configuration
-# This file is not tracked in the dotfiles repository
+    # NOTE: With the new loader pattern, personal configs go directly in the config files
+    # (e.g., ~/.bashrc, ~/.zshrc, ~/.config/fish/config.fish) after the dotfiles source line
+    # We no longer create separate .bash_profile, .zsh_profile, personal.fish files
 
-# Dotfiles directory (used by agent command and other tools)
-export DOTFILES_DIR="$DOTFILES_DIR"
-
-# Example: Set environment variables
-# export EDITOR=nvim
-
-# Example: Add to PATH
-# export PATH="\$HOME/bin:\$PATH"
-
-# Example: Machine-specific aliases
-# alias myproject="cd ~/projects/myproject"
-EOF
-        log_success "Created ~/.bash_profile"
-    fi
-
-    if [ ! -f "$HOME/.zsh_profile" ]; then
-        cat > "$HOME/.zsh_profile" <<EOF
-# Personal zsh configuration
-# This file is not tracked in the dotfiles repository
-
-# Dotfiles directory (used by agent command and other tools)
-export DOTFILES_DIR="$DOTFILES_DIR"
-
-# Example: Set environment variables
-# export EDITOR=nvim
-
-# Example: Add to PATH
-# export PATH="\$HOME/bin:\$PATH"
-
-# Example: Machine-specific aliases
-# alias myproject="cd ~/projects/myproject"
-EOF
-        log_success "Created ~/.zsh_profile"
-    fi
-
-    # For fish, personal.fish should be created after stowing
-    # It will be referenced by conf.d/99-local.fish but shouldn't be in the repo
-    # Note: If ~/.config/fish is symlinked by stow, the file will appear in the repo
-    # but it's ignored by .gitignore
-    if [ ! -f "$HOME/.config/fish/personal.fish" ] || [ -L "$HOME/.config/fish/personal.fish" ]; then
-        mkdir -p "$HOME/.config/fish"
-        # Create personal.fish in the actual ~/.config/fish directory
-        # Even if it's symlinked, this will work and be ignored by git
-        cat > "$HOME/.config/fish/personal.fish" <<EOF
-# Personal fish configuration
-# This file is not tracked in the dotfiles repository
-
-# Dotfiles directory (used by agent command and other tools)
-set -x DOTFILES_DIR "$DOTFILES_DIR"
-
-# Example: Set environment variables
-# set -x EDITOR nvim
-
-# Example: Add to PATH
-# set -x PATH \$HOME/bin \$PATH
-
-# Example: Machine-specific aliases
-# alias myproject="cd ~/projects/myproject"
-EOF
-        log_success "Created ~/.config/fish/personal.fish"
-    fi
+    log_info ""
+    log_info "${CYAN}Local Customizations:${NC}"
+    log_info "Add your personal configs directly to your config files:"
+    log_info "  • ~/.bashrc    - bash customizations"
+    log_info "  • ~/.zshrc     - zsh customizations"
+    log_info "  • ~/.config/fish/config.fish - fish customizations"
+    log_info "  • ~/.vimrc     - vim customizations"
+    log_info "  • ~/.gitconfig - git customizations"
+    log_info ""
+    log_info "All files have a section for local customizations after the dotfiles source."
 
     # VCS personal configs
     if [ ! -f "$HOME/.hgrc_personal" ] && [ -f "$HOME/.hgrc" ]; then
@@ -919,7 +936,7 @@ main() {
     detect_os
     check_existing_dotfiles
     install_packages
-    stow_configs
+    install_configs  # NEW: Use loader pattern instead of stow
     setup_personal_configs
     setup_vim
     setup_ollama
