@@ -37,24 +37,40 @@ From repo root, run `./tutorial.sh` for a tour.
 
 ## Configuration
 
+### How It Works: Loader Pattern
+
+This dotfiles setup uses a **loader pattern** instead of symlinking:
+
+- Your actual config files (`~/.bashrc`, `~/.vimrc`, etc.) source the dotfiles
+- External tools can safely modify your configs without breaking the dotfiles
+- Local customizations go directly in your config files, after the source line
+
+Example (`~/.bashrc`):
+```bash
+# Source dotfiles
+source ~/.dotfiles/common/bash/.bashrc
+
+# Your local customizations below
+export MY_VAR="value"
+alias myalias="cd ~/projects"
+```
+
 ### Personal Overrides (Not Tracked in Git)
 
-- **`~/.bash_profile`** - Personal bash configuration
 - **`~/.gitprofile`** - Git name, email, personal settings
-- **`~/.tmux.profile`** - Personal tmux configuration
-- **`~/.config/nvim/personal.lua`** - Personal neovim config
+- **Local customizations** - Added directly to config files (see above)
 
 ## Updating
 
-Since configs are symlinked via stow, updating is simple:
+Updating is simple since dotfiles are sourced, not symlinked:
 
 ```bash
 # Update dotfiles from git
-dotfiles-update
-
-# Or manually
 cd ~/dotfiles
 git pull
+
+# Or use the update command if available
+dotfiles-update
 ```
 
 Changes take effect immediately for new shell sessions.

@@ -152,13 +152,6 @@ if [[ -d "$BASHRC_HOME_DIR/.bashrc.d" ]]; then
 fi
 
 # ============================================================================
-# Personal Profile (User Customizations)
-# ============================================================================
-
-# Respect user configs in $BASH_PERSONAL_PROFILE
-[ -f "$BASH_PERSONAL_PROFILE" ] && source "$BASH_PERSONAL_PROFILE"
-
-# ============================================================================
 # Git Personal Config
 # ============================================================================
 
@@ -166,6 +159,10 @@ fi
 if [ -f "$GIT_PERSONAL_PROFILE" ]; then
     git config --global include.path "$GIT_PERSONAL_PROFILE"
 fi
+
+# NOTE: Local customizations should now be added to your ~/.bashrc file
+# after the line that sources this dotfile, not in ~/.bash_profile.
+# This ensures external tools can modify your ~/.bashrc without breaking dotfiles.
 
 # ============================================================================
 # Welcome Message (Optional)

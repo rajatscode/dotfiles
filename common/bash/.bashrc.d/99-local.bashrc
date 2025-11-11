@@ -1,14 +1,18 @@
 # 99-local.bashrc - Local overrides and machine-specific configs
-# This file sources user's personal profile and provides extension points
+# This file provides extension points for development environment managers
 
 ## ============================================================================
 ## Personal Profile
 ## ============================================================================
 
-# Source personal bash profile if it exists
-# This is where users should put machine-specific configs
+# NOTE: With the new loader pattern, personal configs should be added to
+# your ~/.bashrc file after the line that sources the dotfiles.
+# The ~/.bash_profile file is no longer used by default.
+# If you have an existing ~/.bash_profile, you can source it here for backward compatibility.
 if [ -f ~/.bash_profile ]; then
-    source ~/.bash_profile
+    # Uncomment the next line if you want to preserve backward compatibility
+    # source ~/.bash_profile
+    :
 fi
 
 ## ============================================================================
