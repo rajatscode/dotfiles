@@ -54,8 +54,12 @@ if status is-interactive
         end
 
         if test "$should_sync" = "true"
-            # Sync silently in background
-            fish -c "cd $dotfiles_dir && git fetch origin >/dev/null 2>&1 && git pull origin main >/dev/null 2>&1 && echo $current_time > $last_sync_file" &
+            # Check for uncommitted changes first (don't overwrite user's work!)
+            if git -C $dotfiles_dir diff-index --quiet HEAD -- 2>/dev/null
+                # Clean working tree, safe to sync
+                fish -c "cd $dotfiles_dir && git fetch origin >/dev/null 2>&1 && git pull origin main >/dev/null 2>&1 && echo $current_time > $last_sync_file" &
+            end
+            # If dirty, skip sync silently - user is working on dotfiles
         end
     end
 
