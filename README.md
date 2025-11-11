@@ -45,13 +45,23 @@ This dotfiles setup uses a **loader pattern** instead of symlinking:
 - External tools can safely modify your configs without breaking the dotfiles
 - Local customizations go directly in your config files, after the source line
 
-Example (`~/.bashrc`):
+Example (bash: `~/.bashrc`):
 ```bash
 # Source dotfiles
 source ~/.dotfiles/common/bash/.bashrc
 
 # Your local customizations below
 export MY_VAR="value"
+alias myalias="cd ~/projects"
+```
+
+Example (fish: `~/.config/fish/config.fish`):
+```fish
+# Source dotfiles
+source ~/.dotfiles/common/fish/.config/fish/config.fish
+
+# Your local customizations below
+set -gx MY_VAR "value"
 alias myalias="cd ~/projects"
 ```
 
