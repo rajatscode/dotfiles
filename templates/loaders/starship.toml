@@ -1,0 +1,46 @@
+# ~/.config/starship.toml - User starship configuration
+#
+# Starship doesn't support file inclusion, so this is a standalone config.
+# To use the dotfiles starship config, you can copy it manually or symlink it.
+#
+# Option 1: Symlink (traditional approach)
+# ln -sf ~/.dotfiles/common/starship/.config/starship.toml ~/.config/starship.toml
+#
+# Option 2: Copy the dotfiles config and add local customizations here
+# cp ~/.dotfiles/common/starship/.config/starship.toml ~/.config/starship.toml
+
+# NOTE: For starship, the loader pattern doesn't apply well since it doesn't support
+# file inclusion. You can either:
+# 1. Use the symlink approach (breaks with external modifications)
+# 2. Maintain your own starship.toml and periodically sync changes from dotfiles
+# 3. Use a script to merge the dotfiles version with your local customizations
+
+# This is a minimal starship configuration. Replace with your preferred settings.
+
+format = """
+[┌───────────────────────────────────────────────────>](bold green)
+[│](bold green)$directory$git_branch$git_status
+[└─>](bold green) """
+
+[directory]
+style = "blue"
+
+[character]
+success_symbol = "[➜](bold green)"
+error_symbol = "[➜](bold red)"
+
+[git_branch]
+symbol = "🌱 "
+truncation_length = 20
+format = "[$symbol$branch]($style) "
+style = "bold yellow"
+
+[git_status]
+format = '([\[$all_status$ahead_behind\]]($style) )'
+style = "bold red"
+
+# ============================================================================
+# Local Customizations
+# ============================================================================
+
+# Add your local starship customizations below this line

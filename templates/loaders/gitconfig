@@ -1,0 +1,44 @@
+# ~/.gitconfig - User git configuration
+#
+# This file includes the dotfiles git configuration and allows for local customization.
+# The dotfiles are managed separately and can be updated without affecting your local changes.
+
+# ============================================================================
+# Include Dotfiles Configuration
+# ============================================================================
+
+# Include the main dotfiles git configuration
+# Git will look for DOTFILES_DIR environment variable or use default location
+[include]
+	path = ~/.dotfiles/common/git/.gitconfig
+
+# ============================================================================
+# Personal Git Information
+# ============================================================================
+
+# Include personal git profile (name, email, etc.)
+# Create ~/.gitprofile with your personal information:
+#   [user]
+#       name = Your Name
+#       email = your@email.com
+[include]
+	path = ~/.gitprofile
+
+# ============================================================================
+# Local Customizations
+# ============================================================================
+
+# Add your local git customizations below this line
+# This section will not be modified by dotfiles updates
+
+# Example: Local aliases
+# [alias]
+#     myalias = status --short
+
+# Example: Local settings
+# [core]
+#     editor = nano
+
+# Include additional local git config if it exists
+[include]
+	path = ~/.gitconfig.local

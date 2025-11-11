@@ -37,24 +37,64 @@ From repo root, run `./tutorial.sh` for a tour.
 
 ## Configuration
 
+### How It Works: Loader Pattern
+
+This dotfiles setup uses a **loader pattern** instead of symlinking:
+
+- Your actual config files (`~/.bashrc`, `~/.vimrc`, etc.) source the dotfiles
+- External tools can safely modify your configs without breaking the dotfiles
+- Local customizations go directly in your config files, after the source line
+
+Example (bash: `~/.bashrc`):
+```bash
+# Source dotfiles
+source ~/.dotfiles/common/bash/.bashrc
+
+# Your local customizations below
+export MY_VAR="value"
+alias myalias="cd ~/projects"
+```
+
+Example (fish: `~/.config/fish/config.fish`):
+```fish
+# Source dotfiles
+source ~/.dotfiles/common/fish/.config/fish/config.fish
+
+# Your local customizations below
+set -gx MY_VAR "value"
+alias myalias="cd ~/projects"
+```
+
 ### Personal Overrides (Not Tracked in Git)
 
-- **`~/.bash_profile`** - Personal bash configuration
 - **`~/.gitprofile`** - Git name, email, personal settings
-- **`~/.tmux.profile`** - Personal tmux configuration
-- **`~/.config/nvim/personal.lua`** - Personal neovim config
+- **Local customizations** - Added directly to config files (see above)
 
 ## Updating
 
-Since configs are symlinked via stow, updating is simple:
+The loader pattern maintains two copies of your dotfiles:
+- `~/dotfiles` - Your work repository (edit here)
+- `~/.dotfiles` - Installed copy (sourced by your configs)
+
+### Updating from Remote (Git)
 
 ```bash
-# Update dotfiles from git
+# Update the installed copy from remote
 dotfiles-update
+```
 
-# Or manually
+### Syncing Local Changes
+
+```bash
+# Work on ~/dotfiles freely
 cd ~/dotfiles
-git pull
+# ... make changes ...
+
+# Sync to installation when ready
+dotfiles-sync
+
+# Or check what would be synced first
+dotfiles-sync --check
 ```
 
 Changes take effect immediately for new shell sessions.
