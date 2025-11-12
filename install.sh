@@ -89,6 +89,26 @@ ask_user() {
 sync_dotfiles() {
     log_header "Syncing Dotfiles to Installation Directory"
 
+    # DOTFILES_DIR must be different from DOTFILES_REPO
+    # This prevents the installer from modifying the git repository
+    # Use pwd -P to resolve symlinks to physical paths
+    local dotfiles_dir_resolved="$(cd "$DOTFILES_DIR" 2>/dev/null && pwd -P || echo "$DOTFILES_DIR")"
+    local dotfiles_repo_resolved="$(cd "$DOTFILES_REPO" && pwd -P)"
+
+    if [ "$DOTFILES_DIR" = "$DOTFILES_REPO" ] || [ "$dotfiles_dir_resolved" = "$dotfiles_repo_resolved" ]; then
+        log_error "DOTFILES_DIR cannot be the same as the repository directory"
+        log_error "Repository: $DOTFILES_REPO"
+        log_error "Install target: $DOTFILES_DIR"
+        echo ""
+        log_info "The installer must install to a separate directory to avoid modifying"
+        log_info "the git repository. Please set DOTFILES_DIR to a different location:"
+        echo ""
+        echo "  export DOTFILES_DIR=\"\$HOME/.dotfiles\""
+        echo "  ./install.sh"
+        echo ""
+        die "Installation directory conflict - cannot install to repository directory"
+    fi
+
     if [ -d "$DOTFILES_DIR/.git" ]; then
         log_step "Updating existing installation at $DOTFILES_DIR..."
 
@@ -273,7 +293,7 @@ install_packages() {
 }
 
 # ============================================================================
-# Loader Configuration (New Pattern)
+# Loader Configuration
 # ============================================================================
 
 # Helper function to backup existing config files
@@ -334,10 +354,9 @@ install_loader() {
 install_configs() {
     log_header "Installing Configuration Loaders"
 
-    log_info "${BOLD}${CYAN}New Pattern: Loaders instead of Symlinks${NC}"
+    log_info "${BOLD}${CYAN}Configuration Approach: Loaders${NC}"
     echo ""
-    echo "This installation uses a new pattern where your config files"
-    echo "source the dotfiles instead of being symlinked."
+    echo "Your config files will source the dotfiles instead of being symlinked."
     echo ""
     echo "Benefits:"
     echo "  ✓ External tools (npm, pnpm, etc.) can safely modify your configs"
@@ -492,8 +511,8 @@ EOF
         log_info "~/.gitprofile already exists"
     fi
 
-    # NOTE: With the new loader pattern, personal configs go directly in the config files
-    # (e.g., ~/.bashrc, ~/.zshrc, ~/.config/fish/config.fish) after the dotfiles source line
+    # Personal configs go directly in the config files (e.g., ~/.bashrc, ~/.zshrc,
+    # ~/.config/fish/config.fish) after the dotfiles source line.
     # We no longer create separate .bash_profile, .zsh_profile, personal.fish files
 
     log_info ""
@@ -936,7 +955,7 @@ main() {
     detect_os
     check_existing_dotfiles
     install_packages
-    install_configs  # NEW: Use loader pattern instead of stow
+    install_configs
     setup_personal_configs
     setup_vim
     setup_ollama

@@ -184,9 +184,9 @@ if [ -f "$GIT_PERSONAL_PROFILE" ]; then
     git config --global include.path "$GIT_PERSONAL_PROFILE"
 fi
 
-# NOTE: Local customizations should now be added to your ~/.bashrc file
-# after the line that sources this dotfile, not in ~/.bash_profile.
-# This ensures external tools can modify your ~/.bashrc without breaking dotfiles.
+# Local customizations should be added to your ~/.bashrc file after the line
+# that sources this dotfile, not in ~/.bash_profile. This ensures external tools
+# can modify your ~/.bashrc without breaking dotfiles.
 
 # ============================================================================
 # Welcome Message (Optional)
