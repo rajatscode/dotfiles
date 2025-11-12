@@ -10,10 +10,10 @@ set -gx VIM_PERSONAL_PROFILE "$HOME/.vim_profile"
 set -gx GIT_PERSONAL_PROFILE "$HOME/.gitprofile"
 set -gx TMUX_PERSONAL_PROFILE "$HOME/.tmux.profile"
 
-# NOTE: With the new loader pattern, personal configs should be added to
-# your ~/.config/fish/config.fish file after the line that sources the dotfiles.
-# The ~/.config/fish/personal.fish file is no longer used by default.
-# If you have an existing personal.fish, you can source it here for backward compatibility.
+# Personal configs should be added to your ~/.config/fish/config.fish file
+# after the line that sources the dotfiles. The ~/.config/fish/personal.fish
+# file is no longer used by default. If you have an existing personal.fish,
+# you can source it here for backward compatibility.
 # Uncomment the next lines if you want to preserve backward compatibility:
 # if test -f ~/.config/fish/personal.fish
 #     source ~/.config/fish/personal.fish
