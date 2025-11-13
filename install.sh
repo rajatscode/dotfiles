@@ -112,6 +112,41 @@ sync_dotfiles() {
     if [ -d "$DOTFILES_DIR/.git" ]; then
         log_step "Updating existing installation at $DOTFILES_DIR..."
 
+        # Check if git remote points to local repository directory
+        local remote_url=$(git -C "$DOTFILES_DIR" remote get-url origin 2>/dev/null || echo "")
+
+        # Check if remote URL is a local path pointing to DOTFILES_REPO
+        if [ -n "$remote_url" ]; then
+            # Resolve the remote URL to an absolute path if it's a local path
+            local remote_resolved=""
+            if [ -d "$remote_url" ]; then
+                remote_resolved="$(cd "$remote_url" 2>/dev/null && pwd -P || echo "")"
+            elif [[ "$remote_url" != http* ]] && [[ "$remote_url" != git@* ]] && [[ "$remote_url" != ssh:* ]]; then
+                # It's a relative local path - resolve it relative to DOTFILES_DIR
+                remote_resolved="$(cd "$DOTFILES_DIR" && cd "$remote_url" 2>/dev/null && pwd -P || echo "")"
+            fi
+
+            # If remote points to the repository directory, fix it
+            if [ -n "$remote_resolved" ] && [ "$remote_resolved" = "$dotfiles_repo_resolved" ]; then
+                log_warn "Installation directory's git remote points to local repository"
+                log_warn "This can cause repo modifications. Updating remote to GitHub..."
+
+                # Get the GitHub URL from the repository directory
+                local github_url=$(git -C "$DOTFILES_REPO" remote get-url origin 2>/dev/null || echo "")
+
+                if [[ "$github_url" == http* ]] || [[ "$github_url" == git@* ]] || [[ "$github_url" == ssh:* ]]; then
+                    git -C "$DOTFILES_DIR" remote set-url origin "$github_url"
+                    log_success "Updated installation remote to: $github_url"
+                else
+                    log_warn "Could not determine GitHub URL, skipping sync"
+                    log_info "You may need to manually fix: cd $DOTFILES_DIR && git remote set-url origin <github-url>"
+                    log_info "Installation directory: $DOTFILES_DIR"
+                    log_info "Repository directory: $DOTFILES_REPO"
+                    return
+                fi
+            fi
+        fi
+
         # Fetch and pull latest changes
         if git -C "$DOTFILES_DIR" fetch origin && git -C "$DOTFILES_DIR" pull origin main 2>&1; then
             log_success "Dotfiles updated from remote"
@@ -127,12 +162,29 @@ sync_dotfiles() {
             rm -rf "$DOTFILES_DIR"
         fi
 
-        # Clone the repo
-        if git clone "$DOTFILES_REPO" "$DOTFILES_DIR"; then
-            log_success "Dotfiles cloned to $DOTFILES_DIR"
+        # Get the GitHub URL from the repository directory
+        # We clone from the remote, not the local repo, to avoid linking to local directory
+        local github_url=$(git -C "$DOTFILES_REPO" remote get-url origin 2>/dev/null || echo "")
+
+        if [[ "$github_url" == http* ]] || [[ "$github_url" == git@* ]] || [[ "$github_url" == ssh:* ]]; then
+            # Clone from GitHub remote
+            log_info "Cloning from: $github_url"
+            if git clone "$github_url" "$DOTFILES_DIR"; then
+                log_success "Dotfiles cloned to $DOTFILES_DIR"
+            else
+                log_error "Failed to clone dotfiles from GitHub"
+                die "Could not set up dotfiles installation directory"
+            fi
         else
-            log_error "Failed to clone dotfiles"
-            die "Could not set up dotfiles installation directory"
+            # Fallback: Clone from local repo if no remote configured
+            log_warn "No GitHub remote found, cloning from local repository"
+            log_warn "This is not recommended for normal use"
+            if git clone "$DOTFILES_REPO" "$DOTFILES_DIR"; then
+                log_success "Dotfiles cloned to $DOTFILES_DIR"
+            else
+                log_error "Failed to clone dotfiles"
+                die "Could not set up dotfiles installation directory"
+            fi
         fi
     fi
 
