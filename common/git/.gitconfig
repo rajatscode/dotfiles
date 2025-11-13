@@ -50,6 +50,25 @@
 	# Security: Remove files from git history
 	scrub = !git-scrub
 
+	# Stacked branch workflow helpers
+	# Usage: git restack <parent-branch>
+	# Rebases current branch onto main, skipping all commits from parent-branch
+	restack = "!f() { \
+		if [ -z \"$1\" ]; then \
+			echo \"Usage: git restack <parent-branch>\"; \
+			echo \"Rebases current branch onto main, removing parent branch commits\"; \
+			return 1; \
+		fi; \
+		echo \"Fetching latest main...\"; \
+		git fetch origin main:main && \
+		echo \"Rebasing onto main, skipping commits from $1...\" && \
+		git rebase --onto main \"$1\"; \
+	}; f"
+
+	# Usage: git sync-main
+	# Updates main branch from origin without checking it out
+	sync-main = fetch origin main:main
+
 [color]
 	ui = true
 
