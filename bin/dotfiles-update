@@ -76,6 +76,53 @@ if ! command -v yq &>/dev/null; then
     log_info "Install yq: brew install yq (macOS) or apt install yq (Ubuntu) or pacman -S yq (Arch)"
 fi
 
+# Install/update system packages
+log_info "Installing/updating system packages..."
+case "$(uname)" in
+    Linux)
+        if command -v apt-get &>/dev/null; then
+            # Debian/Ubuntu
+            if [ -f "$DOTFILES_DIR/linux/packages-apt.txt" ]; then
+                log_info "Installing packages from packages-apt.txt..."
+                # apt-get install will skip already-installed packages
+                if grep -v "^#" "$DOTFILES_DIR/linux/packages-apt.txt" | grep -v "^$" | xargs sudo apt-get install -y 2>&1; then
+                    log_success "Packages updated (apt)"
+                else
+                    log_warn "Some packages failed to install (apt)"
+                fi
+            fi
+        elif command -v pacman &>/dev/null; then
+            # Arch Linux
+            if [ -f "$DOTFILES_DIR/linux/packages-pacman.txt" ]; then
+                log_info "Installing packages from packages-pacman.txt..."
+                # --needed flag skips already-installed packages
+                if grep -v "^#" "$DOTFILES_DIR/linux/packages-pacman.txt" | grep -v "^$" | xargs sudo pacman -S --noconfirm --needed 2>&1; then
+                    log_success "Packages updated (pacman)"
+                else
+                    log_warn "Some packages failed to install (pacman)"
+                fi
+            fi
+        else
+            log_warn "No supported package manager found (apt/pacman)"
+        fi
+        ;;
+    Darwin)
+        # macOS
+        if command -v brew &>/dev/null; then
+            if [ -f "$DOTFILES_DIR/macos/Brewfile" ]; then
+                log_info "Installing packages from Brewfile..."
+                if brew bundle --file="$DOTFILES_DIR/macos/Brewfile" 2>&1; then
+                    log_success "Packages updated (brew)"
+                else
+                    log_warn "Some packages failed to install (brew)"
+                fi
+            fi
+        else
+            log_warn "Homebrew not found"
+        fi
+        ;;
+esac
+
 # Update Vim plugins if Vundle is installed
 if [ -f "$HOME/.vimrc" ] && [ -d "$HOME/.vim/bundle/Vundle.vim" ]; then
     log_info "Installing/updating Vim plugins..."

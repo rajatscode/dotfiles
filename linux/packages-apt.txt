@@ -57,6 +57,7 @@ fonts-hack-ttf
 # Language Tooling
 python3-pip
 python3-venv
+python3-isort
 nodejs
 npm
 rustc
