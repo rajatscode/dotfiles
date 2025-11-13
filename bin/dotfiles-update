@@ -123,20 +123,6 @@ case "$(uname)" in
         ;;
 esac
 
-# Install Python tools needed by Vim plugins
-log_info "Installing Python tools for Vim..."
-if command -v python3 &>/dev/null && command -v pip3 &>/dev/null; then
-    # Install isort for vim-isort plugin
-    # Use --user to avoid permission issues, --upgrade to ensure latest version
-    if python3 -m pip install --user --upgrade --quiet isort 2>&1; then
-        log_success "Python tools installed (isort)"
-    else
-        log_warn "Failed to install Python tools via pip"
-    fi
-else
-    log_warn "python3 or pip3 not found - skipping Python tools installation"
-fi
-
 # Update Vim plugins if Vundle is installed
 if [ -f "$HOME/.vimrc" ] && [ -d "$HOME/.vim/bundle/Vundle.vim" ]; then
     log_info "Installing/updating Vim plugins..."
