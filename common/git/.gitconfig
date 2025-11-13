@@ -47,6 +47,9 @@
 	wtr = worktree remove
 	wtp = worktree prune
 
+	# Security: Remove files from git history
+	scrub = !git-scrub
+
 	# Stacked branch workflow helpers
 	# Usage: git restack <parent-branch>
 	# Rebases current branch onto main, skipping all commits from parent-branch
