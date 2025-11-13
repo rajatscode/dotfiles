@@ -38,6 +38,8 @@ Plugin 'ardagnir/united-front'
 Plugin 'calincru/peaksea.vim'
 " install dracula colorscheme
 Plugin 'dracula/vim', { 'name': 'dracula' }
+" install zenburn colorscheme
+Plugin 'jnurmine/Zenburn'
 " Ctrl-P - fuzzy finder
 Plugin 'ctrlpvim/ctrlp.vim'
 " Golang support for vim
