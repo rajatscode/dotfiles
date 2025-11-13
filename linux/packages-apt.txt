@@ -1,7 +1,6 @@
 # Debian/Ubuntu packages
 
 # Core tools
-stow
 git
 fzf
 ripgrep

@@ -4,7 +4,7 @@ This directory contains loader templates that implement the **inverted customiza
 
 ## The Problem
 
-Traditional dotfiles setups use GNU Stow to symlink config files from the repo to your home directory:
+Traditional dotfiles setups symlink config files from the repo to your home directory:
 ```
 ~/.bashrc → ~/dotfiles/common/bash/.bashrc
 ~/.vimrc → ~/dotfiles/common/vim/.vimrc
@@ -94,14 +94,14 @@ The loader pattern maintains decoupling between your git repo and live configs:
 - External tools (npm, pnpm) can modify your configs safely
 - Best of both worlds: decoupling + resilience
 
-## Migration from Stow
+## Migration from Symlink-based Setup
 
-If you're migrating from the old stow-based setup:
+If you're migrating from an old symlink-based setup:
 
 1. Backup any local customizations
-2. Run the new installer: `./install.sh`
+2. Run the installer: `./install.sh`
 
-The installer will automatically backup existing configs and install the loader-based pattern.
+The installer will automatically detect and remove old symlinks, backup existing configs, and install the loader-based pattern.
 
 ## Benefits
 
