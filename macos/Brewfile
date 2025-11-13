@@ -4,7 +4,6 @@
 # Core CLI Tools
 # ============================================================================
 
-brew "stow"          # Symlink manager for dotfiles
 brew "git"           # Version control
 brew "git-delta"     # Better git diffs
 brew "jj"            # Jujutsu - next-gen VCS with powerful workflows

@@ -255,13 +255,12 @@ check_existing_dotfiles() {
     done
 
     if [ ${#existing_files[@]} -gt 0 ]; then
-        log_warn "Found existing dotfiles that will be replaced by stow:"
+        log_warn "Found existing dotfiles that will be backed up:"
         for file in "${existing_files[@]}"; do
             echo "  - ~/$file"
         done
         echo ""
-        log_info "Stow will overwrite these files with symlinks to the dotfiles repo."
-        log_info "Back them up manually if needed, then remove them before continuing."
+        log_info "These files will be backed up to ~/.dotfiles_backup_* before installation."
         echo ""
 
         if ! ask_user "Continue with installation?"; then
@@ -348,12 +347,88 @@ install_packages() {
 # Loader Configuration
 # ============================================================================
 
+# Helper function to check if a path resolves to the repository directory
+# This prevents accidental writes to the git repository
+path_points_to_repo() {
+    local path="$1"
+
+    # If path doesn't exist, check parent directories
+    local check_path="$path"
+    while [ ! -e "$check_path" ] && [ "$check_path" != "/" ] && [ "$check_path" != "." ]; do
+        check_path="$(dirname "$check_path")"
+    done
+
+    # If we couldn't find an existing path, it's safe
+    if [ ! -e "$check_path" ]; then
+        return 1
+    fi
+
+    # Resolve the path to its physical location (follow all symlinks)
+    local resolved_path="$(cd "$(dirname "$check_path")" 2>/dev/null && pwd -P)/$(basename "$check_path")" || echo ""
+
+    # If it's a symlink, resolve it
+    if [ -L "$check_path" ]; then
+        resolved_path="$(readlink -f "$check_path" 2>/dev/null || realpath "$check_path" 2>/dev/null || echo "")"
+    fi
+
+    # Check if resolved path is within the repository
+    local dotfiles_repo_resolved="$(cd "$DOTFILES_REPO" && pwd -P)"
+
+    if [ -n "$resolved_path" ]; then
+        # Check if resolved path starts with repo path
+        case "$resolved_path" in
+            "$dotfiles_repo_resolved"*)
+                return 0  # Path points to repo
+                ;;
+        esac
+    fi
+
+    return 1  # Path does not point to repo
+}
+
+# Helper function to remove symlinks that point to the repository
+# This ensures we never write to the repository directory
+remove_repo_symlinks() {
+    local target_path="$1"
+
+    # Check each component of the path from $HOME down to the target
+    local current_path="$HOME"
+    local remaining_path="${target_path#$HOME/}"
+
+    # Split the remaining path and check each component
+    IFS='/' read -ra PATH_PARTS <<< "$remaining_path"
+
+    for part in "${PATH_PARTS[@]}"; do
+        current_path="$current_path/$part"
+
+        # If this component exists and is a symlink
+        if [ -L "$current_path" ]; then
+            # Check if it points to the repository
+            if path_points_to_repo "$current_path"; then
+                log_warn "  → Removing symlink to repository: $current_path"
+                rm "$current_path"
+            fi
+        fi
+    done
+}
+
 # Helper function to backup existing config files
 backup_existing_config() {
     local config_file="$1"
     local backup_dir="$HOME/.dotfiles_backup_$(date +%Y%m%d)"
 
+    # First, remove any symlinks in the path that point to the repository
+    remove_repo_symlinks "$config_file"
+
     if [ -e "$config_file" ] || [ -L "$config_file" ]; then
+        # Double-check that this path doesn't point to the repository
+        if path_points_to_repo "$config_file"; then
+            log_error "  → SAFETY CHECK FAILED: $config_file points to repository!"
+            log_error "  → This should have been caught by remove_repo_symlinks"
+            log_error "  → Skipping to prevent repository modification"
+            return 1
+        fi
+
         # Check if file is already a dotfiles loader (skip backup if so)
         if [ -f "$config_file" ] && grep -q "Source Dotfiles Configuration\|sources the dotfiles" "$config_file" 2>/dev/null; then
             log_info "  → Skipping backup (already a dotfiles loader)"
@@ -391,11 +466,23 @@ install_loader() {
         return 1
     fi
 
-    # Create parent directory if needed
-    mkdir -p "$(dirname "$target_file")"
+    # SAFETY CHECK: Ensure parent directories don't point to repository
+    local parent_dir="$(dirname "$target_file")"
+    if [ ! -d "$parent_dir" ]; then
+        # Create parent directory if needed, ensuring no symlinks to repo in path
+        remove_repo_symlinks "$parent_dir"
+        mkdir -p "$parent_dir"
+    fi
 
-    # Backup existing config
+    # Backup existing config (this also removes repo symlinks)
     backup_existing_config "$target_file"
+
+    # FINAL SAFETY CHECK: Verify target doesn't point to repository before copying
+    if path_points_to_repo "$target_file"; then
+        log_error "  → SAFETY CHECK FAILED: Cannot install to $target_file"
+        log_error "  → Target path resolves to repository directory"
+        die "Installation aborted to prevent repository modification"
+    fi
 
     # Install loader
     cp "$DOTFILES_DIR/templates/loaders/$loader_template" "$target_file"
@@ -426,40 +513,49 @@ install_configs() {
     if $MINIMAL_INSTALL; then
         selected_modules=("bash" "git")
     else
-        # Shell selection
-        log_info "\n${BOLD}Shell Configuration:${NC}"
-        echo "Select which shells to configure (you can choose multiple):"
-        for module in "${shell_modules[@]}"; do
-            if ask_user "Install $module config?"; then
-                selected_modules+=("$module")
-            fi
-        done
+        # Ask if user wants to install all modules
+        echo ""
+        if ask_user "Install all available modules? (recommended for first-time setup)"; then
+            # Install all modules
+            selected_modules=("${shell_modules[@]}" "${vcs_modules[@]}" "${editor_modules[@]}" "${other_modules[@]}")
+            log_success "Installing all modules: ${selected_modules[*]}"
+        else
+            # Interactive selection
+            # Shell selection
+            log_info "\n${BOLD}Shell Configuration:${NC}"
+            echo "Select which shells to configure (you can choose multiple):"
+            for module in "${shell_modules[@]}"; do
+                if ask_user "Install $module config?"; then
+                    selected_modules+=("$module")
+                fi
+            done
 
-        # VCS selection
-        log_info "\n${BOLD}Version Control Systems:${NC}"
-        echo "Select which VCS to configure:"
-        for module in "${vcs_modules[@]}"; do
-            if ask_user "Install $module config?"; then
-                selected_modules+=("$module")
-            fi
-        done
+            # VCS selection
+            log_info "\n${BOLD}Version Control Systems:${NC}"
+            echo "Select which VCS to configure:"
+            for module in "${vcs_modules[@]}"; do
+                if ask_user "Install $module config?"; then
+                    selected_modules+=("$module")
+                fi
+            done
 
-        # Editor selection
-        log_info "\n${BOLD}Text Editors:${NC}"
-        echo "Select which editors to configure:"
-        for module in "${editor_modules[@]}"; do
-            if ask_user "Install $module config?"; then
-                selected_modules+=("$module")
-            fi
-        done
+            # Editor selection
+            log_info "\n${BOLD}Text Editors:${NC}"
+            echo "Select which editors to configure:"
+            for module in "${editor_modules[@]}"; do
+                if ask_user "Install $module config?"; then
+                    selected_modules+=("$module")
+                fi
+            done
 
-        # Other tools
-        log_info "\n${BOLD}Other Tools:${NC}"
-        for module in "${other_modules[@]}"; do
-            if ask_user "Install $module config?"; then
-                selected_modules+=("$module")
-            fi
-        done
+            # Other tools
+            log_info "\n${BOLD}Other Tools:${NC}"
+            for module in "${other_modules[@]}"; do
+                if ask_user "Install $module config?"; then
+                    selected_modules+=("$module")
+                fi
+            done
+        fi
     fi
 
     # Install loaders for selected modules
@@ -494,26 +590,52 @@ install_configs() {
                 # Starship doesn't support file inclusion, so we copy the config
                 log_info "  → Starship uses direct copy (no file inclusion support)"
                 if [ -f "$DOTFILES_DIR/common/starship/.config/starship.toml" ]; then
+                    local target="$HOME/.config/starship.toml"
+                    remove_repo_symlinks "$HOME/.config"
                     mkdir -p "$HOME/.config"
-                    backup_existing_config "$HOME/.config/starship.toml"
-                    cp "$DOTFILES_DIR/common/starship/.config/starship.toml" "$HOME/.config/starship.toml"
+                    backup_existing_config "$target"
+
+                    # Safety check before copying
+                    if path_points_to_repo "$target"; then
+                        log_error "  → SAFETY CHECK FAILED: Cannot install starship config"
+                        die "Installation aborted to prevent repository modification"
+                    fi
+
+                    cp "$DOTFILES_DIR/common/starship/.config/starship.toml" "$target"
                     log_success "  → Copied starship config"
                 fi
                 ;;
             hg)
                 # Mercurial config can use %include directive
                 if [ -f "$DOTFILES_DIR/common/hg/.hgrc" ]; then
-                    backup_existing_config "$HOME/.hgrc"
-                    echo "%include $DOTFILES_DIR/common/hg/.hgrc" > "$HOME/.hgrc"
+                    local target="$HOME/.hgrc"
+                    backup_existing_config "$target"
+
+                    # Safety check before writing
+                    if path_points_to_repo "$target"; then
+                        log_error "  → SAFETY CHECK FAILED: Cannot install hg config"
+                        die "Installation aborted to prevent repository modification"
+                    fi
+
+                    echo "%include $DOTFILES_DIR/common/hg/.hgrc" > "$target"
                     log_success "  → Installed hg config with %include"
                 fi
                 ;;
             jj)
                 # Jujutsu config - copy for now
                 if [ -f "$DOTFILES_DIR/common/jj/.jjconfig.toml" ]; then
+                    local target="$HOME/.config/jj/config.toml"
+                    remove_repo_symlinks "$HOME/.config/jj"
                     mkdir -p "$HOME/.config/jj"
-                    backup_existing_config "$HOME/.config/jj/config.toml"
-                    cp "$DOTFILES_DIR/common/jj/.jjconfig.toml" "$HOME/.config/jj/config.toml"
+                    backup_existing_config "$target"
+
+                    # Safety check before copying
+                    if path_points_to_repo "$target"; then
+                        log_error "  → SAFETY CHECK FAILED: Cannot install jj config"
+                        die "Installation aborted to prevent repository modification"
+                    fi
+
+                    cp "$DOTFILES_DIR/common/jj/.jjconfig.toml" "$target"
                     log_success "  → Copied jj config"
                 fi
                 ;;
@@ -521,9 +643,18 @@ install_configs() {
                 # Zed config - JSON doesn't support includes, so copy with note
                 log_info "  → Zed uses template (JSON has no include support)"
                 if [ -f "$DOTFILES_DIR/templates/loaders/settings.json" ]; then
+                    local target="$HOME/.config/zed/settings.json"
+                    remove_repo_symlinks "$HOME/.config/zed"
                     mkdir -p "$HOME/.config/zed"
-                    backup_existing_config "$HOME/.config/zed/settings.json"
-                    cp "$DOTFILES_DIR/templates/loaders/settings.json" "$HOME/.config/zed/settings.json"
+                    backup_existing_config "$target"
+
+                    # Safety check before copying
+                    if path_points_to_repo "$target"; then
+                        log_error "  → SAFETY CHECK FAILED: Cannot install zed config"
+                        die "Installation aborted to prevent repository modification"
+                    fi
+
+                    cp "$DOTFILES_DIR/templates/loaders/settings.json" "$target"
                     log_success "  → Copied zed config (edit directly for customizations)"
                 fi
                 ;;
