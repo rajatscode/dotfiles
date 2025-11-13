@@ -57,6 +57,7 @@ ttf-hack-nerd
 
 # Language Tooling
 python-pip
+python-isort
 nodejs
 npm
 pnpm

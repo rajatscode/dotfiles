@@ -40,6 +40,8 @@ Plugin 'calincru/peaksea.vim'
 Plugin 'dracula/vim', { 'name': 'dracula' }
 " install zenburn colorscheme
 Plugin 'jnurmine/Zenburn'
+" install tokyonight colorscheme
+Plugin 'ghifarit53/tokyonight-vim'
 " Ctrl-P - fuzzy finder
 Plugin 'ctrlpvim/ctrlp.vim'
 " Golang support for vim
