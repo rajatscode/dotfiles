@@ -123,6 +123,43 @@ case "$(uname)" in
         ;;
 esac
 
+# Install Python packages needed by Vim plugins
+# These need to be importable Python modules, not just CLI tools
+log_info "Installing Python tools for Vim..."
+if command -v python3 &>/dev/null; then
+    # Determine pip flags based on OS
+    case "$(uname)" in
+        Darwin)
+            # macOS: Python 3.14+ is externally-managed, need --break-system-packages
+            PIP_FLAGS="--user --break-system-packages --upgrade --quiet"
+            ;;
+        Linux)
+            # Linux: Try --user first, fall back to --break-system-packages if needed
+            PIP_FLAGS="--user --upgrade --quiet"
+            ;;
+        *)
+            PIP_FLAGS="--user --upgrade --quiet"
+            ;;
+    esac
+
+    # Install isort for vim-isort plugin
+    if python3 -m pip install $PIP_FLAGS isort 2>&1 | grep -q "externally-managed-environment"; then
+        # If externally-managed error, retry with --break-system-packages
+        log_info "Retrying with --break-system-packages flag..."
+        if python3 -m pip install --user --break-system-packages --upgrade --quiet isort 2>&1; then
+            log_success "Python tools installed (isort)"
+        else
+            log_warn "Failed to install isort via pip"
+        fi
+    elif python3 -c "import isort" 2>/dev/null; then
+        log_success "Python tools installed (isort)"
+    else
+        log_warn "Failed to install isort via pip"
+    fi
+else
+    log_warn "python3 not found - skipping Python tools installation"
+fi
+
 # Update Vim plugins if Vundle is installed
 if [ -f "$HOME/.vimrc" ] && [ -d "$HOME/.vim/bundle/Vundle.vim" ]; then
     log_info "Installing/updating Vim plugins..."
