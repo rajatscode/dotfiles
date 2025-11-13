@@ -47,6 +47,9 @@
 	wtr = worktree remove
 	wtp = worktree prune
 
+	# Security: Remove files from git history
+	scrub = !git-scrub
+
 [color]
 	ui = true
 
