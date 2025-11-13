@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+#
+# git-scrub - Completely remove a file from git history
+#
+# This is a DESTRUCTIVE operation that rewrites git history.
+# Use this when you've accidentally committed sensitive data like private keys.
+#
+# Usage: git scrub <file-path> [options]
+#
+# Options:
+#   -f, --force           Skip confirmation prompt
+#   -h, --help            Show this help message
+#
+# Examples:
+#   git scrub secrets/private_key.pem
+#   git scrub config/credentials.json --force
+#
+# After running this command, you'll need to force push:
+#   git push --force-with-lease origin <branch-name>
+#
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_error() {
+    echo -e "${RED}ERROR: $1${NC}" >&2
+}
+
+print_warning() {
+    echo -e "${YELLOW}WARNING: $1${NC}" >&2
+}
+
+print_info() {
+    echo -e "${BLUE}INFO: $1${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}SUCCESS: $1${NC}"
+}
+
+# Function to show help
+show_help() {
+    sed -n '2,/^$/p' "$0" | sed 's/^# \?//'
+    exit 0
+}
+
+# Parse arguments
+FORCE=0
+FILE_PATH=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -f|--force)
+            FORCE=1
+            shift
+            ;;
+        -h|--help)
+            show_help
+            ;;
+        -*)
+            print_error "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+        *)
+            if [ -z "$FILE_PATH" ]; then
+                FILE_PATH="$1"
+            else
+                print_error "Multiple file paths provided. Please specify only one file."
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Validate input
+if [ -z "$FILE_PATH" ]; then
+    print_error "No file path provided"
+    echo ""
+    echo "Usage: git scrub <file-path> [--force]"
+    echo "Use --help for more information"
+    exit 1
+fi
+
+# Check if we're in a git repository
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    print_error "Not in a git repository"
+    exit 1
+fi
+
+# Get the repository root
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+# Check if file exists in current working tree (warning, not error)
+if [ -f "$FILE_PATH" ]; then
+    print_warning "File '$FILE_PATH' exists in the working tree. It will be deleted from history but remains in your working directory."
+    print_info "You may want to add it to .gitignore to prevent re-committing."
+fi
+
+# Check if file exists in git history
+if ! git log --all --full-history --oneline -- "$FILE_PATH" > /dev/null 2>&1; then
+    if ! git log --all --full-history --oneline -- "$FILE_PATH" | grep -q .; then
+        print_warning "No commits found that touched '$FILE_PATH'. The file may not exist in git history."
+        read -p "Continue anyway? (y/N) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Aborted."
+            exit 0
+        fi
+    fi
+fi
+
+# Show what commits will be affected
+print_info "Commits that will be rewritten:"
+git log --all --full-history --oneline -- "$FILE_PATH" | head -20
+COMMIT_COUNT=$(git log --all --full-history --oneline -- "$FILE_PATH" | wc -l)
+if [ "$COMMIT_COUNT" -gt 20 ]; then
+    echo "... and $((COMMIT_COUNT - 20)) more commits"
+fi
+echo ""
+
+# Confirm with user unless --force is specified
+if [ $FORCE -eq 0 ]; then
+    print_warning "This will PERMANENTLY REWRITE GIT HISTORY!"
+    print_warning "All commits touching '$FILE_PATH' will be modified."
+    echo ""
+    echo "After this operation:"
+    echo "  1. The file will be removed from all commits"
+    echo "  2. Commit hashes will change"
+    echo "  3. You'll need to force push: git push --force-with-lease"
+    echo "  4. All collaborators will need to re-clone or reset their branches"
+    echo ""
+    read -p "Are you sure you want to continue? (yes/N) " -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
+        echo "Aborted."
+        exit 0
+    fi
+fi
+
+# Create a backup of the current branch
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+BACKUP_BRANCH="backup-before-scrub-$(date +%Y%m%d-%H%M%S)"
+print_info "Creating backup branch: $BACKUP_BRANCH"
+git branch "$BACKUP_BRANCH"
+
+# Perform the scrubbing
+print_info "Scrubbing '$FILE_PATH' from history..."
+echo ""
+
+# Try git-filter-repo first (modern, recommended tool)
+if command -v git-filter-repo >/dev/null 2>&1; then
+    print_info "Using git-filter-repo (recommended method)"
+
+    # git-filter-repo --path is for keeping paths, --invert-paths removes them
+    if git-filter-repo --path "$FILE_PATH" --invert-paths --force; then
+        print_success "File successfully scrubbed from history!"
+    else
+        print_error "git-filter-repo failed"
+        print_info "Restoring from backup branch..."
+        git checkout "$BACKUP_BRANCH"
+        exit 1
+    fi
+else
+    # Fallback to git filter-branch (older, but works)
+    print_warning "git-filter-repo not found, using git filter-branch (deprecated but functional)"
+    print_info "Consider installing git-filter-repo: pip install git-filter-repo"
+    echo ""
+
+    if git filter-branch --force --index-filter \
+        "git rm --cached --ignore-unmatch '$FILE_PATH'" \
+        --prune-empty --tag-name-filter cat -- --all; then
+        print_success "File successfully scrubbed from history!"
+
+        # Clean up filter-branch refs
+        print_info "Cleaning up..."
+        rm -rf .git/refs/original/
+        git reflog expire --expire=now --all
+        git gc --prune=now --aggressive
+    else
+        print_error "git filter-branch failed"
+        print_info "Restoring from backup branch..."
+        git checkout "$BACKUP_BRANCH"
+        exit 1
+    fi
+fi
+
+echo ""
+print_success "Git history has been rewritten successfully!"
+print_info "Backup branch created: $BACKUP_BRANCH"
+echo ""
+print_warning "NEXT STEPS:"
+echo "  1. Verify the changes: git log --all -- $FILE_PATH"
+echo "  2. If satisfied, force push: git push --force-with-lease origin $CURRENT_BRANCH"
+echo "  3. If something went wrong: git checkout $BACKUP_BRANCH"
+echo "  4. Optional: Add to .gitignore to prevent re-committing"
+echo ""
+print_warning "All collaborators will need to re-clone or reset their local branches!"
