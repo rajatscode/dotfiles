@@ -1,7 +1,6 @@
 # Arch Linux packages
 
 # Core tools
-stow
 git
 jujutsu
 fzf

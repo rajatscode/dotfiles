@@ -27,7 +27,7 @@ dotfiles/
 │   ├── worktree-clean            # Cleanup stale worktrees
 │   └── context-sync              # Sync context between sessions
 │
-├── common/                       # Cross-platform configs (GNU Stow modules)
+├── common/                       # Cross-platform configs
 │   ├── bash/
 │   │   ├── .bashrc
 │   │   └── .bashrc.d/
@@ -129,7 +129,7 @@ dotfiles/
 A comprehensive bash script that:
 - **Detects OS** (Linux distro, macOS, Windows WSL)
 - **Asks user preferences** interactively
-- **Installs dependencies** (stow, git, etc.)
+- **Installs dependencies** (git, etc.)
 - **Offers module selection** (bash, fish, vim, nvim, tmux, etc.)
 - **Handles OS-specific configs** (macOS defaults, Linux packages)
 - **Sets up the AI agent harness**
@@ -324,7 +324,7 @@ export AGENT_SESSION=$(agent current 2>/dev/null)
                ▼
 ┌─────────────────────────────────────┐
 │ Ask: Install packages? [y/n]        │
-│ → If yes: Install stow, git, etc.   │
+│ → If yes: Install git, etc.         │
 └──────────────┬──────────────────────┘
                │
                ▼
@@ -348,7 +348,7 @@ export AGENT_SESSION=$(agent current 2>/dev/null)
                ▼
 ┌─────────────────────────────────────┐
 │ For each selected module:           │
-│   stow -R -t ~ -d common [module]   │
+│   Install loader file to ~          │
 └──────────────┬──────────────────────┘
                │
                ▼
@@ -526,7 +526,7 @@ release_lock() {
 
 ## Design Principles
 
-1. **Modularity**: Everything is a stow package
+1. **Modularity**: Everything is modular and composable
 2. **Interactivity**: Installer asks, never assumes
 3. **Functionality**: Rich feature set including advanced navigation
 4. **Extensibility**: Easy to add new modules/features
