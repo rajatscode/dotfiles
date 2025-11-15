@@ -42,6 +42,14 @@ Plugin 'dracula/vim', { 'name': 'dracula' }
 Plugin 'jnurmine/Zenburn'
 " install tokyonight colorscheme
 Plugin 'ghifarit53/tokyonight-vim'
+" install zaibatsu colorscheme (jellybeans variant)
+Plugin 'nanotech/jellybeans.vim'
+" install retrobox colorscheme (gruvbox for retro vibes)
+Plugin 'morhetz/gruvbox'
+" install monokai colorscheme
+Plugin 'sickill/vim-monokai'
+" install sorbet colorscheme (ayu for pastel colors)
+Plugin 'ayu-theme/ayu-vim'
 " Ctrl-P - fuzzy finder
 Plugin 'ctrlpvim/ctrlp.vim'
 " Golang support for vim
