@@ -117,12 +117,38 @@ let g:ale_lint_on_enter = 0
 let g:gitgutter_enabled=0
 nnoremap <silent> <leader>d :GitGutterToggle<cr>
 
-" vim-werewolf config: tokyonight by day (modern dark), zenburn by night (muted dark)
-let g:werewolf_day_themes = ['tokyonight']
-let g:werewolf_night_themes = ['zenburn']
-let g:werewolf_day_start = 6
-let g:werewolf_day_end = 18
-let g:werewolf_change_automatically = 1
+" vim-werewolf config: DISABLED in favor of custom hourly rotation
+let g:werewolf_change_automatically = 0
+
+" Custom hourly colorscheme rotation
+" Rotates through 6 colorschemes, one per hour in a 6-hour cycle
+let g:hourly_colorschemes = ['tokyonight', 'jellybeans', 'dracula', 'gruvbox', 'monokai', 'ayu']
+
+function! SetHourlyColorscheme()
+    let current_hour = strftime('%H')
+    let scheme_index = current_hour % len(g:hourly_colorschemes)
+    let chosen_scheme = g:hourly_colorschemes[scheme_index]
+
+    " Only change if different from current
+    if !exists('g:colors_name') || g:colors_name != chosen_scheme
+        try
+            execute 'colorscheme ' . chosen_scheme
+        catch
+            " If colorscheme not found, fall back to dracula
+            colorscheme dracula
+        endtry
+    endif
+endfunction
+
+" Set colorscheme on startup and when focus is gained
+augroup HourlyColorscheme
+    autocmd!
+    autocmd VimEnter * call SetHourlyColorscheme()
+    autocmd FocusGained * call SetHourlyColorscheme()
+augroup END
+
+" Manual command to force update
+command! ColorschemeUpdate call SetHourlyColorscheme()
 
 " YouCompleteMe - fast LSP-based completion
 let g:ycm_autoclose_preview_window_after_completion = 1
