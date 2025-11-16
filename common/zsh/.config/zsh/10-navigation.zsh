@@ -61,6 +61,11 @@ dn() {
     cd "$( ( (command ls -d -- */ 2> /dev/null) || echo "." ) | head -1 )"
 }
 
+## go to a sibling directory
+sib() {
+    cd "../$1"
+}
+
 ## go `bk` between directories
 alias bk="cd -"
 

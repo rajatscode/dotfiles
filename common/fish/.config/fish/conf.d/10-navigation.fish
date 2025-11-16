@@ -60,6 +60,11 @@ function dn
     cd (command ls -d -- */ 2>/dev/null; or echo ".") | head -1
 end
 
+## go to a sibling directory
+function sib
+    cd "../$argv[1]"
+end
+
 ## go back between directories
 alias bk="cd -"
 
