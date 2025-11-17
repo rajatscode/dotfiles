@@ -234,7 +234,7 @@ echo "Found $NEW_COMMIT_COUNT commits with email '$NEW_EMAIL'"
 echo ""
 
 print_warning "NEXT STEPS:"
-echo "  1. Verify the changes: git log --all --format='%h %ae %an - %s' | grep '$NEW_EMAIL' | head -20"
+echo "  1. Verify the changes: git log --all --format='%h %ae %an - %s' | grep '$OLD_EMAIL' | head -20"
 echo "  2. If satisfied, force push ALL branches: git push --force-with-lease origin --all"
 echo "  3. Also push tags if needed: git push --force-with-lease origin --tags"
 echo "  4. If something went wrong: git reset --hard $BACKUP_TAG"
