@@ -18,6 +18,10 @@ common/fish/.config/fish/fish_variables
 common/fish/.config/fish/personal.fish
 common/fish/.config/fish/local.fish
 
+# Other generated files
+common/nvim/.config/nvim/lazy-lock.json
+common/zed/.config/zed/prompts
+
 # Backup directories
 dotfiles-backup-*/
 
