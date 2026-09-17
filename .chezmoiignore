@@ -1,0 +1,13 @@
+README.md
+LICENSE
+.gitignore
+.gitattributes
+.chezmoiignore
+.git/
+.github/
+macos/
+linux/
+
+.config/fish/fish_variables
+.config/fish/personal.fish
+.config/fish/local.fish

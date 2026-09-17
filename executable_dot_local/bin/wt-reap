@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+# Report or remove finished git worktrees and the branches they left behind.
+#
+#   wt-reap                 report candidates
+#   wt-reap --apply         remove candidates
+#   wt-reap --repo ~/src/x  inspect one repository
+#
+# By default, repositories directly under $WT_REAP_ROOTS are inspected.
+# Set WT_REAP_ROOTS to a space-separated list of roots, or use --repo.
+
+set -euo pipefail
+
+apply=0
+repos=()
+roots="${WT_REAP_ROOTS:-$HOME/dev}"
+idle_tmp_days="${WT_REAP_TMP_IDLE_DAYS:-3}"
+idle_other_days="${WT_REAP_IDLE_DAYS:-14}"
+log="${WT_REAP_LOG:-${XDG_STATE_HOME:-$HOME/.local/state}/wt-reap.log}"
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --apply) apply=1 ;;
+        --repo)
+            [ $# -ge 2 ] || { echo "wt-reap: --repo needs a path" >&2; exit 2; }
+            repos+=("$2")
+            shift
+            ;;
+        -h|--help)
+            sed -n '2,10p' "$0"
+            exit 0
+            ;;
+        *)
+            echo "wt-reap: unknown argument $1" >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
+mkdir -p "$(dirname "$log")"
+say() {
+    printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$log"
+}
+
+reap_orphan_fsmonitors() {
+    command -v pgrep >/dev/null 2>&1 || return 0
+    local pid sock n=0
+    for pid in $(pgrep -f 'git fsmonitor--daemon run' || true); do
+        if command -v lsof >/dev/null 2>&1; then
+            sock="$(lsof -p "$pid" -Fn 2>/dev/null | grep -m1 'fsmonitor--daemon\.ipc$' | sed 's/^n//')"
+            case "$sock" in
+                /*) [ -S "$sock" ] && continue ;;
+            esac
+        fi
+        n=$((n + 1))
+        if [ "$apply" = 1 ]; then
+            kill "$pid" 2>/dev/null || true
+        fi
+    done
+    [ "$n" = 0 ] || say "$([ "$apply" = 1 ] && echo reap || echo would) $n orphaned fsmonitor daemons"
+}
+
+pr_merged_from() {
+    local repo="$1" branch="$2" slug
+    command -v gh >/dev/null 2>&1 || return 1
+    slug="$(git -C "$repo" remote get-url origin 2>/dev/null | sed -E 's#\.git$##; s#.*[:/]([^/]+/[^/]+)$#\1#')"
+    [ -n "$slug" ] || return 1
+    gh pr list -R "$slug" --head "$branch" --state merged --limit 1 --json number -q '.[0].number' 2>/dev/null
+}
+
+file_mtime() {
+    stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo "$now"
+}
+
+if [ ${#repos[@]} -eq 0 ]; then
+    read -r -a root_list <<< "$roots"
+    for root in "${root_list[@]}"; do
+        for d in "$root"/*/; do
+            [ -d "$d/.git" ] && repos+=("${d%/}")
+        done
+    done
+fi
+
+tmp_prefix="$(cd "${TMPDIR:-/tmp}" 2>/dev/null && pwd -P)"
+now=$(date +%s)
+removed=0
+kept=0
+
+for repo in "${repos[@]}"; do
+    main_dir="$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null)" || continue
+    default_branch="$(git -C "$repo" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+    default_branch="${default_branch#origin/}"
+    default_branch="${default_branch:-main}"
+
+    git -C "$repo" worktree prune
+    git -C "$repo" fetch --quiet --prune origin 2>/dev/null || true
+
+    while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        wt="${line#worktree }"
+        [ "$wt" = "$main_dir" ] && continue
+        [ -d "$wt" ] || continue
+
+        branch="$(git -C "$wt" symbolic-ref --short HEAD 2>/dev/null || true)"
+        dirty="$(git -C "$wt" status --porcelain --untracked-files=all 2>/dev/null | wc -l | tr -d ' ')"
+        if [ "$dirty" != 0 ]; then
+            say "keep  $wt (dirty: $dirty paths)"
+            kept=$((kept + 1))
+            continue
+        fi
+
+        unpushed=0
+        reason=""
+        if [ -n "$branch" ]; then
+            if git -C "$wt" rev-parse --verify --quiet "refs/remotes/origin/$branch" >/dev/null; then
+                unpushed="$(git -C "$wt" rev-list --count "origin/$branch..HEAD")"
+                if git -C "$repo" merge-base --is-ancestor "$branch" "origin/$default_branch" 2>/dev/null; then
+                    reason="merged into $default_branch"
+                fi
+            elif git -C "$repo" merge-base --is-ancestor "$branch" "origin/$default_branch" 2>/dev/null; then
+                reason="branch gone, content in $default_branch"
+            elif merged_pr="$(pr_merged_from "$repo" "$branch")" && [ -n "$merged_pr" ]; then
+                reason="PR #$merged_pr merged"
+            else
+                unpushed="$(git -C "$wt" rev-list --count "origin/$default_branch..HEAD")"
+            fi
+        fi
+
+        if [ "$unpushed" != 0 ]; then
+            say "keep  $wt ($unpushed unpushed commits on ${branch:-detached})"
+            kept=$((kept + 1))
+            continue
+        fi
+
+        if [ -z "$reason" ]; then
+            last="$(file_mtime "$wt/.git")"
+            head_commit="$(git -C "$wt" log -1 --format=%ct 2>/dev/null || echo "$now")"
+            [ "$head_commit" -gt "$last" ] && last=$head_commit
+            idle_days=$(( (now - last) / 86400 ))
+            case "$(cd "$wt" && pwd -P)" in
+                "$tmp_prefix"/*) limit=$idle_tmp_days ;;
+                *) limit=$idle_other_days ;;
+            esac
+            if [ "$idle_days" -lt "$limit" ]; then
+                say "keep  $wt (idle ${idle_days}d < ${limit}d, ${branch:-detached})"
+                kept=$((kept + 1))
+                continue
+            fi
+            reason="idle ${idle_days}d"
+        fi
+
+        if [ "$apply" = 1 ]; then
+            git -C "$wt" fsmonitor--daemon stop >/dev/null 2>&1 || true
+            if ! git -C "$repo" worktree remove --force "$wt" 2>/dev/null; then
+                say "keep  $wt (locked or in use)"
+                kept=$((kept + 1))
+                continue
+            fi
+            if [ -n "$branch" ] && [ "$branch" != "$default_branch" ]; then
+                git -C "$repo" branch -D "$branch" >/dev/null 2>&1 || true
+            fi
+            say "reap  $wt ($reason, ${branch:-detached})"
+        else
+            say "would $wt ($reason, ${branch:-detached})"
+        fi
+        removed=$((removed + 1))
+    done < <(git -C "$repo" worktree list --porcelain | grep '^worktree ')
+
+    while IFS= read -r branch; do
+        [ -n "$branch" ] || continue
+        reason=""
+        if git -C "$repo" merge-base --is-ancestor "$branch" "origin/$default_branch" 2>/dev/null; then
+            reason="gone, merged"
+        elif merged_pr="$(pr_merged_from "$repo" "$branch")" && [ -n "$merged_pr" ]; then
+            reason="gone, PR #$merged_pr merged"
+        fi
+        [ -n "$reason" ] || continue
+        git -C "$repo" worktree list --porcelain | grep -q "^branch refs/heads/$branch$" && continue
+        if [ "$apply" = 1 ]; then
+            git -C "$repo" branch -D "$branch" >/dev/null 2>&1 && say "reap  branch $repo:$branch ($reason)"
+        else
+            say "would branch $repo:$branch ($reason)"
+        fi
+    done < <(git -C "$repo" for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads | awk '$2=="[gone]"{print $1}')
+done
+
+reap_orphan_fsmonitors
+say "done: $removed to reap, $kept kept$([ "$apply" = 1 ] || echo ' (dry run; --apply to act)')"

@@ -67,7 +67,6 @@ brew "ollama"        # Local LLM runtime for AI code completion
 
 cask "alacritty"     # GPU-accelerated terminal
 cask "iterm2"        # Feature-rich terminal
-cask "zed"           # Modern code editor
 cask "visual-studio-code"  # VS Code
 # cask "docker"        # Containerization - commented due to installation conflicts
 

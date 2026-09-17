@@ -1,100 +1,13 @@
 # Dotfiles
 
-[![License](https://img.shields.io/github/license/rajatscode/dotfiles)](./LICENSE)
+This is the chezmoi source directory for my shell, editor, Git, tmux, and
+worktree setup.
 
----
-
-*These are my dotfiles. There are many like them, but these ones are mine.*
-
-My dotfiles are my best friends. They are my life. I must master them as I must master my life.
-
-Without me, my dotfiles are abandoned. Without my dotfiles, I am unproductive. I must maintain my dotfiles faithfully. I must maintain harder than technical debt that is trying to destroy me. I must build my productivity before tech debt tanks it. I will!
-
-My dotfiles and I know that what counts in development are not the lines we write, the coverage of our tests, nor the lack of linter errors. We know that it is the sanity that counts. We will stay sane!
-
-My dotfiles are human, even as I, because they are my life. Thus, I will learn them as a brother. I will learn their weaknesses, their strength, their parts, their accessories, their directories and their scripts. I will keep my dotfiles clean and useful, even as I am clean and useful. We will become part of each other. We will!
-
-Before root, I swear this creed. My dotfiles and I are the defenders of civilization. We are the masters of technical debt. We are the saviors of my life.
-
-So be it, until victory is GNU's and there is no technical debt, but maintainability!
-
----
-
-## Quick Start
-
-```bash
-# Clone the repository
-git clone https://github.com/rajatscode/dotfiles.git ~/dotfiles
-cd ~/dotfiles
-
-# Run the interactive installer
-./install.sh
+```sh
+chezmoi init --apply git@github.com:rajatscode/dotfiles.git
+chezmoi diff
+chezmoi apply
 ```
 
-## Features
-
-From repo root, run `./tutorial.sh` for a tour.
-
-## Configuration
-
-### How It Works: Loader Pattern
-
-This dotfiles setup uses a **loader pattern** instead of symlinking:
-
-- Your actual config files (`~/.bashrc`, `~/.vimrc`, etc.) source the dotfiles
-- External tools can safely modify your configs without breaking the dotfiles
-- Local customizations go directly in your config files, after the source line
-
-Example (bash: `~/.bashrc`):
-```bash
-# Source dotfiles
-source ~/.dotfiles/common/bash/.bashrc
-
-# Your local customizations below
-export MY_VAR="value"
-alias myalias="cd ~/projects"
-```
-
-Example (fish: `~/.config/fish/config.fish`):
-```fish
-# Source dotfiles
-source ~/.dotfiles/common/fish/.config/fish/config.fish
-
-# Your local customizations below
-set -gx MY_VAR "value"
-alias myalias="cd ~/projects"
-```
-
-### Personal Overrides (Not Tracked in Git)
-
-- **`~/.gitprofile`** - Git name, email, personal settings
-- **Local customizations** - Added directly to config files (see above)
-
-## Updating
-
-The loader pattern maintains two copies of your dotfiles:
-- `~/dotfiles` - Your work repository (edit here)
-- `~/.dotfiles` - Installed copy (sourced by your configs)
-
-### Updating from Remote (Git)
-
-```bash
-# Update the installed copy from remote
-dotfiles-update
-```
-
-### Syncing Local Changes
-
-```bash
-# Work on ~/dotfiles freely
-cd ~/dotfiles
-# ... make changes ...
-
-# Sync to installation when ready
-dotfiles-sync
-
-# Or check what would be synced first
-dotfiles-sync --check
-```
-
-Changes take effect immediately for new shell sessions.
+Machine-specific package lists live in `macos/` and `linux/`; they are source
+repo material and are not copied into `$HOME`.

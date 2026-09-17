@@ -1,0 +1,127 @@
+# Git Configuration - Pimped Dotfiles Edition
+# Personal info (name, email) should be in ~/.gitprofile
+
+[include]
+	path = ~/.gitprofile
+
+[filter "lfs"]
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+
+[core]
+	editor = vim
+	excludesfile = ~/.gitignore_global
+	autocrlf = input
+
+[init]
+	defaultBranch = main
+
+[alias]
+	# Shortcuts
+	st = status
+	co = checkout
+	br = branch
+	ci = commit
+	amend = commit -a --amend --no-edit
+
+	# Pretty logs
+	lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+	refer = !git --no-pager show -s --abbrev=12 --pretty='tformat:%h (\"%s\")'
+	clog = log --date=format-local:'%a %b %d %H:%M:%S %Y' --pretty='%C(auto) %h %cd %d %C(red)(%aN)%C(reset) %<(200,trunc)%s'
+	glog = !git clog --graph
+	alog = !git glog $(git branch --list | sed -e 's/^[ *]*//' | tr '\n' ' ')
+
+	# Useful commands
+	rebranch = "!git branch -m $2 $3 && git push $1 :$2 $3 -u #"
+	howbig = !git ls-files | xargs wc -l
+	unstage = reset HEAD --
+	last = log -1 HEAD
+	visual = !gitk
+
+	# Worktree helpers
+	wt = worktree
+	wtl = worktree list
+	wta = worktree add
+	wtr = worktree remove
+	wtp = worktree prune
+
+	# Security: Remove files from git history
+	scrub = !git-scrub
+
+	# Stacked branch workflow helpers
+	# Usage: git restack <parent-branch>
+	# Rebases current branch onto main, skipping all commits from parent-branch
+	restack = "!f() { \
+		if [ -z \"$1\" ]; then \
+			echo \"Usage: git restack <parent-branch>\"; \
+			echo \"Rebases current branch onto main, removing parent branch commits\"; \
+			return 1; \
+		fi; \
+		echo \"Fetching latest main...\"; \
+		git fetch origin main:main && \
+		echo \"Rebasing onto main, skipping commits from $1...\" && \
+		git rebase --onto main \"$1\"; \
+	}; f"
+
+	# Usage: git sync-main
+	# Updates main branch from origin without checking it out
+	sync-main = fetch origin main:main
+
+[color]
+	ui = true
+
+[color "diff-highlight"]
+	oldNormal = red
+	newNormal = green
+	oldHighlight = red 224
+	newHighlight = green 194
+
+[interactive]
+	diffFilter = "if command -v diff-highlight >/dev/null 2>&1; then diff-highlight; else cat; fi"
+
+[pager]
+	log = "if command -v diff-highlight >/dev/null 2>&1; then diff-highlight | \"${PAGER:-less}\"; else \"${PAGER:-less}\"; fi"
+	show = "if command -v diff-highlight >/dev/null 2>&1; then diff-highlight | \"${PAGER:-less}\"; else \"${PAGER:-less}\"; fi"
+	diff = "if command -v diff-highlight >/dev/null 2>&1; then diff-highlight | \"${PAGER:-less}\"; else \"${PAGER:-less}\"; fi"
+
+[tag]
+	sort = version:refname
+
+[versionsort]
+	prereleaseSuffix = -rc
+
+[pull]
+	rebase = false
+
+[push]
+	default = current
+	followTags = true
+	autoSetupRemote = true
+
+[grep]
+	lineNumber = true
+
+[merge]
+	conflictstyle = diff3
+
+[format]
+	pretty = fuller
+
+[diff]
+	algorithm = histogram
+	colorMoved = default
+
+[fetch]
+	prune = true
+
+[rebase]
+	autoStash = true
+	autoSquash = true
+
+[status]
+	showUntrackedFiles = all
+
+[help]
+	autocorrect = 1

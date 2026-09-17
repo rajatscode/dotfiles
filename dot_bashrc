@@ -1,0 +1,53 @@
+# ~/.bashrc
+
+case $- in
+    *i*) ;;
+    *) return ;;
+esac
+
+export BASHRC_STORED_VARS="${HOME}/.bash_stored_vars"
+export BASH_PERSONAL_PROFILE="${HOME}/.bash_profile"
+export GIT_PERSONAL_PROFILE="${HOME}/.gitprofile"
+export TMUX_PERSONAL_PROFILE="${HOME}/.tmux.profile"
+export VIM_PERSONAL_PROFILE="${HOME}/.vim_profile"
+export ALIAS_SYMLINK_DIR="${HOME}/.aliased_symlinks"
+
+mkdir -p "$(dirname -- "$BASHRC_STORED_VARS")" "$ALIAS_SYMLINK_DIR"
+touch "$BASHRC_STORED_VARS"
+
+alias read_dotfile_vars="source $BASHRC_STORED_VARS"
+read_dotfile_vars
+
+delete_dotfile_var() {
+    local varname=$1
+    sed -i.bak "/declare.*${varname}=.*/d" "$BASHRC_STORED_VARS"
+    rm -f "${BASHRC_STORED_VARS}.bak"
+}
+
+store_dotfile_var() {
+    local varname=$1
+    delete_dotfile_var "$varname"
+    eval "declare -p $varname" | cut -d ' ' -f 3- >> "$BASHRC_STORED_VARS"
+}
+
+if ! shopt -oq posix; then
+    if [[ -f /usr/share/bash-completion/bash_completion ]]; then
+        source /usr/share/bash-completion/bash_completion
+    elif [[ -f /etc/bash_completion ]]; then
+        source /etc/bash_completion
+    elif [[ -f /opt/homebrew/etc/bash_completion ]]; then
+        source /opt/homebrew/etc/bash_completion
+    elif [[ -f /usr/local/etc/bash_completion ]]; then
+        source /usr/local/etc/bash_completion
+    fi
+fi
+
+shopt -s nullglob
+for bashrc_file in "$HOME"/.bashrc.d/*.bashrc; do
+    source "$bashrc_file"
+done
+shopt -u nullglob
+
+if [[ -f "$GIT_PERSONAL_PROFILE" ]]; then
+    git config --global include.path "$GIT_PERSONAL_PROFILE"
+fi

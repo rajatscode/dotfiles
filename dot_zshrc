@@ -1,0 +1,27 @@
+# ~/.zshrc
+
+[[ $- != *i* ]] && return
+
+export ZSH_PERSONAL_PROFILE="${HOME}/.zsh_profile"
+export GIT_PERSONAL_PROFILE="${HOME}/.gitprofile"
+export ALIAS_SYMLINK_DIR="${HOME}/.aliased_symlinks"
+export ZSHRC_STORED_VARS="${HOME}/.zsh_stored_vars"
+
+mkdir -p "$(dirname -- "$ZSHRC_STORED_VARS")" "$ALIAS_SYMLINK_DIR"
+touch "$ZSHRC_STORED_VARS"
+
+alias read_dotfile_vars="source $ZSHRC_STORED_VARS"
+read_dotfile_vars
+
+autoload -Uz compinit
+compinit
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+
+for zsh_file in "$HOME"/.config/zsh/*.zsh(N); do
+    source "$zsh_file"
+done
+
+if [[ -f "$GIT_PERSONAL_PROFILE" ]]; then
+    git config --global include.path "$GIT_PERSONAL_PROFILE"
+fi

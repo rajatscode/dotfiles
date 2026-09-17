@@ -1,37 +1,20 @@
-# installs directory for installed content
-.installs/**
-
-# AI stuff
-**.claude/settings.local.json
-
-# Vim bundles
-vim/.vim/bundle
-vim/.vimrc.d/plugin-config.vim
-
-# Personal configurations (not tracked)
-*profile
-*.local
-*.private
-
-# Fish shell generated files (these get created when fish runs)
-common/fish/.config/fish/fish_variables
-common/fish/.config/fish/personal.fish
-common/fish/.config/fish/local.fish
-
-# Other generated files
-common/nvim/.config/nvim/lazy-lock.json
-common/zed/.config/zed/prompts
-
-# Backup directories
-dotfiles-backup-*/
-
-# OS-specific
 .DS_Store
 Thumbs.db
-
-# Editor
 *.swp
 *.swo
 *~
 .vscode/
 .idea/
+
+# Generated or machine-local state
+dot_config/fish/fish_variables
+dot_config/fish/personal.fish
+dot_config/fish/local.fish
+dot_config/nvim/lazy-lock.json
+**/.claude/settings.local.json
+*.local
+*.private
+*profile
+
+# Backup directories
+dotfiles-backup-*/
