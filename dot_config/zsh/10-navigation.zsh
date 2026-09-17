@@ -84,7 +84,7 @@ al() {
     local alias_target="${2:-$PWD}"
     # delete the alias, if it already exists, to avoid wonky behavior
     xal $alias_name 2>>/dev/null
-    ln -sf "$(realpath "$alias_target")" "$ALIAS_SYMLINK_DIR""/""$alias_name"
+    ln -sf "$(dotfiles_realpath "$alias_target")" "$ALIAS_SYMLINK_DIR""/""$alias_name"
 }
 
 ## `fal` - follow alias; use aliases created by al
@@ -97,7 +97,7 @@ fal() {
         return 1
     fi
 
-    local alias_target=$(readlink -f "$full_symlink")
+    local alias_target=$(dotfiles_realpath "$full_symlink")
     local actual_target="$alias_target"/"$target_subpath"
     touch -h $full_symlink
     vcd "$actual_target"
@@ -189,7 +189,7 @@ alias fj="xn "
 ## `pushloc` - push a location (default $PWD) onto a stack to visit later
 ## NOTE: this is not integrated with pushd/popd and has different behavior
 pushloc() {
-    local path_to_push=$(readlink -f "${1:-$PWD}")
+    local path_to_push=$(dotfiles_realpath "${1:-$PWD}")
     read_dotfile_vars # keep SAVED_PATHS_STACK consistent
     SAVED_PATHS_STACK=("$path_to_push" "${SAVED_PATHS_STACK[@]}")
     store_dotfile_var SAVED_PATHS_STACK

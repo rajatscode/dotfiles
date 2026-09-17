@@ -99,10 +99,18 @@ alias gwtr="git worktree remove"
 ## ============================================================================
 
 # This will be used by 50-prompt.bashrc
-if [ -f ~/.git-prompt.sh ]; then
-    source ~/.git-prompt.sh
-elif [ -f /usr/share/git-core/contrib/completion/git-prompt.sh ]; then
-    source /usr/share/git-core/contrib/completion/git-prompt.sh
-elif [ -f /usr/lib/git-core/git-sh-prompt ]; then
-    source /usr/lib/git-core/git-sh-prompt
+for git_prompt in \
+    ~/.git-prompt.sh \
+    /usr/share/git-core/contrib/completion/git-prompt.sh \
+    /usr/lib/git-core/git-sh-prompt \
+    /Library/Developer/CommandLineTools/usr/share/git-core/contrib/completion/git-prompt.sh; do
+    if [ -f "$git_prompt" ]; then
+        source "$git_prompt"
+        break
+    fi
+done
+
+if ! type -t __git_ps1 &>/dev/null && command -v brew &>/dev/null; then
+    git_prompt="$(brew --prefix git 2>/dev/null)/share/git-core/contrib/completion/git-prompt.sh"
+    [ -f "$git_prompt" ] && source "$git_prompt"
 fi

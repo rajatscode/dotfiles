@@ -15,6 +15,7 @@ dot_config/nvim/lazy-lock.json
 *.local
 *.private
 *profile
+!dot_bash_profile
 
 # Backup directories
 dotfiles-backup-*/

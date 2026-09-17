@@ -86,7 +86,7 @@ function al
 
     # delete the alias, if it already exists
     xal $alias_name 2>/dev/null
-    ln -sf (realpath $alias_target) $ALIAS_SYMLINK_DIR/$alias_name
+    ln -sf (dotfiles_realpath $alias_target) $ALIAS_SYMLINK_DIR/$alias_name
 end
 
 ## fal - follow alias; use aliases created by al
@@ -99,7 +99,7 @@ function fal
         return 1
     end
 
-    set -l alias_target (readlink -f $full_symlink)
+    set -l alias_target (dotfiles_realpath $full_symlink)
     set -l actual_target $alias_target/$target_subpath
     touch -h $full_symlink
     vcd $actual_target
@@ -205,9 +205,9 @@ alias fj="xn"
 
 ## pushloc - push a location onto a stack
 function pushloc
-    set -l path_to_push (readlink -f $argv[1])
+    set -l path_to_push (dotfiles_realpath $argv[1])
     if test -z "$path_to_push"
-        set path_to_push (readlink -f $PWD)
+        set path_to_push (dotfiles_realpath $PWD)
     end
 
     read_dotfile_vars # keep SAVED_PATHS_STACK consistent

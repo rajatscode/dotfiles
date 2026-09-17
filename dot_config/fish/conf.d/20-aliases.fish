@@ -21,7 +21,7 @@ alias lsm="ls -hlAFG"
 
 ## dir - ls only directories
 function dir
-    ls -F -- $argv | grep /
+    ls -F $argv | grep /
 end
 
 ## cls: clear, with listed directories
@@ -71,7 +71,7 @@ function internet
 end
 
 ## ports: lists all ports open and which programs are using them
-alias ports="netstat -tulpn 2>/dev/null; or lsof -iTCP -sTCP:LISTEN -n -P"
+alias ports="lsof -nP -iTCP -sTCP:LISTEN"
 
 ## freeport: kill process running on specified port
 function freeport
@@ -141,6 +141,17 @@ end
 ## ============================================================================
 ## Shell Management
 ## ============================================================================
+
+## alert: notify when a long-running command finishes; e.g. `sleep 10; alert`
+function alert
+    if test "$OS_TYPE" = "macos"; and command -q osascript
+        osascript -e 'display notification "Command finished" with title "Shell"' >/dev/null 2>&1
+    else if command -q notify-send
+        notify-send --urgency=low "Shell" "Command finished" >/dev/null 2>&1
+    else
+        printf '\a'
+    end
+end
 
 ## restart: refresh the shell
 alias restart="source ~/.config/fish/config.fish"

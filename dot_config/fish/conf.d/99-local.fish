@@ -54,12 +54,8 @@ end
 ## Platform-Specific Configs
 ## ============================================================================
 
-# macOS-specific
-if test "$OS_TYPE" = "macos"
-    # Homebrew
-    if test -f /opt/homebrew/bin/brew
-        eval (/opt/homebrew/bin/brew shellenv)
-    end
+if command -q brew
+    eval (brew shellenv)
 end
 
 # WSL-specific

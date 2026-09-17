@@ -22,7 +22,7 @@ alias lsm="ls -hlAFG"
 
 ## `dir` is wasted on `ls -C -b` - use it for ls'ing only directories
 dir() {
-    ls -F -- $1 | grep /
+    ls -F "$@" | grep /
 }
 
 ## cls: clear, with listed directories
@@ -62,7 +62,7 @@ alias connected="wget -q --spider 1.1.1.1"
 alias internet="connected && echo 👍 || echo 👎"
 
 ## ports: lists all ports open and which programs are using them
-alias ports="netstat -tulpn 2>/dev/null || lsof -iTCP -sTCP:LISTEN -n -P"
+alias ports="lsof -nP -iTCP -sTCP:LISTEN"
 
 ## freeport: kill process running on specified port
 freeport() {
@@ -143,8 +143,16 @@ fi
 ## Shell Management
 ## ============================================================================
 
-## alert: alert for long-running commands; e.g., `sleep 10; alert`
-alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"' 2>/dev/null || true
+## alert: notify when a long-running command finishes; e.g. `sleep 10; alert`
+alert() {
+    if [ "$OS_TYPE" = "macos" ] && command -v osascript &>/dev/null; then
+        osascript -e 'display notification "Command finished" with title "Shell"' >/dev/null 2>&1
+    elif command -v notify-send &>/dev/null; then
+        notify-send --urgency=low "Shell" "Command finished" >/dev/null 2>&1
+    else
+        printf '\a'
+    fi
+}
 
 ## restart: refresh the shell
 alias restart="source ~/.bashrc"

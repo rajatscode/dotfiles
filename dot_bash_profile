@@ -1,0 +1,6 @@
+# Bash login shells (including macOS Terminal) load this file instead of
+# ~/.bashrc directly.
+
+if [[ -f "$HOME/.bashrc" ]]; then
+    source "$HOME/.bashrc"
+fi
