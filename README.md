@@ -18,3 +18,16 @@ repositories directly under `~/dev` by default; set `WT_REAP_ROOTS` or use
 `--repo /path/to/repo` to select repositories. The default idle limits are three
 days for temporary worktrees and fourteen days elsewhere; override them with
 `WT_REAP_TMP_IDLE_DAYS` and `WT_REAP_IDLE_DAYS`.
+
+On macOS, `chezmoi apply` also:
+
+- caps OrbStack at two thirds of the cores and half the memory less 2 GiB
+  (`orb stop`, then reopen OrbStack, applies new limits);
+- loads LaunchAgents that run `wt-reap --apply` hourly over `~/dev/fira` and
+  `orb-reap --apply` every two hours. `orb-reap` removes containers whose
+  compose working directory is gone, stops containers up longer than
+  `ORB_REAP_MAX_HOURS` (48) unless their restart policy keeps them up, and
+  prunes build cache older than a week plus dangling images;
+- adds `~/dev`, `~/tmp`, `~/Library/pnpm`, and `~/.cache` to the Spotlight
+  Privacy list through `spotlight-exclude`, which needs root and Full Disk
+  Access for the terminal.

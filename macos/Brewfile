@@ -67,6 +67,8 @@ brew "ollama"        # Local LLM runtime for AI code completion
 
 cask "alacritty"     # GPU-accelerated terminal
 cask "iterm2"        # Feature-rich terminal
+cask "adrafinil"     # Keeps the Mac awake (lid closed too) only while agents work
+cask "orbstack"      # Docker and Linux VMs
 cask "visual-studio-code"  # VS Code
 # cask "docker"        # Containerization - commented due to installation conflicts
 

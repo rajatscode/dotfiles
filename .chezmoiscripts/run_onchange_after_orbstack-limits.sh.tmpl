@@ -1,0 +1,24 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+# Cap OrbStack at two thirds of the cores and half the memory less 2 GiB, so
+# agents running containers in parallel leave the host responsive. Skipped when
+# OrbStack is not installed. New limits take effect on the next OrbStack restart.
+set -euo pipefail
+command -v orb >/dev/null 2>&1 || exit 0
+
+ncpu=$(sysctl -n hw.ncpu)
+mem_mib=$(( $(sysctl -n hw.memsize) / 1048576 ))
+cpu=$(( ncpu * 2 / 3 )); [ "$cpu" -ge 2 ] || cpu=2
+memory=$(( mem_mib / 2 - 2048 )); [ "$memory" -ge 4096 ] || memory=4096
+
+changed=0
+for kv in "cpu=$cpu" "memory_mib=$memory"; do
+    key="${kv%%=*}"; want="${kv#*=}"
+    have="$(orb config show 2>/dev/null | awk -F': ' -v k="$key" '$1==k{print $2}')"
+    if [ "$have" != "$want" ]; then
+        orb config set "$key" "$want"
+        changed=1
+    fi
+done
+[ "$changed" = 0 ] || echo "OrbStack limits set to ${cpu} CPUs / ${memory} MiB; run 'orb stop' and reopen OrbStack to apply."
+{{ end -}}

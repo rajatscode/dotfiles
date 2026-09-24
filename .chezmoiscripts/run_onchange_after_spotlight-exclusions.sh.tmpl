@@ -1,0 +1,15 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+# Keep Spotlight out of source trees, worktrees, and package stores: agents churn
+# millions of files there and mds re-indexes every write.
+set -euo pipefail
+dirs=("{{ .chezmoi.homeDir }}/dev" "{{ .chezmoi.homeDir }}/tmp" "{{ .chezmoi.homeDir }}/Library/pnpm" "{{ .chezmoi.homeDir }}/.cache")
+existing=()
+for d in "${dirs[@]}"; do [ -d "$d" ] && existing+=("$d"); done
+[ ${#existing[@]} -gt 0 ] || exit 0
+if sudo -n true 2>/dev/null; then
+    sudo "{{ .chezmoi.homeDir }}/.local/bin/spotlight-exclude" "${existing[@]}"
+else
+    echo "Spotlight exclusions need root; run: spotlight-exclude ${existing[*]}"
+fi
+{{ end -}}

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Add directories to the Spotlight Privacy list (System Settings > Spotlight >
+# Privacy) so mds stops indexing them. Needs root, and Full Disk Access for the
+# terminal that runs it.
+#
+#   spotlight-exclude ~/dev ~/tmp
+set -euo pipefail
+[ "$(id -u)" = 0 ] || exec sudo "$0" "$@"
+
+config=/System/Volumes/Data/.Spotlight-V100/VolumeConfiguration.plist
+pb=/usr/libexec/PlistBuddy
+[ -r "$config" ] || { echo "spotlight-exclude: cannot read $config (grant Full Disk Access to this terminal)" >&2; exit 1; }
+
+"$pb" -c 'Print :Exclusions' "$config" >/dev/null 2>&1 || "$pb" -c 'Add :Exclusions array' "$config"
+current="$("$pb" -c 'Print :Exclusions' "$config")"
+added=0
+for dir in "$@"; do
+    dir="$(cd "$dir" && pwd -P)"
+    if printf '%s\n' "$current" | grep -qxF "    $dir"; then
+        continue
+    fi
+    "$pb" -c "Add :Exclusions:0 string $dir" "$config"
+    echo "excluded $dir"
+    added=1
+done
+[ "$added" = 0 ] || launchctl kickstart -k system/com.apple.metadata.mds

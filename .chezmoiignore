@@ -11,3 +11,6 @@ linux/
 .config/fish/fish_variables
 .config/fish/personal.fish
 .config/fish/local.fish
+{{ if ne .chezmoi.os "darwin" }}
+Library
+{{ end }}

@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Report or remove Docker containers that no longer serve anything, then prune
+# build cache and dangling images.
+#
+#   orb-reap            report
+#   orb-reap --apply    act
+#
+# A container is removed when its compose working directory no longer exists
+# (the worktree that started it is gone). A running container is stopped when
+# it has been up longer than $ORB_REAP_MAX_HOURS (48), unless its restart
+# policy is always or unless-stopped, which marks it as meant to stay up.
+# Named volumes are left alone: compose project names are reused across
+# worktrees, so a volume's owner cannot be told from its labels.
+set -euo pipefail
+
+apply=0
+max_hours="${ORB_REAP_MAX_HOURS:-48}"
+cache_days="${ORB_REAP_CACHE_DAYS:-7}"
+log="${ORB_REAP_LOG:-${XDG_STATE_HOME:-$HOME/.local/state}/orb-reap.log}"
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --apply) apply=1 ;;
+        -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
+        *) echo "orb-reap: unknown argument $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+mkdir -p "$(dirname "$log")"
+say() {
+    printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$log"
+}
+
+# Asking the docker socket would start OrbStack; a stopped engine has nothing to reap.
+if command -v orb >/dev/null 2>&1 && [ "$(orb status 2>/dev/null)" != "Running" ]; then
+    exit 0
+fi
+docker info >/dev/null 2>&1 || exit 0
+
+verb() { [ "$apply" = 1 ] && echo "$1" || echo "would $1"; }
+
+now=$(date +%s)
+removed=0
+stopped=0
+while IFS=$'\t' read -r id name state started restart workdir; do
+    [ -n "$id" ] || continue
+    [ "$workdir" != "<no value>" ] || workdir=""
+    if [ -n "$workdir" ] && [ ! -d "$workdir" ]; then
+        [ "$apply" = 1 ] && docker rm -f "$id" >/dev/null
+        say "$(verb remove) $name ($state, $workdir is gone)"
+        removed=$((removed+1))
+        continue
+    fi
+    [ "$state" = running ] || continue
+    case "$restart" in always|unless-stopped) continue ;; esac
+    start_s=$(date -j -u -f '%Y-%m-%dT%H:%M:%S' "${started%%.*}" +%s 2>/dev/null) || continue
+    hours=$(( (now - start_s) / 3600 ))
+    [ "$hours" -ge "$max_hours" ] || continue
+    [ "$apply" = 1 ] && docker stop "$id" >/dev/null
+    say "$(verb stop) $name (up ${hours}h >= ${max_hours}h)"
+    stopped=$((stopped+1))
+done < <(docker ps -aq | xargs -r docker inspect -f \
+    '{{.Id}}{{"\t"}}{{slice .Name 1}}{{"\t"}}{{.State.Status}}{{"\t"}}{{.State.StartedAt}}{{"\t"}}{{.HostConfig.RestartPolicy.Name}}{{"\t"}}{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
+
+if [ "$apply" = 1 ]; then
+    cache="$(docker builder prune -f --filter "until=$((cache_days * 24))h" 2>/dev/null | tail -1)"
+    images="$(docker image prune -f 2>/dev/null | tail -1)"
+    volumes="$(docker volume prune -f 2>/dev/null | tail -1)"
+    say "pruned build cache older than ${cache_days}d: ${cache:-none}; dangling images: ${images:-none}; anonymous volumes: ${volumes:-none}"
+fi
+
+say "done: $removed to remove, $stopped to stop$([ "$apply" = 1 ] || echo ' (dry run; --apply to act)')"
