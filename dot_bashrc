@@ -50,6 +50,3 @@ for bashrc_file in "$HOME"/.bashrc.d/*.bashrc; do
 done
 shopt -u nullglob
 
-if [[ -f "$GIT_PERSONAL_PROFILE" ]]; then
-    git config --global include.path "$GIT_PERSONAL_PROFILE"
-fi

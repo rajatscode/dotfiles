@@ -22,6 +22,3 @@ for zsh_file in "$HOME"/.config/zsh/*.zsh(N); do
     source "$zsh_file"
 done
 
-if [[ -f "$GIT_PERSONAL_PROFILE" ]]; then
-    git config --global include.path "$GIT_PERSONAL_PROFILE"
-fi
