@@ -1,6 +1,10 @@
 # Starship Prompt Configuration
 # ASCII-safe configuration that works with any terminal font
 
+# Real git status on large repositories can exceed Starship's 500 ms default.
+# This must remain before any [section] header so it is a global setting.
+command_timeout = 2000
+
 # Overall format
 format = """
 [┌─](bold green)$username$hostname$directory$git_branch$git_status$git_state
@@ -43,6 +47,7 @@ style = "bold purple"
 
 # Git status
 [git_status]
+use_git_executable = false
 format = '([$all_status$ahead_behind]($style) )'
 style = "bold red"
 conflicted = "CONFLICT"

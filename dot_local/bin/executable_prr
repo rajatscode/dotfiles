@@ -1,0 +1,1210 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["textual>=8,<9"]
+# ///
+"""prr — review a GitHub PR from a terminal, from anywhere, even when the API is down.
+
+  prr review <owner/repo> <pr>   open the TUI (owner/repo optional inside a clone)
+  prr status <owner/repo> <pr>   print PR + queued review, no TUI
+  prr submit <owner/repo> <pr>   retry-submit a queued review [--flatten] [--dry-run]
+
+Everything that can come over the git transport (SSH) does: PR head, diff, commits.
+Everything that needs the REST API is fetched opportunistically with short timeouts
+and cached to disk, so an outage costs you freshness, never the workflow. Your review
+is queued locally and submitted atomically when GitHub is back.
+
+State lives in ~/.cache/prr/<owner>/<repo>/PR-<n>/ ; the bare mirror beside it.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+
+CACHE = Path(os.environ.get("PRR_CACHE", Path.home() / ".cache" / "prr"))
+API_TIMEOUT = int(os.environ.get("PRR_API_TIMEOUT", "8"))
+
+# --------------------------------------------------------------------------- #
+# shell / git helpers
+# --------------------------------------------------------------------------- #
+
+
+def run(cmd: list[str], timeout: int | None = None, check: bool = False) -> tuple[int, str, str]:
+    try:
+        p = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout)
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        return 124, "", str(e)
+    if check and p.returncode:
+        raise RuntimeError(f"{' '.join(cmd)}\n{p.stderr}")
+    return p.returncode, p.stdout, p.stderr
+
+
+def git(gitdir: Path | str, *args: str, timeout: int | None = None, check: bool = False):
+    return run(["git", f"--git-dir={gitdir}", *args], timeout=timeout, check=check)
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def age_str(iso: str | None) -> str:
+    if not iso:
+        return "never"
+    try:
+        t = datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return "?"
+    s = (datetime.now(timezone.utc) - t).total_seconds()
+    for div, unit in ((86400, "d"), (3600, "h"), (60, "m")):
+        if s >= div:
+            return f"{int(s // div)}{unit} ago"
+    return "just now"
+
+
+def write_json(path: Path, obj) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(obj, indent=2))
+    os.replace(tmp, path)
+
+
+def read_json(path: Path, default=None):
+    try:
+        return json.loads(path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return default
+
+
+# --------------------------------------------------------------------------- #
+# GitHub API (always short-timeout, always optional)
+# --------------------------------------------------------------------------- #
+
+
+def gh_api(path: str, timeout: int = API_TIMEOUT, method: str | None = None, body=None):
+    """One attempt at one endpoint. Returns parsed JSON, or None on any failure."""
+    cmd = ["gh", "api", "--cache", "0s", path]
+    if method:
+        cmd += ["-X", method]
+    if body is not None:
+        cmd += ["--input", "-"]
+    try:
+        p = subprocess.run(
+            cmd,
+            input=json.dumps(body) if body is not None else None,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+        )
+        if p.returncode == 0:
+            return json.loads(p.stdout)
+        return {"_error": (p.stderr or p.stdout).strip()[:400]}
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError) as e:
+        return {"_error": f"{type(e).__name__}: {e}"[:200]}
+
+
+def gh_api_list(path: str, timeout: int = API_TIMEOUT):
+    """Every page of a list endpoint, flattened. Without this a PR with more than 100
+    review comments silently loses the rest, which reads exactly like 'there are none'.
+    Paginating is several requests, so it gets a proportionally longer budget."""
+    cmd = ["gh", "api", "--cache", "0s", "--paginate", "--slurp", path]
+    try:
+        p = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout * 3)
+        if p.returncode == 0:
+            pages = json.loads(p.stdout)
+            return [item for page in pages for item in page] if isinstance(pages, list) else pages
+        return {"_error": (p.stderr or p.stdout).strip()[:400]}
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError, TypeError) as e:
+        return {"_error": f"{type(e).__name__}: {e}"[:200]}
+
+
+def ok(res) -> bool:
+    return res is not None and not (isinstance(res, dict) and "_error" in res)
+
+
+def http_status(res) -> int | None:
+    """gh reports failures as '... (HTTP 422)'. None means we never reached GitHub."""
+    if not isinstance(res, dict):
+        return None
+    m = re.search(r"\(HTTP (\d{3})\)", res.get("_error") or "")
+    return int(m.group(1)) if m else None
+
+
+def fetch_checks(owner: str, repo: str, num: int, sha: str, timeout: int = API_TIMEOUT) -> dict:
+    """CI state. Tries GraphQL rollup first: gh's OAuth token typically 404s on the
+    REST Checks API, but the rollup on the PR works. Falls back to REST, then statuses."""
+    q = (
+        "query($o:String!,$n:String!,$p:Int!){repository(owner:$o,name:$n){"
+        "pullRequest(number:$p){commits(last:1){nodes{commit{oid statusCheckRollup{state "
+        "contexts(first:100){totalCount nodes{__typename ... on CheckRun{name status conclusion "
+        "startedAt detailsUrl} ... on StatusContext{context state createdAt targetUrl}}}}}}}}}}"
+    )
+    rc, out, err = run(
+        ["gh", "api", "graphql", "-f", f"query={q}", "-F", f"o={owner}", "-F", f"n={repo}", "-F", f"p={num}"],
+        timeout=timeout,
+    )
+    if rc == 0:
+        try:
+            node = json.loads(out)["data"]["repository"]["pullRequest"]["commits"]["nodes"][0]["commit"]
+            roll = node.get("statusCheckRollup") or {}
+            runs = []
+            for c in (roll.get("contexts") or {}).get("nodes") or []:
+                if c.get("__typename") == "CheckRun":
+                    runs.append({"name": c.get("name"), "status": (c.get("status") or "").lower(),
+                                 "conclusion": (c.get("conclusion") or "").lower() or None,
+                                 "started": c.get("startedAt") or "", "url": c.get("detailsUrl")})
+                else:  # a plain commit status, not a check run
+                    st = (c.get("state") or "").lower()
+                    runs.append({"name": c.get("context"), "conclusion": st if st != "pending" else None,
+                                 "status": "completed" if st != "pending" else "in_progress",
+                                 "started": c.get("createdAt") or "", "url": c.get("targetUrl")})
+            ctx_node = (roll.get("contexts") or {})
+            return {"runs": latest_per_check(runs),
+                    "rollup": (roll.get("state") or "").lower(), "source": "graphql",
+                    # one page is the API max; say so rather than quietly under-reporting
+                    "truncated": max(0, (ctx_node.get("totalCount") or 0) - len(runs))}
+        except (KeyError, IndexError, TypeError, json.JSONDecodeError):
+            pass
+    cr = gh_api(f"repos/{owner}/{repo}/commits/{sha}/check-runs?per_page=100", timeout=timeout)
+    if ok(cr) and cr.get("check_runs"):
+        return {"source": "check-runs", "runs": latest_per_check(
+            [{"name": c.get("name"), "status": c.get("status"), "conclusion": c.get("conclusion"),
+              "started": c.get("started_at") or "", "url": c.get("html_url")}
+             for c in cr["check_runs"]])}
+    st = gh_api(f"repos/{owner}/{repo}/commits/{sha}/status", timeout=timeout)
+    if ok(st):
+        return {"source": "statuses", "rollup": st.get("state"), "runs": latest_per_check(
+            [{"name": s.get("context"), "status": "completed", "conclusion": s.get("state"),
+              "started": s.get("updated_at") or "", "url": s.get("target_url")}
+             for s in st.get("statuses") or []])}
+    return {"runs": [], "source": "unavailable"}
+
+
+def latest_per_check(runs: list[dict]) -> list[dict]:
+    """A re-run leaves the superseded attempt in the rollup, so the raw list double-counts
+    (34 entries where GitHub's own UI shows 17). Keep the newest run of each name."""
+    best: dict[str, dict] = {}
+    for r in runs:
+        prev = best.get(r["name"])
+        if prev is None or (r.get("started") or "") >= (prev.get("started") or ""):
+            best[r["name"]] = r
+    return sorted(best.values(), key=lambda r: r["name"] or "")
+
+
+def check_counts(checks: dict) -> tuple[int, int, int]:
+    """(passed, failed, pending)"""
+    good = {"success", "neutral", "skipped"}
+    bad = {"failure", "timed_out", "cancelled", "action_required", "error", "startup_failure"}
+    p = f_ = q = 0
+    for r in checks.get("runs") or []:
+        c = (r.get("conclusion") or "").lower()
+        if not c:
+            q += 1
+        elif c in good:
+            p += 1
+        elif c in bad:
+            f_ += 1
+        else:
+            q += 1
+    return p, f_, q
+
+
+# --------------------------------------------------------------------------- #
+# repo resolution + local git materials
+# --------------------------------------------------------------------------- #
+
+SLUG_RE = re.compile(r"github\.com[:/]([^/]+)/(.+?)(?:\.git)?/?$")
+
+
+def slug_from_cwd() -> tuple[str, str] | None:
+    rc, out, _ = run(["git", "remote", "get-url", "origin"], timeout=5)
+    if rc:
+        return None
+    m = SLUG_RE.search(out.strip())
+    return (m.group(1), m.group(2)) if m else None
+
+
+def local_gitdir_for(owner: str, repo: str) -> str | None:
+    """cwd's clone, if it happens to be a clone of this repo. Never required."""
+    got = slug_from_cwd()
+    if not got or got[0].lower() != owner.lower() or got[1].lower() != repo.lower():
+        return None
+    # --git-common-dir, not --absolute-git-dir: inside a linked worktree the latter is
+    # a per-worktree stub with no object store, which is useless as a clone reference.
+    rc, out, _ = run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], timeout=5)
+    return out.strip() if rc == 0 and out.strip() else None
+
+
+@dataclass
+class Ctx:
+    owner: str
+    repo: str
+    num: int
+    bare: Path
+    dir: Path
+    meta: dict = field(default_factory=dict)
+    snap: dict = field(default_factory=dict)
+
+    @classmethod
+    def make(cls, owner: str, repo: str, num: int) -> "Ctx":
+        d = CACHE / owner / repo / f"PR-{num}"
+        d.mkdir(parents=True, exist_ok=True)
+        c = cls(owner, repo, num, CACHE / owner / f"{repo}.git", d)
+        c.meta = read_json(d / "meta.json", {}) or {}
+        c.snap = read_json(d / "api-snapshot.json", {}) or {}
+        return c
+
+    @property
+    def ssh_url(self) -> str:
+        return f"git@github.com:{self.owner}/{self.repo}.git"
+
+    @property
+    def slug(self) -> str:
+        return f"{self.owner}/{self.repo}"
+
+    # -- git ---------------------------------------------------------------
+    def ensure_bare(self, log=print) -> None:
+        if (self.bare / "HEAD").exists():
+            return
+        self.bare.parent.mkdir(parents=True, exist_ok=True)
+        log(f"cloning {self.slug} (bare, blobless) -> {self.bare}")
+        args = ["clone", "--bare", "--filter=blob:none"]
+        local = local_gitdir_for(self.owner, self.repo)
+        if local:
+            # borrow objects from the clone we're standing in, then cut the cord
+            args += ["--reference-if-able", local, "--dissociate"]
+        rc, _, err = run(["git", *args, self.ssh_url, str(self.bare)], timeout=900)
+        if rc and local:
+            rc, _, err = run(
+                ["git", "clone", "--bare", "--filter=blob:none", self.ssh_url, str(self.bare)],
+                timeout=900,
+            )
+        if rc:
+            raise RuntimeError(f"clone failed: {err.strip()[:400]}")
+
+    def default_branch(self) -> str:
+        rc, out, _ = git(self.bare, "symbolic-ref", "--short", "HEAD", timeout=10)
+        return out.strip() if rc == 0 and out.strip() else "main"
+
+    def fetch(self, base: str | None = None, log=print) -> dict:
+        """Fetch PR head + base over SSH; record head/merge-base. Pure git, no API."""
+        self.ensure_bare(log=log)
+        base = (base or self.meta.get("base")
+                or ((self.snap.get("pull") or {}).get("base") or {}).get("ref")
+                or self.default_branch())
+        log(f"fetching refs/pull/{self.num}/head and {base} over SSH")
+        rc, _, err = git(self.bare, "fetch", "--no-tags", "--force", "origin",
+                         f"+refs/pull/{self.num}/head:refs/prr/{self.num}/head",
+                         f"+refs/heads/{base}:refs/prr/{self.num}/base", timeout=600)
+        if rc:
+            if not self.meta.get("head"):
+                raise RuntimeError(f"fetch failed and nothing cached: {err.strip()[:300]}")
+            log("fetch failed — using cached refs")
+            return self.meta
+        head = git(self.bare, "rev-parse", f"refs/prr/{self.num}/head")[1].strip()
+        mb = git(self.bare, "merge-base",
+                 f"refs/prr/{self.num}/base", f"refs/prr/{self.num}/head")[1].strip()
+        self.meta = {"owner": self.owner, "repo": self.repo, "pr": self.num, "head": head,
+                     "merge_base": mb, "base": base, "fetched": now_iso()}
+        write_json(self.dir / "meta.json", self.meta)
+        # warm the blob cache while we're demonstrably online (blobless clone is lazy)
+        git(self.bare, "diff", "--numstat", mb, head, timeout=600)
+        return self.meta
+
+    def files(self) -> list[dict]:
+        mb, head = self.meta.get("merge_base"), self.meta.get("head")
+        if not (mb and head):
+            return []
+        rc, out, _ = git(self.bare, "diff", "--numstat", "-M", mb, head, timeout=300)
+        files = []
+        for line in out.splitlines():
+            parts = line.split("\t")
+            if len(parts) != 3:
+                continue
+            adds, dels, path = parts
+            if " => " in path:  # rename: take the new path
+                path = re.sub(r"\{(.*?) => (.*?)\}", r"\2", path)
+                path = path.split(" => ")[-1]
+            files.append({"path": path, "binary": adds == "-",
+                          "adds": 0 if adds == "-" else int(adds),
+                          "dels": 0 if dels == "-" else int(dels)})
+        return files
+
+    def file_diff(self, path: str) -> str:
+        return git(self.bare, "diff", "--no-color", "-U3", "-M",
+                   self.meta["merge_base"], self.meta["head"], "--", path, timeout=300)[1]
+
+    def commits(self) -> str:
+        return git(self.bare, "log", "--date=short", "--format=%h  %an  %ad%n    %s%n%w(90,4,4)%b",
+                   f"{self.meta['merge_base']}..{self.meta['head']}", timeout=120)[1]
+
+    # -- API snapshot ------------------------------------------------------
+    def refresh(self, timeout: int = API_TIMEOUT) -> bool:
+        """Best-effort snapshot of everything API-only. Keeps the old one on failure."""
+        b = f"repos/{self.owner}/{self.repo}"
+        pull = gh_api(f"{b}/pulls/{self.num}", timeout=timeout)
+        if not ok(pull):
+            return False
+        stale: list[str] = []
+
+        def sub(path: str, key: str) -> list:
+            """A sub-fetch that fails must not read as 'this PR has none' — a timeout
+            on the threads endpoint would otherwise hide every existing comment."""
+            res = gh_api_list(path, timeout)
+            if isinstance(res, list):
+                return res
+            stale.append(key)
+            return self.snap.get(key) or []
+
+        snap = {
+            "pull": {k: pull.get(k) for k in
+                     ("title", "body", "state", "draft", "user", "base", "head",
+                      "mergeable_state", "html_url", "additions", "deletions")},
+            "review_comments": sub(f"{b}/pulls/{self.num}/comments?per_page=100", "review_comments"),
+            "issue_comments": sub(f"{b}/issues/{self.num}/comments?per_page=100", "issue_comments"),
+            "reviews": sub(f"{b}/pulls/{self.num}/reviews?per_page=100", "reviews"),
+            "cached_at": now_iso(),
+            "stale": stale,
+        }
+        sha = (pull.get("head") or {}).get("sha") or self.meta.get("head") or ""
+        checks = fetch_checks(self.owner, self.repo, self.num, sha, timeout)
+        if checks["source"] == "unavailable" and (self.snap.get("checks") or {}).get("runs"):
+            checks = self.snap["checks"]
+            stale.append("checks")
+        snap["checks"] = checks
+        write_json(self.dir / "api-snapshot.json", snap)
+        self.snap = snap
+        return True
+
+    # -- pending review ----------------------------------------------------
+    @property
+    def pending_path(self) -> Path:
+        return self.dir / "pending.json"
+
+    def pending(self) -> dict:
+        return read_json(self.pending_path, None) or {"event": None, "body": "", "comments": []}
+
+    def save_pending(self, pend: dict) -> None:
+        write_json(self.pending_path, pend)
+
+    def queue_comment(self, path: str, line: int, body: str, side: str = "RIGHT",
+                      in_reply_to: int | None = None) -> dict:
+        pend = self.pending()
+        c = {"path": path, "line": line, "side": side, "body": body}
+        if in_reply_to:
+            c["in_reply_to"] = in_reply_to
+        pend["comments"].append(c)
+        self.save_pending(pend)
+        return pend
+
+    def set_verdict(self, event: str, body: str) -> dict:
+        pend = self.pending()
+        pend["event"] = event
+        pend["body"] = body
+        self.save_pending(pend)
+        return pend
+
+    def review_payload(self, pend: dict | None = None) -> dict:
+        pend = pend or self.pending()
+        return {
+            "commit_id": self.meta.get("head"),
+            "event": pend.get("event") or "COMMENT",
+            "body": pend.get("body") or "",
+            "comments": [{k: c[k] for k in ("path", "line", "side", "body")}
+                         for c in pend.get("comments", [])
+                         if not c.get("in_reply_to") and not c.get("_posted")],
+        }
+
+
+# --------------------------------------------------------------------------- #
+# submit
+# --------------------------------------------------------------------------- #
+
+
+def flatten_body(ctx: Ctx, pend: dict) -> str:
+    verdict = {"APPROVE": "Approve", "REQUEST_CHANGES": "Request changes"}.get(
+        pend.get("event") or "", "Comment"
+    )
+    out = [f"**Review via prr — {verdict}** (inline anchors inlined below)", ""]
+    if pend.get("body"):
+        out += [pend["body"], ""]
+    for c in pend.get("comments", []):
+        if c.get("_posted"):
+            continue
+        out += ["---", f"`{c['path']}:{c['line']}`", "", c["body"], ""]
+    return "\n".join(out)
+
+
+def submit(ctx: Ctx, flatten: bool = False, dry: bool = False, retries: int = 5,
+           log=print, sleep=time.sleep) -> bool:
+    """Atomic-ish: replies post individually and are marked _posted so a retry never
+    duplicates them; the queue file is only retired after a clean submit."""
+    pend = ctx.pending()
+    if not pend.get("event") and not pend.get("comments"):
+        log("nothing queued")
+        return False
+    payload = ctx.review_payload(pend)
+    if dry:
+        replies = [c for c in pend["comments"] if c.get("in_reply_to") and not c.get("_posted")]
+        log(json.dumps({"review": payload, "replies": replies,
+                        "flattened": flatten_body(ctx, pend) if flatten else None}, indent=2))
+        return True
+
+    b = f"repos/{ctx.owner}/{ctx.repo}"
+    if flatten:
+        for i in range(1, retries + 1):
+            r = gh_api(f"{b}/issues/{ctx.num}/comments", timeout=20, method="POST",
+                       body={"body": flatten_body(ctx, pend)})
+            if ok(r):
+                _retire(ctx)
+                return True
+            log(f"attempt {i}/{retries} failed: {r.get('_error', '?') if isinstance(r, dict) else r}")
+            if i < retries:
+                sleep(i * 10)
+        return False
+
+    # 1. replies to existing threads: separate endpoint, in_reply_to
+    for c in pend["comments"]:
+        if not c.get("in_reply_to") or c.get("_posted"):
+            continue
+        r = gh_api(f"{b}/pulls/{ctx.num}/comments", timeout=20, method="POST",
+                   body={"body": c["body"], "in_reply_to": c["in_reply_to"]})
+        if ok(r):
+            c["_posted"] = True
+            ctx.save_pending(pend)
+            continue
+        code = http_status(r)
+        if code in (404, 410, 422):
+            # GitHub actively rejected the anchor (thread gone/outdated) — degrade it
+            # to a plain inline comment so the text still lands.
+            log(f"reply to #{c['in_reply_to']} rejected (HTTP {code}); re-anchoring as inline")
+            c.pop("in_reply_to")
+            ctx.save_pending(pend)
+            payload = ctx.review_payload(pend)
+        else:
+            # Never downgrade a reply because the network was down: keep it queued.
+            log(f"could not reach GitHub for reply #{c['in_reply_to']} — queue preserved")
+            return False
+
+    # 2. the review itself
+    if not payload["comments"] and not payload["body"] and not pend.get("event"):
+        _retire(ctx)
+        return True
+    for i in range(1, retries + 1):
+        r = gh_api(f"{b}/pulls/{ctx.num}/reviews", timeout=25, method="POST", body=payload)
+        if ok(r):
+            _retire(ctx)
+            return True
+        err = r.get("_error", "?") if isinstance(r, dict) else str(r)
+        if http_status(r) == 422:
+            # bad line anchors; retrying is pointless, --flatten is the way out
+            log(f"GitHub rejected the inline anchors (422). Re-submit with --flatten "
+                f"(or the 'post as single comment' button) to post the text unanchored.\n{err}")
+            break
+        log(f"attempt {i}/{retries} failed: {err}")
+        if i < retries:
+            sleep(i * 10)
+    log(f"queue preserved at {ctx.pending_path}")
+    return False
+
+
+def _retire(ctx: Ctx) -> None:
+    if ctx.pending_path.exists():
+        os.replace(ctx.pending_path, ctx.dir / f"submitted-{int(time.time())}.json")
+
+
+# --------------------------------------------------------------------------- #
+# diff parsing
+# --------------------------------------------------------------------------- #
+
+HEADER_PREFIXES = ("diff --git", "index ", "--- ", "+++ ", "new file", "deleted file",
+                   "similarity ", "rename ", "old mode", "new mode", "Binary files")
+
+
+def parse_diff(text: str) -> list[tuple[str, str, int | None, int | None]]:
+    """-> [(kind, content, old_line, new_line)] with kind in hunk/ctx/add/del/meta."""
+    rows: list[tuple[str, str, int | None, int | None]] = []
+    old = new = 0
+    for line in text.split("\n"):
+        if line.startswith("@@"):
+            m = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", line)
+            if m:
+                old, new = int(m.group(1)), int(m.group(2))
+            rows.append(("hunk", line, None, None))
+        elif line.startswith(HEADER_PREFIXES):
+            if line.startswith(("new file", "deleted file", "rename ", "Binary files")):
+                rows.append(("meta", line, None, None))
+        elif line.startswith("+"):
+            rows.append(("add", line[1:], None, new))
+            new += 1
+        elif line.startswith("-"):
+            rows.append(("del", line[1:], old, None))
+            old += 1
+        elif line.startswith(" "):
+            rows.append(("ctx", line[1:], old, new))
+            old, new = old + 1, new + 1
+        elif line.startswith("\\"):
+            rows.append(("meta", line, None, None))
+    return rows
+
+
+def threads_for(snap: dict, path: str) -> dict[int, list[dict]]:
+    """Existing review comments on `path`, grouped by the NEW-side line they sit on.
+    Only `line` is trusted: it is GitHub's current position. Comments that have gone
+    outdated have line=None, and original_line points into a since-rewritten file —
+    anchoring by it would render them against unrelated code, so they go to
+    orphan_threads() and are listed in Discussion instead."""
+    out: dict[int, list[dict]] = {}
+    for c in snap.get("review_comments") or []:
+        if c.get("path") == path and c.get("line") and c.get("side") != "LEFT":
+            out.setdefault(int(c["line"]), []).append(c)
+    for v in out.values():
+        v.sort(key=lambda c: c.get("created_at") or "")
+    return out
+
+
+HTML_NOISE = re.compile(
+    r"<!--.*?-->|</?(?:a|picture|source|img|details|summary|table|tr|td|th|div|p|br)\b[^>]*>",
+    re.S | re.I)
+
+
+def clean_body(body: str) -> list[str]:
+    """Review-bot comments carry HTML badges and tracking comments that would swamp
+    the diff. Strip the markup, keep the prose."""
+    text = HTML_NOISE.sub("", body or "")
+    lines = [ln.rstrip() for ln in text.splitlines()]
+    out: list[str] = []
+    for ln in lines:  # collapse the blank runs the stripping leaves behind
+        if ln or (out and out[-1]):
+            out.append(ln)
+    while out and not out[-1]:
+        out.pop()
+    return out or [""]
+
+
+def orphan_threads(snap: dict) -> list[dict]:
+    """Review comments that can't be placed on the current diff (outdated, or LEFT-side)."""
+    return [c for c in snap.get("review_comments") or []
+            if not c.get("line") or c.get("side") == "LEFT"]
+
+
+# --------------------------------------------------------------------------- #
+# TUI
+# --------------------------------------------------------------------------- #
+
+
+def build_app(ctx: Ctx):
+    from rich.markdown import Markdown as RMarkdown
+    from rich.syntax import Syntax
+    from rich.text import Text
+    from textual import work
+    from textual.app import App, ComposeResult
+    from textual.binding import Binding
+    from textual.containers import Horizontal, VerticalScroll
+    from textual.screen import ModalScreen
+    from textual.widgets import (Button, DataTable, Footer, Label, ListItem, ListView,
+                                 RadioButton, RadioSet, Static, TabbedContent, TabPane, TextArea)
+
+    SIDEBAR = 42
+    THREAD_LINES = 6
+    STYLE = {
+        "add": "#0b2a12", "del": "#2d1113", "hunk": "bold #6ea8fe",
+        "thread": "#1b2333", "pending": "#33280a",
+    }
+
+    class Prompt(ModalScreen):
+        """Shared modal chrome: escape cancels, ctrl+s saves, the editor takes focus."""
+
+        BINDINGS = [Binding("escape", "cancel", "cancel"), Binding("ctrl+s", "ok", "save")]
+        HINT = "ctrl+s save · escape cancel"
+
+        def on_mount(self) -> None:
+            for ta in self.query(TextArea):
+                ta.focus()
+                return
+
+        def action_cancel(self) -> None:
+            self.dismiss(None)
+
+        def action_ok(self) -> None:
+            self.dismiss(None)
+
+        def _text(self) -> str:
+            return self.query_one("#ta", TextArea).text.strip()
+
+    class TextPrompt(Prompt):
+        """One comment or reply body. Dismisses with the text, or None if cancelled."""
+
+        def __init__(self, title: str, seed: str = "") -> None:
+            super().__init__()
+            self.title_text, self.seed = title, seed
+
+        def compose(self) -> ComposeResult:
+            with VerticalScroll(id="modal"):
+                yield Label(self.title_text, id="modal-title")
+                yield TextArea(self.seed, id="ta")
+                yield Label(self.HINT, classes="dim")
+
+        def action_ok(self) -> None:
+            self.dismiss(self._text() or None)
+
+    class VerdictPrompt(Prompt):
+        """Dismisses with (event, body)."""
+
+        def __init__(self, event: str | None, body: str) -> None:
+            super().__init__()
+            self.event, self.body = event or "COMMENT", body
+
+        def compose(self) -> ComposeResult:
+            with VerticalScroll(id="modal"):
+                yield Label("Verdict", id="modal-title")
+                with RadioSet(id="verdict"):
+                    for val, lab in (("APPROVE", "Approve"), ("REQUEST_CHANGES", "Request changes"),
+                                     ("COMMENT", "Comment")):
+                        yield RadioButton(lab, value=(val == self.event), name=val)
+                yield Label("Review body:")
+                yield TextArea(self.body, id="ta")
+                yield Label(self.HINT, classes="dim")
+
+        def action_ok(self) -> None:
+            btn = self.query_one("#verdict", RadioSet).pressed_button
+            self.dismiss(((btn.name if btn else None) or "COMMENT", self._text()))
+
+    class SubmitPrompt(Prompt):
+        """Dismisses with 'review', 'flatten' or None."""
+
+        def __init__(self, preview: str) -> None:
+            super().__init__()
+            self.preview = preview
+
+        def compose(self) -> ComposeResult:
+            with VerticalScroll(id="modal"):
+                yield Label("Submit this review?", id="modal-title")
+                yield Static(self.preview, id="payload")
+                with Horizontal(id="btns"):
+                    yield Button("Submit review", variant="success", id="b-review")
+                    yield Button("Post as single comment", id="b-flat")
+                    yield Button("Cancel", variant="error", id="b-cancel")
+
+        def on_button_pressed(self, e: Button.Pressed) -> None:
+            self.dismiss({"b-review": "review", "b-flat": "flatten"}.get(e.button.id or ""))
+
+    class PRR(App):
+        CSS = """
+        Screen { layers: base overlay; }
+        #files { width: 42; border-right: solid $panel; }
+        #files ListItem { padding: 0 1; }
+        #hdr { height: 2; padding: 0 1; background: $panel; }
+        #diff { height: 1fr; }
+        .dim { color: $text-muted; }
+        .pane { padding: 1 2; }
+        #modal { layer: overlay; width: 90; max-height: 85%; padding: 1 2;
+                 background: $surface; border: thick $accent; }
+        #modal-title { text-style: bold; }
+        #ta { height: 14; margin: 1 0; }
+        #payload { height: auto; max-height: 22; margin: 1 0; }
+        #btns { height: auto; margin-top: 1; }
+        #btns Button { margin-right: 2; }
+        """
+        BINDINGS = [
+            Binding("j", "row(1)", "down", show=False),
+            Binding("k", "row(-1)", "up", show=False),
+            Binding("J", "file(1)", "next file"),
+            Binding("K", "file(-1)", "prev file"),
+            Binding("c", "comment", "comment"),
+            Binding("r", "reply", "reply"),
+            Binding("v", "verdict", "verdict"),
+            Binding("s", "submit", "submit"),
+            Binding("R", "refresh", "refresh"),
+            Binding("h", "hscroll(-1)", "scroll left", show=False),
+            Binding("l", "hscroll(1)", "h/l scroll wide lines"),
+            Binding("o", "expand", "expand threads"),
+            Binding("d", "desc", "description"),
+            Binding("q", "quit", "quit"),
+        ]
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.ctx = ctx
+            self.files: list[dict] = []
+            self.rows: list[dict] = []
+            self.cur = 0
+            self.busy = ""
+            self.expanded = False
+
+        # -- layout --------------------------------------------------------
+        def compose(self) -> ComposeResult:
+            yield Static(id="hdr")
+            with Horizontal():
+                yield ListView(id="files")
+                with TabbedContent(id="tabs"):
+                    with TabPane("Diff", id="t-diff"):
+                        yield DataTable(id="diff", show_header=False, cursor_type="row")
+                    with TabPane("Description", id="t-desc"):
+                        yield VerticalScroll(Static(id="desc", classes="pane"))
+                    with TabPane("Commits", id="t-commits"):
+                        yield VerticalScroll(Static(id="commits", classes="pane"))
+                    with TabPane("Discussion", id="t-disc"):
+                        yield VerticalScroll(Static(id="disc", classes="pane"))
+                    with TabPane("Checks", id="t-checks"):
+                        yield VerticalScroll(Static(id="checks", classes="pane"))
+                    with TabPane("My review", id="t-mine"):
+                        yield VerticalScroll(Static(id="mine", classes="pane"))
+            yield Footer()
+
+        def on_mount(self) -> None:
+            self.query_one("#diff", DataTable).add_column("line")
+            self.reload_files()
+            self.render_static()
+            self.query_one("#diff", DataTable).focus()
+            if self.ctx.snap:
+                self.action_refresh()
+
+        # -- data ----------------------------------------------------------
+        def reload_files(self) -> None:
+            self.files = self.ctx.files()
+            lv = self.query_one("#files", ListView)
+            lv.clear()
+            pend = self.ctx.pending()
+            for f in self.files:
+                n_thread = len({(c.get("line") or c.get("original_line"))
+                                for c in self.ctx.snap.get("review_comments") or []
+                                if c.get("path") == f["path"]})
+                n_pend = sum(1 for c in pend["comments"] if c["path"] == f["path"])
+                # the sidebar is narrow: budget the path so stats and badges always fit
+                tail = f"+{f['adds']} -{f['dels']}"
+                badge = (f" {n_thread}c" if n_thread else "") + (f" {n_pend}p" if n_pend else "")
+                room = SIDEBAR - 8 - len(tail) - len(badge)  # border + padding + separators
+                p = f["path"]
+                name = p if len(p) <= room else "…" + p[-(room - 1):]
+                d, b = os.path.split(name)
+                t = Text()
+                if d:
+                    t.append(d + "/", "dim")
+                t.append(f"{b}  ")
+                t.append(f"+{f['adds']} ", "green")
+                t.append(f"-{f['dels']}", "red")
+                if n_thread:
+                    t.append(f" {n_thread}c", "cyan")
+                if n_pend:
+                    t.append(f" {n_pend}p", "yellow")
+                lv.append(ListItem(Label(t)))
+            if self.files:
+                lv.index = min(self.cur, len(self.files) - 1)
+                self.show_file(lv.index or 0)
+
+        def on_list_view_highlighted(self, e) -> None:
+            if e.list_view.id == "files" and e.list_view.index is not None:
+                self.show_file(e.list_view.index)
+
+        def show_file(self, idx: int) -> None:
+            if not self.files:
+                return
+            self.cur = max(0, min(idx, len(self.files) - 1))
+            path = self.files[self.cur]["path"]
+            table = self.query_one("#diff", DataTable)
+            table.clear()
+            self.rows = []
+            parsed = parse_diff(self.ctx.file_diff(path))
+            threads = threads_for(self.ctx.snap, path)
+            pend_by_line: dict[int, list[dict]] = {}
+            for c in self.ctx.pending()["comments"]:
+                if c["path"] == path:
+                    pend_by_line.setdefault(int(c["line"]), []).append(c)
+
+            body = [r[1] for r in parsed if r[0] in ("ctx", "add", "del")]
+            hi = self._highlight(path, body)
+            bi = 0
+            out: list[tuple[Text, dict]] = []
+            for kind, content, old, new in parsed:
+                if kind in ("ctx", "add", "del"):
+                    txt = hi[bi] if bi < len(hi) else Text(content)
+                    bi += 1
+                    g = Text(f"{new or '':>5} ", "dim")
+                    sign = {"add": "+", "del": "-", "ctx": " "}[kind]
+                    line = Text.assemble(g, (sign, "bold"), txt)
+                    if kind != "ctx":
+                        line.stylize(f"on {STYLE[kind]}")
+                    out.append((line, {"kind": kind, "path": path, "new": new, "old": old,
+                                       "side": "LEFT" if kind == "del" else "RIGHT"}))
+                elif kind == "hunk":
+                    out.append((Text(content, STYLE["hunk"]), {"kind": "hunk"}))
+                else:
+                    out.append((Text("      " + content, "dim italic"), {"kind": "meta"}))
+                anchor = new if kind in ("ctx", "add") else None
+                if anchor:
+                    for c in threads.get(anchor, []):
+                        who = (c.get("user") or {}).get("login", "?")
+                        body = clean_body(c.get("body") or "")
+                        hidden = 0
+                        if not self.expanded and len(body) > THREAD_LINES:
+                            hidden = len(body) - THREAD_LINES
+                            body = body[:THREAD_LINES]
+                        if hidden:
+                            body.append(f"… {hidden} more line{'s' * (hidden > 1)} (o to expand)")
+                        meta_row = {"kind": "thread", "path": path, "new": anchor,
+                                    "side": "RIGHT", "id": c.get("id"), "who": who}
+                        for i, ln in enumerate(body):
+                            pre = f"      ┃ {who}: " if i == 0 else "      ┃   "
+                            t = Text(pre + ln[:200])
+                            t.stylize(f"on {STYLE['thread']}")
+                            out.append((t, meta_row))
+                    for c in pend_by_line.get(anchor, []):
+                        for i, ln in enumerate(c["body"].splitlines() or [""]):
+                            pre = "      ┃ pending: " if i == 0 else "      ┃   "
+                            t = Text(pre + ln[:200], "yellow")
+                            t.stylize(f"on {STYLE['pending']}")
+                            out.append((t, {"kind": "pending", "path": path, "new": anchor}))
+            for text, meta in out:
+                table.add_row(text)
+                self.rows.append(meta)
+            if not out:
+                table.add_row(Text("(no textual diff — binary or mode-only change)", "dim"))
+                self.rows.append({"kind": "meta"})
+            table.move_cursor(row=0)
+            self.render_header()
+
+        def _highlight(self, path: str, lines: list[str]) -> list[Text]:
+            try:
+                lexer = Syntax.guess_lexer(path, code="\n".join(lines))
+                syn = Syntax("\n".join(lines), lexer, theme="ansi_dark", word_wrap=False)
+                return syn.highlight("\n".join(lines)).split("\n")
+            except Exception:
+                return [Text(x) for x in lines]
+
+        # -- rendering -----------------------------------------------------
+        def render_header(self) -> None:
+            s, m = self.ctx.snap, self.ctx.meta
+            pull = s.get("pull") or {}
+            t = Text()
+            t.append(f"{self.ctx.slug} #{self.ctx.num}", "bold")
+            t.append(f"  {pull.get('title') or '(title unknown — API unreachable)'}\n")
+            t.append(f"{(pull.get('user') or {}).get('login', '?')}  ", "cyan")
+            t.append(f"{pull.get('state') or '?'}{' draft' if pull.get('draft') else ''}  ")
+            if s.get("checks"):
+                p, f_, q = check_counts(s["checks"])
+                t.append("CI ")
+                t.append(f"✓{p} ", "green")
+                t.append(f"✗{f_} ", "red")
+                t.append(f"○{q}  ", "yellow")
+            else:
+                t.append("CI unknown  ", "yellow")
+            t.append(f"head {(m.get('head') or '?')[:9]}  ", "dim")
+            if s.get("cached_at"):
+                t.append(f"snapshot {age_str(s['cached_at'])}", "dim")
+            else:
+                t.append("no API snapshot (offline)", "yellow")
+            if s.get("stale"):
+                t.append(f"  ({', '.join(s['stale'])} unreachable — showing older copy)", "yellow")
+            if self.busy:
+                t.append(f"   [{self.busy}]", "magenta")
+            self.query_one("#hdr", Static).update(t)
+
+        def render_static(self) -> None:
+            s = self.ctx.snap
+            pull = s.get("pull") or {}
+            stale = f"\n\n---\n*snapshot {age_str(s.get('cached_at'))}*" if s else ""
+            if pull.get("body"):
+                self.query_one("#desc", Static).update(RMarkdown(pull["body"] + stale))
+            else:
+                self.query_one("#desc", Static).update(
+                    "Description unknown (API unreachable, no cache). "
+                    "The Commits tab is the offline stand-in." if not s else "(no description)")
+            self.query_one("#commits", Static).update(
+                self.ctx.commits() or "(no commits)")
+
+            d = Text()
+            orphans = orphan_threads(s)
+            if orphans:
+                d.append(f"{len(orphans)} thread(s) not shown in the diff "
+                         "(outdated, or on a deleted line)\n", "bold yellow")
+                for c in orphans:
+                    who = (c.get("user") or {}).get("login", "?")
+                    d.append(f"  {c.get('path')}", "cyan")
+                    d.append(f" (was line {c.get('original_line') or '?'})  {who}\n", "dim")
+                    d.append("  " + "\n  ".join(clean_body(c.get("body"))[:8]) + "\n\n")
+            for r in s.get("reviews") or []:
+                who = (r.get("user") or {}).get("login", "?")
+                d.append(f"{who}: {r.get('state')}\n", "bold")
+                if r.get("body"):
+                    d.append(r["body"].strip() + "\n", "")
+                d.append("\n")
+            for c in s.get("issue_comments") or []:
+                who = (c.get("user") or {}).get("login", "?")
+                d.append(f"{who}  ", "bold cyan")
+                d.append(f"{(c.get('created_at') or '')[:10]}\n", "dim")
+                d.append("\n".join(clean_body(c.get("body"))) + "\n\n")
+            if not d.plain:
+                d = Text("no discussion in snapshot"
+                         + ("" if s else " (API unreachable, nothing cached)"), "dim")
+            self.query_one("#disc", Static).update(d)
+
+            ch = s.get("checks") or {}
+            c = Text()
+            if not ch.get("runs"):
+                c = Text(f"CI unknown ({ch.get('source', 'no snapshot')}"
+                         + (f", cached {age_str(s.get('cached_at'))}" if s else "") + ")", "yellow")
+            else:
+                for r in ch["runs"]:
+                    concl = (r.get("conclusion") or "").lower()
+                    mark, style = {"success": ("✓", "green"), "neutral": ("✓", "green"),
+                                   "skipped": ("–", "dim")}.get(
+                        concl, ("✗", "red") if concl else ("○", "yellow"))
+                    c.append(f"{mark} ", style)
+                    c.append(f"{r.get('name')}  ")
+                    c.append(f"{concl or r.get('status') or 'pending'}\n", "dim")
+                if ch.get("truncated"):
+                    c.append(f"\n{ch['truncated']} further check(s) beyond the API's one-page "
+                             "limit are not listed\n", "yellow")
+                c.append(f"\nsource: {ch.get('source')} · snapshot {age_str(s.get('cached_at'))}",
+                         "dim")
+            self.query_one("#checks", Static).update(c)
+            self.render_mine()
+
+        def render_mine(self) -> None:
+            pend = self.ctx.pending()
+            t = Text()
+            t.append("verdict: ", "bold")
+            t.append((pend.get("event") or "(none — press v)") + "\n", "yellow")
+            if pend.get("body"):
+                t.append("\n" + pend["body"] + "\n")
+            t.append(f"\n{len(pend['comments'])} queued inline comment(s)\n\n", "bold")
+            for i, c in enumerate(pend["comments"], 1):
+                t.append(f"{i}. {c['path']}:{c['line']}", "cyan")
+                if c.get("in_reply_to"):
+                    t.append(f"  (reply to #{c['in_reply_to']})", "dim")
+                if c.get("_posted"):
+                    t.append("  [posted]", "green")
+                t.append("\n" + c["body"] + "\n\n")
+            t.append(f"queue file: {self.ctx.pending_path}", "dim")
+            self.query_one("#mine", Static).update(t)
+
+        # -- actions -------------------------------------------------------
+        def action_row(self, delta: int) -> None:
+            t = self.query_one("#diff", DataTable)
+            if t.row_count:
+                t.move_cursor(row=max(0, min(t.cursor_row + delta, t.row_count - 1)))
+
+        def action_file(self, delta: int) -> None:
+            if self.files:
+                self.query_one("#files", ListView).index = max(
+                    0, min(self.cur + delta, len(self.files) - 1))
+
+        def action_hscroll(self, delta: int) -> None:
+            """Long lines run off the pane; the table scrolls sideways, 12 columns a press."""
+            t = self.query_one("#diff", DataTable)
+            t.scroll_to(x=max(0, t.scroll_x + delta * 12), animate=False)
+
+        def action_expand(self) -> None:
+            self.expanded = not self.expanded
+            self.show_file(self.cur)
+            self.notify("threads expanded" if self.expanded else "threads collapsed")
+
+        def action_desc(self) -> None:
+            self.query_one("#tabs", TabbedContent).active = "t-desc"
+
+        def _cursor_meta(self) -> dict | None:
+            t = self.query_one("#diff", DataTable)
+            if not self.rows or t.cursor_row >= len(self.rows):
+                return None
+            return self.rows[t.cursor_row]
+
+        @work
+        async def action_comment(self) -> None:
+            meta = self._cursor_meta()
+            if not meta or meta["kind"] not in ("ctx", "add", "del", "thread", "pending"):
+                self.notify("put the cursor on a diff line first", severity="warning")
+                return
+            line = meta.get("new") or meta.get("old")
+            side = meta.get("side", "RIGHT")
+            if not line:
+                self.notify("no line number on that row", severity="warning")
+                return
+            body = await self.push_screen_wait(
+                TextPrompt(f"Comment on {meta['path']}:{line} ({side})"))
+            if body:
+                self.ctx.queue_comment(meta["path"], int(line), body, side)
+                self.notify(f"queued comment on {os.path.basename(meta['path'])}:{line}")
+                self.refresh_local()
+
+        @work
+        async def action_reply(self) -> None:
+            meta = self._cursor_meta()
+            if not meta or meta["kind"] != "thread":
+                self.notify("put the cursor on an existing comment to reply", severity="warning")
+                return
+            body = await self.push_screen_wait(
+                TextPrompt(f"Reply to {meta.get('who')} on {meta['path']}:{meta['new']}"))
+            if body:
+                self.ctx.queue_comment(meta["path"], int(meta["new"]), body, "RIGHT",
+                                       in_reply_to=meta.get("id"))
+                self.notify("queued reply")
+                self.refresh_local()
+
+        @work
+        async def action_verdict(self) -> None:
+            pend = self.ctx.pending()
+            res = await self.push_screen_wait(
+                VerdictPrompt(pend.get("event"), pend.get("body") or ""))
+            if res:
+                self.ctx.set_verdict(res[0], res[1])
+                self.notify(f"verdict: {res[0]}")
+                self.render_mine()
+
+        @work
+        async def action_submit(self) -> None:
+            pend = self.ctx.pending()
+            if not pend.get("event") and not pend["comments"]:
+                self.notify("nothing queued", severity="warning")
+                return
+            preview = json.dumps(
+                {"review": self.ctx.review_payload(pend),
+                 "replies": [c for c in pend["comments"]
+                             if c.get("in_reply_to") and not c.get("_posted")]},
+                indent=2)
+            choice = await self.push_screen_wait(SubmitPrompt(preview[:6000]))
+            if choice:
+                self.do_submit(choice == "flatten")
+
+        @work(thread=True)
+        def do_submit(self, flatten: bool) -> None:
+            self.call_from_thread(self._busy, "submitting…")
+            logs: list[str] = []
+            good = submit(self.ctx, flatten=flatten, log=logs.append)
+            self.call_from_thread(self._busy, "")
+            if good:
+                self.call_from_thread(self.notify, "submitted ✓", severity="information")
+            else:
+                self.call_from_thread(
+                    self.notify,
+                    "submit failed — queue kept on disk. " + (logs[-1] if logs else ""),
+                    severity="error", timeout=12)
+            self.call_from_thread(self.refresh_local)
+
+        @work(thread=True)
+        def action_refresh(self) -> None:
+            self.call_from_thread(self._busy, "refreshing…")
+            good = self.ctx.refresh()
+            self.call_from_thread(self._busy, "")
+            self.call_from_thread(self._after_refresh, good)
+
+        def _busy(self, msg: str) -> None:
+            self.busy = msg
+            self.render_header()
+
+        def _after_refresh(self, good: bool) -> None:
+            if good:
+                self.render_static()
+                self.reload_files()
+                self.show_file(self.cur)
+                self.notify("snapshot refreshed")
+            else:
+                self.notify("API unreachable — showing cache", severity="warning")
+            self.render_header()
+
+        def refresh_local(self) -> None:
+            """Re-render the things that depend only on local state."""
+            self.render_mine()
+            self.reload_files()
+            self.show_file(self.cur)
+
+    return PRR()
+
+
+# --------------------------------------------------------------------------- #
+# CLI
+# --------------------------------------------------------------------------- #
+
+
+def resolve(args: list[str]) -> tuple[Ctx, list[str]]:
+    """<owner/repo> <pr> | <pr> (owner/repo inferred from cwd's origin)."""
+    pos = [a for a in args if not a.startswith("-")]
+    flags = [a for a in args if a.startswith("-")]
+    if not pos:
+        die("need a PR number")
+    if len(pos) >= 2 and "/" in pos[0]:
+        owner, repo = pos[0].split("/", 1)
+        num = pos[1]
+    else:
+        got = slug_from_cwd()
+        if not got:
+            die("no owner/repo given and cwd is not a GitHub clone — "
+                "use: prr review <owner/repo> <pr>")
+        owner, repo = got
+        num = pos[0]
+    if not num.isdigit():
+        die(f"not a PR number: {num}")
+    return Ctx.make(owner, repo, int(num)), flags
+
+
+def die(msg: str):
+    print(f"error: {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def cmd_review(args: list[str]) -> None:
+    ctx, _ = resolve(args)
+    ctx.fetch()
+    if not ctx.snap:
+        ctx.refresh()  # first run: try once so the header isn't empty
+    build_app(ctx).run()
+
+
+def cmd_status(args: list[str]) -> None:
+    ctx, _ = resolve(args)
+    ctx.fetch()
+    ctx.refresh()
+    pull, pend = ctx.snap.get("pull") or {}, ctx.pending()
+    print(f"{ctx.slug} #{ctx.num}  {pull.get('title', '(title unknown — API down)')}")
+    print(f"  state    {pull.get('state', '?')}  head {ctx.meta.get('head', '?')[:9]}"
+          f"  base {ctx.meta.get('base')}")
+    if ctx.snap.get("checks"):
+        p, f_, q = check_counts(ctx.snap["checks"])
+        print(f"  ci       {p} passed, {f_} failed, {q} pending"
+              f" (via {ctx.snap['checks'].get('source')})")
+    else:
+        print("  ci       unknown (API unreachable)")
+    print(f"  snapshot {age_str(ctx.snap.get('cached_at'))}")
+    print(f"  files    {len(ctx.files())} changed")
+    print(f"  verdict  {pend.get('event') or '(none)'}")
+    print(f"  queued   {len(pend['comments'])} inline comment(s)")
+    for i, c in enumerate(pend["comments"], 1):
+        print(f"    {i}. {c['path']}:{c['line']}  {c['body'][:70]}")
+
+
+def cmd_submit(args: list[str]) -> None:
+    ctx, flags = resolve(args)
+    if not ctx.meta:
+        ctx.fetch()
+    good = submit(ctx, flatten="--flatten" in flags, dry="--dry-run" in flags)
+    if not good and "--dry-run" not in flags:
+        sys.exit(1)
+    if "--dry-run" not in flags:
+        print("submitted ✓")
+
+
+def main(argv: list[str] | None = None) -> None:
+    a = list(argv if argv is not None else sys.argv[1:])
+    if not a or a[0] in ("-h", "--help", "help"):
+        print(__doc__)
+        return
+    cmd, rest = a[0], a[1:]
+    if cmd == "review":
+        cmd_review(rest)
+    elif cmd == "status":
+        cmd_status(rest)
+    elif cmd == "submit":
+        cmd_submit(rest)
+    else:
+        die(f"unknown command: {cmd}\n{__doc__}")
+
+
+if __name__ == "__main__":
+    main()

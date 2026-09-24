@@ -14,6 +14,8 @@
 	editor = vim
 	excludesfile = ~/.gitignore_global
 	autocrlf = input
+	fsmonitor = true
+	untrackedCache = true
 
 [init]
 	defaultBranch = main
@@ -125,3 +127,24 @@
 
 [help]
 	autocorrect = 1
+
+[rerere]
+	enabled = true
+
+[gc]
+	worktreePruneExpire = 3.days
+
+[gc "refs/stash"]
+	reflogExpire = 1.day
+
+[credential "https://github.com"]
+	helper =
+	helper = !gh auth git-credential
+
+[credential "https://gist.github.com"]
+	helper =
+	helper = !gh auth git-credential
+
+# Machine-specific overrides; not managed by chezmoi.
+[include]
+	path = ~/.gitconfig.local

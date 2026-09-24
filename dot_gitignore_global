@@ -37,6 +37,9 @@ Session.vim
 .vscode/
 *.code-workspace
 
+# Zed
+.zed/
+
 # JetBrains
 .idea/
 *.iml
@@ -101,6 +104,8 @@ temp/
 .env
 .env.local
 *.local
+*.local.json
+settings.local.json
 
 # Local agent context
 .agent-context/
