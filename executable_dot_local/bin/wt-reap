@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # Report or remove finished git worktrees and the branches they left behind.
+# Clean worktrees are candidates when their branch was merged, its PR was
+# merged, or the worktree has passed the configured idle limit. Locked
+# worktrees and worktrees with unpublished commits are kept.
 #
 #   wt-reap                 report candidates
 #   wt-reap --apply         remove candidates
@@ -81,7 +84,10 @@ if [ ${#repos[@]} -eq 0 ]; then
     done
 fi
 
-tmp_prefix="$(cd "${TMPDIR:-/tmp}" 2>/dev/null && pwd -P)"
+# launchd does not set TMPDIR. On macOS, use the per-user temporary directory
+# so its shorter idle limit also applies when the scheduled job runs.
+tmp_dir="${TMPDIR:-$(getconf DARWIN_USER_TEMP_DIR 2>/dev/null || echo /tmp)}"
+tmp_prefix="$(cd "$tmp_dir" 2>/dev/null && pwd -P)"
 now=$(date +%s)
 removed=0
 kept=0
@@ -122,7 +128,13 @@ for repo in "${repos[@]}"; do
             elif merged_pr="$(pr_merged_from "$repo" "$branch")" && [ -n "$merged_pr" ]; then
                 reason="PR #$merged_pr merged"
             else
-                unpushed="$(git -C "$wt" rev-list --count "origin/$default_branch..HEAD")"
+                if git -C "$repo" rev-parse --verify --quiet "refs/remotes/origin/$default_branch" >/dev/null; then
+                    unpushed="$(git -C "$wt" rev-list --count "origin/$default_branch..HEAD")"
+                else
+                    # A repo without a fetched default branch cannot prove this
+                    # worktree is published. Keep it instead of aborting the run.
+                    unpushed="$(git -C "$wt" rev-list --count HEAD)"
+                fi
             fi
         fi
 
