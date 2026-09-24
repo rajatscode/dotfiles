@@ -3,8 +3,9 @@
 # Reload the user LaunchAgents whenever their plists change.
 # wt-reap: {{ include "Library/LaunchAgents/com.rajat.wt-reap.plist.tmpl" | sha256sum }}
 # orb-reap: {{ include "Library/LaunchAgents/com.rajat.orb-reap.plist.tmpl" | sha256sum }}
+# agent-nice: {{ include "Library/LaunchAgents/com.rajat.agent-nice.plist.tmpl" | sha256sum }}
 set -euo pipefail
-for label in com.rajat.wt-reap com.rajat.orb-reap; do
+for label in com.rajat.wt-reap com.rajat.orb-reap com.rajat.agent-nice; do
     plist="$HOME/Library/LaunchAgents/$label.plist"
     launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
     launchctl bootstrap "gui/$(id -u)" "$plist"

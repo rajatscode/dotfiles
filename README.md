@@ -21,10 +21,12 @@ days for temporary worktrees and fourteen days elsewhere; override them with
 
 On macOS, `chezmoi apply` also:
 
-- caps OrbStack at two thirds of the cores and half the memory less 2 GiB
+- caps OrbStack at two thirds of the cores and a third of the memory
   (`orb stop`, then reopen OrbStack, applies new limits);
 - loads LaunchAgents that run `wt-reap --apply` hourly over `~/dev/fira` and
-  `orb-reap --apply` every two hours. `orb-reap` removes containers whose
+  `orb-reap --apply` every two hours, and `agent-nice --apply` every 30
+  seconds, which renices `claude` and `codex` process trees to 10 however they
+  were launched. `orb-reap` removes containers whose
   compose working directory is gone, stops containers up longer than
   `ORB_REAP_MAX_HOURS` (48) unless their restart policy keeps them up, and
   prunes build cache older than a week plus dangling images;
