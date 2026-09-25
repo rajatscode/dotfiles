@@ -109,3 +109,13 @@ settings.local.json
 
 # Local agent context
 .agent-context/
+
+# Entire checkpoint tool local state
+.entire/
+
+# Dialec multi-agent tool local state
+.dialec/
+
+# Ad-hoc local scratch files
+.hannahanna.yml
+.claude/*.md
