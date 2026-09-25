@@ -22,3 +22,10 @@ for zsh_file in "$HOME"/.config/zsh/*.zsh(N); do
     source "$zsh_file"
 done
 
+
+# bun completions
+[ -s "/Users/rajatmehndiratta/.bun/_bun" ] && source "/Users/rajatmehndiratta/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
