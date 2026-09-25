@@ -79,6 +79,20 @@ get_repo_name() {
     basename "$(get_git_root)"
 }
 
+# Enable per-worktree config storage (git extensions.worktreeConfig) once,
+# so `git config --worktree` writes land in each worktree's own
+# $GIT_DIR/config.worktree instead of the shared $GIT_COMMON_DIR/config.
+# A linked worktree's $GIT_DIR already points at its own
+# .git/worktrees/<name>/ directory, so this is safe to call from any
+# worktree; it's a no-op once already enabled.
+ensure_worktree_config() {
+    local common_dir
+    common_dir=$(git rev-parse --git-common-dir 2>/dev/null) || return 1
+    if [[ "$(git config --get extensions.worktreeConfig 2>/dev/null)" != "true" ]]; then
+        git config --file "${common_dir}/config" extensions.worktreeConfig true
+    fi
+}
+
 # Get current branch name
 get_current_branch() {
     git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD
@@ -291,12 +305,12 @@ cmd_add() {
         local parent_name="${parent_basename#${WORKTREE_PREFIX}}"
         parent_name="${parent_name#$(get_repo_name)-}"
 
-        (cd "$worktree_path" && git config worktree.parent "$parent_name")
+        (cd "$worktree_path" && ensure_worktree_config && git config --worktree worktree.parent "$parent_name")
         log_info "Parent worktree tracked: $parent_name"
     else
         # We're in the main repo - track the current branch as parent
         local current_branch=$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")
-        (cd "$worktree_path" && git config worktree.parent "$current_branch")
+        (cd "$worktree_path" && ensure_worktree_config && git config --worktree worktree.parent "$current_branch")
         log_info "Parent branch tracked: $current_branch"
     fi
 
@@ -739,7 +753,10 @@ cmd_return() {
     # Get current worktree
     local current_wt_path=$(get_current_worktree) || die "Not in a worktree"
 
-    # Get parent from git config
+    # Get parent from git config. Plain --get (not --worktree) is correct here:
+    # once extensions.worktreeConfig is enabled, config.worktree is merged into
+    # ordinary local-scope reads, so this also finds legacy entries left over
+    # in the shared config from before worktree.parent moved to --worktree.
     local parent_name=$(cd "$current_wt_path" && git config --get worktree.parent 2>/dev/null || true)
 
     if [[ -z "$parent_name" ]]; then
