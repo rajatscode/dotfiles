@@ -167,11 +167,20 @@ def test_emptied_section_heading_is_removed(mem: Path):
 
 
 def test_recent_commit_keeps_file_with_old_mtime(mem: Path):
+    git(mem, "init", "-q")
     path = write_memory(mem, "p.md", frontmatter=memory("P", "project"))
-    groom(mem)
+    git(mem, "add", "-A")
+    git(mem, "commit", "-q", "-m", "edit")
     os.utime(path, (NOW - 60 * DAY,) * 2)
     groom(mem)
     assert (mem / "p.md").exists()
+
+
+def test_own_commits_do_not_reset_age(mem: Path):
+    write_memory(mem, "p.md", age_days=10, frontmatter=memory("P", "project"))
+    groom(mem)
+    groom(mem, now=NOW + 15 * DAY)
+    assert (mem / "archive" / "p.md").exists()
 
 
 @pytest.mark.parametrize(("days", "archived"), [(5, True), (21, False)])
@@ -282,6 +291,31 @@ def test_initializes_repo_and_commits(mem: Path):
     assert git(mem, "status", "--porcelain") == ""
     assert git(mem, "log", "-1", "--format=%s").startswith("memory-groom: ")
     assert git(mem, "remote") == ""
+
+
+@pytest.mark.parametrize("repo_first", [True, False])
+def test_untouched_state_is_committed_before_grooming(curated: Path, repo_first):
+    if repo_first:
+        git(curated, "init", "-q")
+    write_memory(curated, "old.md", age_days=40, frontmatter=memory("Old", "project"))
+    before = {p.relative_to(curated): p.read_text() for p in curated.rglob("*.md")}
+    groom(curated)
+    subjects = git(curated, "log", "--reverse", "--format=%s").splitlines()
+    assert subjects[0] == "memory-groom: baseline"
+    assert subjects[1].startswith("memory-groom: archive 1")
+    baseline = {Path(p): git(curated, "show", f"HEAD~1:{p}") for p in git(curated, "ls-tree", "-r", "--name-only", "HEAD~1").split()}
+    assert baseline == before
+
+
+def test_uncommitted_edit_is_committed_as_baseline_before_grooming(mem: Path):
+    write_memory(mem, "f.md", frontmatter=memory("F", "feedback"))
+    groom(mem)
+    write_memory(mem, "g.md", frontmatter=memory("G", "feedback"))
+    groom(mem)
+    subjects = git(mem, "log", "-2", "--format=%s").splitlines()
+    assert subjects[1] == "memory-groom: baseline"
+    assert git(mem, "show", "--name-only", "--format=", "HEAD~1").split() == ["g.md"]
+    assert git(mem, "show", "--name-only", "--format=", "HEAD").split() == ["MEMORY.md"]
 
 
 def test_archive_is_a_git_rename(mem: Path):

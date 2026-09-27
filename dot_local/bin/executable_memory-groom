@@ -6,7 +6,8 @@
 """Keep Claude Code auto-memory indexes trim.
 
 For every <root>/*/memory/ directory holding a MEMORY.md:
-  - ensure it is a local git repository (never adds remotes, never pushes);
+  - ensure it is a local git repository (never adds remotes, never pushes),
+    committing any uncommitted state as "memory-groom: baseline" first;
   - move project memories untouched for --days into archive/, carrying their
     index line into archive/INDEX.md (metadata.pinned: true keeps a file);
   - reconcile MEMORY.md with the files: existing lines, headings, prose and
@@ -44,6 +45,7 @@ INDEX = "MEMORY.md"
 ARCHIVE = "archive"
 ARCHIVE_INDEX = "INDEX.md"
 ARCHIVE_LINK = f"{ARCHIVE}/{ARCHIVE_INDEX}"
+COMMIT_PREFIX = "memory-groom: "
 DESCRIPTION_LIMIT = 100
 TYPE_ORDER = ["user", "feedback", "project", "reference"]
 TYPE_HEADINGS = {
@@ -209,12 +211,19 @@ def is_repo_root(directory: Path) -> bool:
 
 
 def commit_times(directory: Path) -> dict[str, int]:
-    """Latest commit time per path, from one pass over the log."""
+    """Latest commit time per path, from one pass over the log.
+
+    This tool's own commits are skipped: a baseline snapshot or an index rewrite is not an edit of
+    the memories, and counting it would reset every file's age.
+    """
     if not is_repo_root(directory) or not git(directory, "rev-parse", "--verify", "-q", "HEAD", check=False):
         return {}
     times: dict[str, int] = {}
     current = 0
-    for line in git(directory, "log", "--format=@%ct", "--name-only", "--no-renames").splitlines():
+    for line in git(
+        directory, "log", "--format=@%ct", "--name-only", "--no-renames",
+        "--invert-grep", f"--grep=^{COMMIT_PREFIX}",
+    ).splitlines():
         if line.startswith("@"):
             current = int(line[1:])
         elif line and line not in times:
@@ -288,6 +297,8 @@ def groom(directory: Path, days: float, dry_run: bool, now: float | None = None)
         if not is_repo_root(directory):
             git(directory, "init", "-q")
         git(directory, "add", "-A")
+        if git(directory, "status", "--porcelain"):
+            git(directory, "commit", "-q", "-m", f"{COMMIT_PREFIX}baseline")
     times = commit_times(directory)
 
     live: dict[str, Memory] = {}
@@ -400,7 +411,7 @@ def groom(directory: Path, days: float, dry_run: bool, now: float | None = None)
     git(directory, "add", "-A")
     if git(directory, "status", "--porcelain"):
         report.changed = True
-        git(directory, "commit", "-q", "-m", f"memory-groom: {summary(report)}")
+        git(directory, "commit", "-q", "-m", f"{COMMIT_PREFIX}{summary(report)}")
     return report
 
 
