@@ -7,11 +7,17 @@
 
 For every <root>/*/memory/ directory holding a MEMORY.md:
   - ensure it is a local git repository (never adds remotes, never pushes);
-  - move project memories untouched for --days into archive/ and index them
-    in archive/INDEX.md (metadata.pinned: true keeps a file in place);
-  - regenerate MEMORY.md from the frontmatter of the remaining files, keeping
-    bullets that point at no memory file under an "Unfiled" section;
+  - move project memories untouched for --days into archive/, carrying their
+    index line into archive/INDEX.md (metadata.pinned: true keeps a file);
+  - reconcile MEMORY.md with the files: existing lines, headings, prose and
+    order stay as written; lines for archived files are removed; memory
+    files the index does not reach are added from their frontmatter, in the
+    section that holds their type (metadata.in_claude_md files are never
+    added, since CLAUDE.md already loads them);
   - commit whatever changed.
+
+A file is reached when MEMORY.md links it, or when a listed memory file has a
+bullet that starts with a link to it ("- [[name]]" or "- [title](name.md)").
 
   memory-groom                 groom every memory dir under ~/.claude/projects
   memory-groom --dry-run       print the diff, change nothing
@@ -37,6 +43,7 @@ import yaml
 INDEX = "MEMORY.md"
 ARCHIVE = "archive"
 ARCHIVE_INDEX = "INDEX.md"
+ARCHIVE_LINK = f"{ARCHIVE}/{ARCHIVE_INDEX}"
 DESCRIPTION_LIMIT = 100
 TYPE_ORDER = ["user", "feedback", "project", "reference"]
 TYPE_HEADINGS = {
@@ -45,18 +52,17 @@ TYPE_HEADINGS = {
     "project": "Projects",
     "reference": "Reference",
 }
-UNFILED = "Unfiled"
 NO_FRONTMATTER = "Missing frontmatter"
 LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
 BULLET = re.compile(r"^\s*[-*] ")
+HUB_ENTRY = re.compile(r"^\s*[-*] (?:\[\[([^\]|]+)(?:\|[^\]]*)?\]\]|\[[^\]]+\]\(([^)\s]+)\))")
 
 
 @dataclass
 class Memory:
     file: str
     meta: dict | None
-    title: str
-    description: str
+    body: str
 
     def get(self, key: str):
         if not self.meta:
@@ -71,13 +77,32 @@ class Memory:
         return str(self.get("type") or "").strip().lower()
 
     @property
-    def section(self) -> str:
+    def title(self) -> str:
+        return " ".join(str(self.get("title") or self.get("name") or Path(self.file).stem).split())
+
+    @property
+    def description(self) -> str:
+        return " ".join(str(self.get("description") or "").split())
+
+    @property
+    def heading(self) -> str:
         if self.meta is None:
             return NO_FRONTMATTER
         custom = self.get("section")
         if custom:
             return str(custom).strip()
         return TYPE_HEADINGS.get(self.type, self.type.title() or "Other")
+
+    def line(self, target: str | None = None) -> str:
+        link = f"- [{self.title}]({target or self.file})"
+        return f"{link} — {shorten(self.description)}" if self.description else link
+
+
+@dataclass
+class Section:
+    heading: str | None
+    lines: list[str]
+    rank: int | None = None
 
 
 @dataclass
@@ -86,7 +111,10 @@ class Report:
     before: int = 0
     after: int = 0
     archived: list[str] = field(default_factory=list)
-    unfiled: list[str] = field(default_factory=list)
+    added: list[str] = field(default_factory=list)
+    listed_in_claude_md: list[str] = field(default_factory=list)
+    unlinked: list[str] = field(default_factory=list)
+    dangling: list[str] = field(default_factory=list)
     missing_frontmatter: list[str] = field(default_factory=list)
     missing_type: list[str] = field(default_factory=list)
     missing_description: list[str] = field(default_factory=list)
@@ -95,22 +123,22 @@ class Report:
     diff: str = ""
 
 
-def parse_frontmatter(text: str) -> dict | None:
+def parse_frontmatter(text: str) -> tuple[dict | None, str]:
     if not text.startswith("---"):
-        return None
+        return None, text
     lines = text.splitlines()
     for end in range(1, len(lines)):
         if lines[end].strip() == "---":
             try:
                 data = yaml.safe_load("\n".join(lines[1:end]))
             except yaml.YAMLError:
-                return None
-            return data if isinstance(data, dict) else None
-    return None
+                return None, text
+            body = "\n".join(lines[end + 1 :])
+            return (data if isinstance(data, dict) else None), body
+    return None, text
 
 
 def shorten(text: str, limit: int = DESCRIPTION_LIMIT) -> str:
-    text = " ".join(text.split())
     if len(text) <= limit:
         return text
     cut = text[: limit - 1]
@@ -119,23 +147,49 @@ def shorten(text: str, limit: int = DESCRIPTION_LIMIT) -> str:
     return cut.rstrip(" ,;:—-") + "…"
 
 
-def existing_titles(index_text: str) -> dict[str, str]:
-    titles: dict[str, str] = {}
-    for line in index_text.splitlines():
-        if BULLET.match(line):
-            match = LINK.search(line)
-            if match:
-                titles.setdefault(match.group(2), match.group(1))
-    return titles
+def load_memory(path: Path, rel: str) -> Memory:
+    meta, body = parse_frontmatter(path.read_text(encoding="utf-8", errors="replace"))
+    return Memory(file=rel, meta=meta, body=body)
 
 
-def load_memory(path: Path, rel: str, titles: dict[str, str]) -> Memory:
-    meta = parse_frontmatter(path.read_text(encoding="utf-8", errors="replace"))
-    memory = Memory(file=rel, meta=meta, title="", description="")
-    title = memory.get("title") or titles.get(rel) or memory.get("name") or path.stem
-    memory.title = " ".join(str(title).split())
-    memory.description = " ".join(str(memory.get("description") or "").split())
-    return memory
+def parse_doc(text: str) -> list[Section]:
+    sections = [Section(None, [])]
+    for line in text.splitlines():
+        if line.startswith("## "):
+            sections.append(Section(line, []))
+        else:
+            sections[-1].lines.append(line)
+    return sections
+
+
+def render_doc(sections: list[Section]) -> str:
+    blocks = []
+    for section in sections:
+        lines = ([section.heading] if section.heading else []) + section.lines
+        while lines and not lines[-1].strip():
+            lines.pop()
+        while lines and not lines[0].strip():
+            lines.pop(0)
+        if lines:
+            blocks.append("\n".join(lines))
+    return "\n\n".join(blocks) + "\n" if blocks else ""
+
+
+def link_target(line: str) -> str | None:
+    if not BULLET.match(line):
+        return None
+    match = LINK.search(line)
+    return match.group(2) if match else None
+
+
+def append_line(section: Section, line: str) -> None:
+    end = len(section.lines)
+    while end and not section.lines[end - 1].strip():
+        end -= 1
+    if end and not BULLET.match(section.lines[end - 1]):
+        section.lines.insert(end, "")
+        end += 1
+    section.lines.insert(end, line)
 
 
 def git(directory: Path, *args: str, check: bool = True) -> str:
@@ -172,58 +226,51 @@ def last_modified(directory: Path, rel: str, times: dict[str, int]) -> float:
     return max(times.get(rel, 0), (directory / rel).stat().st_mtime)
 
 
-def render_line(memory: Memory, report: Report | None) -> str:
+def type_rank(type_: str) -> int:
+    return TYPE_ORDER.index(type_) if type_ in TYPE_ORDER else len(TYPE_ORDER)
+
+
+def section_rank(section: Section, types_by_file: dict[str, str]) -> int:
+    if section.rank is not None:
+        return section.rank
+    ranks = [type_rank(types_by_file[t]) for t in map(link_target, section.lines) if t in types_by_file]
+    return min(ranks, default=-1)
+
+
+def section_for(sections: list[Section], memory: Memory, types_by_file: dict[str, str]) -> Section:
+    """The section a new entry joins: its declared section, else the one holding most of its type."""
+    if memory.get("section") or memory.meta is None:
+        for section in sections:
+            if section.heading == f"## {memory.heading}":
+                return section
+    else:
+        counts = []
+        for position, section in enumerate(sections):
+            if section.heading is None:
+                continue
+            same = sum(types_by_file.get(link_target(line) or "") == memory.type for line in section.lines)
+            if same:
+                counts.append((-same, position, section))
+        if counts:
+            return min(counts, key=lambda c: c[:2])[2]
+        for section in sections:
+            if section.heading == f"## {memory.heading}":
+                return section
+    rank = type_rank(memory.type)
     if memory.meta is None:
-        return f"- [{memory.title}]({memory.file})"
-    if report is not None:
-        if not memory.type:
-            report.missing_type.append(memory.file)
-        if not memory.description:
-            report.missing_description.append(memory.file)
-        elif len(memory.description) > DESCRIPTION_LIMIT:
-            report.overlong_description.append(memory.file)
-    if not memory.description:
-        return f"- [{memory.title}]({memory.file})"
-    return f"- [{memory.title}]({memory.file}) — {shorten(memory.description)}"
-
-
-def section_key(name: str, members: list[Memory]) -> tuple:
-    if name == NO_FRONTMATTER:
-        return (len(TYPE_ORDER) + 2, 0, name)
-    types = {m.type for m in members}
-    rank = min((TYPE_ORDER.index(t) if t in TYPE_ORDER else len(TYPE_ORDER)) for t in types)
-    is_default = any(TYPE_HEADINGS.get(m.type, m.type.title()) == name for m in members)
-    return (rank, 0 if is_default else 1, name.lower())
-
-
-def render_index(
-    memories: list[Memory],
-    order: dict[str, int],
-    unfiled: list[str],
-    has_archive: bool,
-    report: Report | None,
-) -> str:
-    sections: dict[str, list[Memory]] = {}
-    for memory in memories:
-        sections.setdefault(memory.section, []).append(memory)
-    out = ["# Memory Index", ""]
-    for name, members in sorted(sections.items(), key=lambda item: section_key(*item)):
-        members.sort(key=lambda m: (order.get(m.file, len(order)), m.file))
-        out += [f"## {name}", *(render_line(m, report) for m in members), ""]
-    if unfiled:
-        out += [f"## {UNFILED}", *unfiled, ""]
-    if has_archive:
-        out += [f"Archived projects → [{ARCHIVE}/{ARCHIVE_INDEX}]({ARCHIVE}/{ARCHIVE_INDEX})", ""]
-    return "\n".join(out).rstrip("\n") + "\n"
-
-
-def render_archive_index(memories: list[Memory]) -> str:
-    out = ["# Archived Memories", ""]
-    for memory in sorted(memories, key=lambda m: m.file):
-        line = render_line(memory, None)
-        # Links are relative to archive/, so drop the directory prefix.
-        out.append(line.replace(f"]({ARCHIVE}/", "](", 1))
-    return "\n".join(out) + "\n"
+        rank = len(TYPE_ORDER) + 1
+    created = Section(f"## {memory.heading}", [], rank)
+    tail = next(
+        (i for i, s in enumerate(sections) if any(link_target(l) == ARCHIVE_LINK for l in s.lines)),
+        len(sections),
+    )
+    position = tail
+    for i in range(1, tail):
+        if section_rank(sections[i], types_by_file) > rank:
+            position = i
+            break
+    sections.insert(position, created)
+    return created
 
 
 def groom(directory: Path, days: float, dry_run: bool, now: float | None = None) -> Report:
@@ -233,11 +280,9 @@ def groom(directory: Path, days: float, dry_run: bool, now: float | None = None)
     index_path = directory / INDEX
     old_index = index_path.read_text(encoding="utf-8") if index_path.exists() else ""
     report.before = len(old_index.encode())
-    titles = existing_titles(old_index)
     archive_dir = directory / ARCHIVE
-    old_archive_path = archive_dir / ARCHIVE_INDEX
-    old_archive = old_archive_path.read_text(encoding="utf-8") if old_archive_path.exists() else ""
-    titles.update({f"{ARCHIVE}/{k}": v for k, v in existing_titles(old_archive).items()})
+    archive_path = archive_dir / ARCHIVE_INDEX
+    old_archive = archive_path.read_text(encoding="utf-8") if archive_path.exists() else ""
 
     if not dry_run:
         if not is_repo_root(directory):
@@ -245,61 +290,99 @@ def groom(directory: Path, days: float, dry_run: bool, now: float | None = None)
         git(directory, "add", "-A")
     times = commit_times(directory)
 
-    live: list[Memory] = []
-    to_archive: list[Memory] = []
+    live: dict[str, Memory] = {}
+    to_archive: dict[str, Memory] = {}
     for path in sorted(directory.glob("*.md")):
         if path.name == INDEX:
             continue
-        memory = load_memory(path, path.name, titles)
-        if memory.meta is None:
-            report.missing_frontmatter.append(memory.file)
+        memory = load_memory(path, path.name)
         stale = now - last_modified(directory, memory.file, times) > days * 86400
         if memory.type == "project" and memory.get("pinned") is not True and stale:
-            to_archive.append(memory)
+            to_archive[memory.file] = memory
         else:
-            live.append(memory)
+            live[memory.file] = memory
+    report.archived = list(to_archive)
 
-    archived = [
-        load_memory(path, f"{ARCHIVE}/{path.name}", titles)
-        for path in sorted(archive_dir.glob("*.md"))
-        if path.name != ARCHIVE_INDEX
-    ]
-    for memory in to_archive:
-        report.archived.append(memory.file)
-        moved = Memory(f"{ARCHIVE}/{memory.file}", memory.meta, memory.title, memory.description)
-        archived = [m for m in archived if m.file != moved.file] + [moved]
+    sections = parse_doc(old_index or "# Memory Index\n")
+    archived_lines: dict[str, str] = {}
+    listed: set[str] = set()
+    for section in sections:
+        kept = []
+        for line in section.lines:
+            target = link_target(line)
+            if target in to_archive:
+                archived_lines.setdefault(target, line)
+                continue
+            if target in live:
+                listed.add(target)
+                if live[target].get("in_claude_md") is True:
+                    report.listed_in_claude_md.append(target)
+            elif target is None and BULLET.match(line):
+                report.unlinked.append(line.rstrip())
+            elif target and target != ARCHIVE_LINK and not (directory / target).exists():
+                report.dangling.append(line.rstrip())
+            kept.append(line)
+        section.lines = kept
+    sections = [s for s in sections if s.heading is None or any(l.strip() for l in s.lines)]
 
-    kept = {m.file for m in live if not m.get("in_claude_md")}
-    known = {m.file for m in live} | {m.file for m in to_archive} | {m.file for m in archived}
-    order: dict[str, int] = {}
-    for line in old_index.splitlines():
-        if not BULLET.match(line):
+    stems = {Path(f).stem: f for f in live}
+    reached = set(listed)
+    frontier = list(listed)
+    while frontier:
+        for line in live[frontier.pop()].body.splitlines():
+            match = HUB_ENTRY.match(line)
+            if not match:
+                continue
+            target = stems.get(match.group(1).strip()) if match.group(1) else match.group(2)
+            if target in live and target not in reached:
+                reached.add(target)
+                frontier.append(target)
+
+    types_by_file = {f: m.type for f, m in live.items() if m.meta is not None}
+    for memory in live.values():
+        if memory.get("in_claude_md") is True:
             continue
-        match = LINK.search(line)
-        target = match.group(2) if match else None
-        if target in known:
-            order.setdefault(target, len(order))
-        elif not (target and target.startswith(f"{ARCHIVE}/")):
-            report.unfiled.append(line.rstrip())
+        if memory.meta is None:
+            report.missing_frontmatter.append(memory.file)
+        else:
+            if not memory.type:
+                report.missing_type.append(memory.file)
+            if not memory.description:
+                report.missing_description.append(memory.file)
+            elif len(memory.description) > DESCRIPTION_LIMIT:
+                report.overlong_description.append(memory.file)
+        if memory.file not in reached:
+            append_line(section_for(sections, memory, types_by_file), memory.line())
+            report.added.append(memory.file)
 
-    new_index = render_index(
-        [m for m in live if m.file in kept],
-        order,
-        report.unfiled,
-        bool(archived),
-        report,
-    )
-    new_archive = render_archive_index(archived) if archived else old_archive
+    archive_files = sorted(p.name for p in archive_dir.glob("*.md") if p.name != ARCHIVE_INDEX)
+    archive_files = sorted(set(archive_files) | set(to_archive))
+    if archive_files and not any(link_target(l) == ARCHIVE_LINK for s in sections for l in s.lines):
+        sections.append(Section("## Archive", [f"- [Archived projects]({ARCHIVE_LINK}) — archived project memories"]))
+    new_index = render_doc(sections)
     report.after = len(new_index.encode())
 
+    archive_doc = parse_doc(old_archive or "# Archived Memories\n")
+    indexed = {link_target(l) for s in archive_doc for l in s.lines}
+    for name in archive_files:
+        if name in indexed:
+            continue
+        if name in archived_lines:
+            line = archived_lines[name]
+        else:
+            source = to_archive.get(name) or load_memory(archive_dir / name, name)
+            line = source.line()
+        append_line(archive_doc[-1], line)
+    new_archive = render_doc(archive_doc) if archive_files else old_archive
+
     diffs = []
-    for name, old, new in ((INDEX, old_index, new_index), (f"{ARCHIVE}/{ARCHIVE_INDEX}", old_archive, new_archive)):
+    for name, old, new in ((INDEX, old_index, new_index), (ARCHIVE_LINK, old_archive, new_archive)):
         if old != new:
             diffs.append("".join(difflib.unified_diff(
                 old.splitlines(keepends=True), new.splitlines(keepends=True), f"a/{name}", f"b/{name}"
             )))
-    for memory in to_archive:
-        diffs.append(f"rename {memory.file} => {ARCHIVE}/{memory.file}\n")
+    for name in to_archive:
+        diffs.append(f"rename {name} => {ARCHIVE}/{name}\n")
     report.diff = "".join(diffs)
     report.changed = bool(diffs)
 
@@ -308,12 +391,12 @@ def groom(directory: Path, days: float, dry_run: bool, now: float | None = None)
 
     if to_archive:
         archive_dir.mkdir(exist_ok=True)
-        for memory in to_archive:
-            git(directory, "mv", memory.file, f"{ARCHIVE}/{memory.file}")
+        for name in to_archive:
+            git(directory, "mv", name, f"{ARCHIVE}/{name}")
     if new_index != old_index:
         index_path.write_text(new_index, encoding="utf-8")
     if new_archive != old_archive:
-        old_archive_path.write_text(new_archive, encoding="utf-8")
+        archive_path.write_text(new_archive, encoding="utf-8")
     git(directory, "add", "-A")
     if git(directory, "status", "--porcelain"):
         report.changed = True
@@ -325,9 +408,9 @@ def summary(report: Report) -> str:
     parts = []
     if report.archived:
         parts.append(f"archive {len(report.archived)}")
+    if report.added:
+        parts.append(f"index {len(report.added)}")
     parts.append(f"MEMORY.md {report.before}→{report.after} bytes")
-    if report.unfiled:
-        parts.append(f"{len(report.unfiled)} unfiled")
     return ", ".join(parts)
 
 
@@ -338,7 +421,10 @@ def print_report(report: Report, budget: int, dry_run: bool) -> None:
         print(f"WARNING: MEMORY.md is {report.after} bytes, over the {budget}-byte budget")
     for label, items in (
         ("archived", report.archived),
-        ("unfiled lines kept", report.unfiled),
+        ("added to index", report.added),
+        ("listed though metadata.in_claude_md, kept", report.listed_in_claude_md),
+        ("lines without a file link, kept", report.unlinked),
+        ("lines linking a missing file, kept", report.dangling),
         ("missing frontmatter", report.missing_frontmatter),
         ("missing metadata.type", report.missing_type),
         ("missing description", report.missing_description),

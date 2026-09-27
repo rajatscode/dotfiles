@@ -30,19 +30,34 @@ loader.exec_module(mg)
 NOW = time.time()
 DAY = 86400
 
+CURATED = """# Memory Index
+
+Standing rules live elsewhere, not here.
+
+## Active Projects
+- [Alpha hub](alpha-hub.md) — ACTIVE: every alpha file
+- [Beta](beta.md) — hand-written hook
+
+## Reference
+- [Gamma](gamma.md) — short hook
+- Loose note with no link
+- [Deep results](sub/RESULTS.md) — lives in a subdirectory
+
+## Archive
+- [Archived projects](archive/INDEX.md) — finished work
+"""
+
 
 def write_memory(directory: Path, name: str, *, age_days: float = 0, frontmatter: dict | None = None, body: str = "body\n"):
     path = directory / name
     if frontmatter is None:
         path.write_text(body)
     else:
-        lines = ["---"]
+        frontmatter = dict(frontmatter)
         meta = frontmatter.pop("metadata", None)
-        for key, value in frontmatter.items():
-            lines.append(f"{key}: {value}")
+        lines = ["---", *(f"{k}: {v}" for k, v in frontmatter.items())]
         if meta:
-            lines.append("metadata:")
-            lines += [f"  {k}: {v}" for k, v in meta.items()]
+            lines += ["metadata:", *(f"  {k}: {v}" for k, v in meta.items())]
         lines += ["---", "", body]
         path.write_text("\n".join(lines))
     stamp = NOW - age_days * DAY
@@ -50,29 +65,61 @@ def write_memory(directory: Path, name: str, *, age_days: float = 0, frontmatter
     return path
 
 
-def memory(name: str, type_: str, description: str = "a memory", **meta) -> dict:
-    return {"name": name, "description": description, "metadata": {"type": type_, **meta}}
+def memory(title: str, type_: str, description: str = "a memory", **meta) -> dict:
+    return {"name": title.lower(), "title": title, "description": description, "metadata": {"type": type_, **meta}}
 
 
 def git(directory: Path, *args: str) -> str:
     return subprocess.run(["git", "-C", str(directory), *args], capture_output=True, text=True, check=True).stdout
 
 
-def groom(directory: Path, days: float = 21, dry_run: bool = False):
-    return mg.groom(directory, days, dry_run, now=NOW)
+def groom(directory: Path, days: float = 21, dry_run: bool = False, now: float = NOW):
+    return mg.groom(directory, days, dry_run, now=now)
+
+
+def index(directory: Path) -> str:
+    return (directory / "MEMORY.md").read_text()
+
+
+@pytest.fixture(autouse=True)
+def git_identity(monkeypatch):
+    for key in ("GIT_AUTHOR_NAME", "GIT_COMMITTER_NAME"):
+        monkeypatch.setenv(key, "t")
+    for key in ("GIT_AUTHOR_EMAIL", "GIT_COMMITTER_EMAIL"):
+        monkeypatch.setenv(key, "t@example.com")
 
 
 @pytest.fixture
-def mem(tmp_path: Path, monkeypatch) -> Path:
-    for key, value in {
-        "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com",
-        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com",
-    }.items():
-        monkeypatch.setenv(key, value)
+def mem(tmp_path: Path) -> Path:
     directory = tmp_path / "proj" / "memory"
     directory.mkdir(parents=True)
     (directory / "MEMORY.md").write_text("# Memory Index\n")
     return directory
+
+
+@pytest.fixture
+def curated(mem: Path) -> Path:
+    write_memory(mem, "alpha-hub.md", frontmatter=memory("Alpha hub", "project", pinned="true"),
+                 body="- [[alpha-one]] — first\n- [Two](alpha-two.md) — second\nSee also [[beta]].\n")
+    write_memory(mem, "alpha-one.md", frontmatter=memory("Alpha one", "project", pinned="true"))
+    write_memory(mem, "alpha-two.md", frontmatter=memory("Alpha two", "project", pinned="true"))
+    write_memory(mem, "beta.md", frontmatter=memory("Beta", "project", "frontmatter hook differs"))
+    write_memory(mem, "gamma.md", frontmatter=memory("Gamma", "reference"))
+    write_memory(mem, "rule.md", frontmatter=memory("Rule", "feedback", in_claude_md="true"))
+    (mem / "archive").mkdir()
+    write_memory(mem / "archive", "done.md", frontmatter=memory("Done", "project"))
+    (mem / "archive" / "INDEX.md").write_text("# Archived\n\n- [Done](done.md) — old hook\n")
+    (mem / "MEMORY.md").write_text(CURATED)
+    return mem
+
+
+def test_curated_index_is_left_byte_for_byte(curated: Path):
+    report = groom(curated)
+    assert index(curated) == CURATED
+    assert (curated / "archive" / "INDEX.md").read_text() == "# Archived\n\n- [Done](done.md) — old hook\n"
+    assert report.added == []
+    assert report.unlinked == ["- Loose note with no link"]
+    assert report.dangling == ["- [Deep results](sub/RESULTS.md) — lives in a subdirectory"]
 
 
 @pytest.mark.parametrize(
@@ -91,121 +138,141 @@ def test_archive_rule(mem: Path, type_, age_days, extra, archived):
     report = groom(mem)
     assert (mem / "archive" / "m.md").exists() is archived
     assert (mem / "m.md").exists() is not archived
-    index = (mem / "MEMORY.md").read_text()
     if archived:
         assert report.archived == ["m.md"]
-        assert "](m.md)" not in index
-        assert "archive/INDEX.md" in index
+        assert "](m.md)" not in index(mem)
+        assert "(archive/INDEX.md)" in index(mem)
         assert "- [M](m.md) — a memory" in (mem / "archive" / "INDEX.md").read_text()
     else:
-        assert "- [M](m.md) — a memory" in index
-        assert "archive/" not in index
+        assert "- [M](m.md) — a memory" in index(mem)
+        assert "archive/" not in index(mem)
+
+
+def test_archiving_carries_the_hand_line_into_archive_index(curated: Path):
+    path = curated / "gamma.md"
+    path.write_text(path.read_text().replace("reference", "project"))
+    os.utime(path, (NOW - 40 * DAY,) * 2)
+    groom(curated)
+    text = index(curated)
+    assert "gamma.md" not in text
+    assert "## Reference\n- Loose note with no link\n" in text
+    assert (curated / "archive" / "INDEX.md").read_text().endswith("- [Gamma](gamma.md) — short hook\n")
+
+
+def test_emptied_section_heading_is_removed(mem: Path):
+    write_memory(mem, "old.md", age_days=40, frontmatter=memory("Old", "project"))
+    (mem / "MEMORY.md").write_text("# Memory Index\n\n## Stale\n- [Old](old.md) — hook\n")
+    groom(mem)
+    assert "## Stale" not in index(mem)
 
 
 def test_recent_commit_keeps_file_with_old_mtime(mem: Path):
     path = write_memory(mem, "p.md", frontmatter=memory("P", "project"))
     groom(mem)
-    stamp = NOW - 60 * DAY
-    os.utime(path, (stamp, stamp))
+    os.utime(path, (NOW - 60 * DAY,) * 2)
     groom(mem)
     assert (mem / "p.md").exists()
 
 
-@pytest.mark.parametrize(
-    ("days", "archived"),
-    [(5, True), (21, False)],
-)
+@pytest.mark.parametrize(("days", "archived"), [(5, True), (21, False)])
 def test_archive_threshold_is_configurable(mem: Path, days, archived):
     write_memory(mem, "p.md", age_days=10, frontmatter=memory("P", "project"))
     groom(mem, days=days)
     assert (mem / "archive" / "p.md").exists() is archived
 
 
-def test_regenerate_groups_by_type_in_fixed_order(mem: Path):
-    write_memory(mem, "r.md", frontmatter=memory("Ref", "reference"))
-    write_memory(mem, "p.md", frontmatter=memory("Proj", "project"))
-    write_memory(mem, "f.md", frontmatter=memory("Fb", "feedback"))
-    write_memory(mem, "u.md", frontmatter=memory("Me", "user"))
-    write_memory(mem, "s.md", frontmatter=memory("Style", "feedback", section="Style"))
+@pytest.mark.parametrize(
+    ("name", "frontmatter", "expected"),
+    [
+        ("delta.md", memory("Delta", "project"), "- [Beta](beta.md) — hand-written hook\n- [Delta](delta.md) — a memory\n"),
+        ("eps.md", memory("Eps", "reference"), "- [Deep results](sub/RESULTS.md) — lives in a subdirectory\n- [Eps](eps.md) — a memory\n"),
+        ("zeta.md", memory("Zeta", "reference", section="Active Projects"), "- [Beta](beta.md) — hand-written hook\n- [Zeta](zeta.md) — a memory\n"),
+    ],
+)
+def test_new_file_joins_the_section_holding_its_type(curated: Path, name, frontmatter, expected):
+    write_memory(curated, name, frontmatter=frontmatter)
+    report = groom(curated)
+    assert report.added == [name]
+    assert expected in index(curated)
+    assert index(curated).endswith("## Archive\n- [Archived projects](archive/INDEX.md) — finished work\n")
+
+
+def test_new_type_gets_new_section_before_archive_in_type_order(curated: Path):
+    write_memory(curated, "me.md", frontmatter=memory("Me", "user"))
+    write_memory(curated, "fb.md", frontmatter=memory("Fb", "feedback"))
+    write_memory(curated, "raw.md", frontmatter=None)
+    report = groom(curated)
+    headings = [l for l in index(curated).splitlines() if l.startswith("## ")]
+    assert headings == ["## User", "## Feedback", "## Active Projects", "## Reference", "## Missing frontmatter", "## Archive"]
+    assert report.missing_frontmatter == ["raw.md"]
+    assert "## Missing frontmatter\n- [raw](raw.md)\n" in index(curated)
+
+
+def test_empty_index_groups_by_type_in_fixed_order(mem: Path):
+    for name, type_ in (("r.md", "reference"), ("p.md", "project"), ("f.md", "feedback"), ("u.md", "user")):
+        write_memory(mem, name, frontmatter=memory(name[0].upper(), type_))
     groom(mem)
-    index = (mem / "MEMORY.md").read_text()
-    headings = [line for line in index.splitlines() if line.startswith("## ")]
-    assert headings == ["## User", "## Feedback", "## Style", "## Projects", "## Reference"]
+    headings = [l for l in index(mem).splitlines() if l.startswith("## ")]
+    assert headings == ["## User", "## Feedback", "## Projects", "## Reference"]
+
+
+@pytest.mark.parametrize("reached", ["alpha-one.md", "alpha-two.md"])
+def test_files_reached_through_a_hub_bullet_are_not_added(curated: Path, reached):
+    groom(curated)
+    assert reached not in index(curated)
+
+
+def test_prose_wikilink_does_not_count_as_hub_entry(mem: Path):
+    write_memory(mem, "hub.md", frontmatter=memory("Hub", "project", pinned="true"), body="See [[leaf]] for more.\n")
+    write_memory(mem, "leaf.md", frontmatter=memory("Leaf", "project"))
+    (mem / "MEMORY.md").write_text("# Memory Index\n\n## Projects\n- [Hub](hub.md) — h\n")
+    report = groom(mem)
+    assert report.added == ["leaf.md"]
+
+
+@pytest.mark.parametrize(
+    ("index_text", "listed"),
+    [
+        ("# Memory Index\n", False),
+        ("# Memory Index\n\n## Reference\n- [Rule](rule.md) — kept by hand\n", True),
+    ],
+)
+def test_in_claude_md_files_are_never_added_and_hand_lines_stay(mem: Path, index_text, listed):
+    write_memory(mem, "rule.md", frontmatter=memory("Rule", "feedback", in_claude_md="true"))
+    (mem / "MEMORY.md").write_text(index_text)
+    report = groom(mem)
+    assert ("(rule.md)" in index(mem)) is listed
+    assert report.added == []
 
 
 def test_top_level_type_frontmatter_is_read(mem: Path):
     (mem / "old.md").write_text("---\nname: Old style\ndescription: flat keys\ntype: feedback\n---\nbody\n")
     groom(mem)
-    assert "## Feedback\n- [Old style](old.md) — flat keys" in (mem / "MEMORY.md").read_text()
+    assert "## Feedback\n- [Old style](old.md) — flat keys" in index(mem)
 
 
-@pytest.mark.parametrize(
-    ("description", "expected"),
-    [
-        ("short hook", "short hook"),
-        ("word " * 30, None),
-    ],
-)
-def test_description_cut_at_word_boundary(mem: Path, description, expected):
-    write_memory(mem, "d.md", frontmatter=memory("D", "feedback", description=description.strip()))
+@pytest.mark.parametrize(("description", "overlong"), [("short hook", False), (" ".join(["word"] * 30), True)])
+def test_added_description_cut_at_word_boundary(mem: Path, description, overlong):
+    write_memory(mem, "d.md", frontmatter=memory("D", "feedback", description=description))
     report = groom(mem)
-    line = next(l for l in (mem / "MEMORY.md").read_text().splitlines() if "(d.md)" in l)
+    line = next(l for l in index(mem).splitlines() if "(d.md)" in l)
     rendered = line.split(" — ", 1)[1]
     assert len(rendered) <= 100
-    if expected:
-        assert rendered == expected
-        assert report.overlong_description == []
-    else:
-        assert rendered.endswith("word…")
-        assert report.overlong_description == ["d.md"]
+    assert rendered.endswith("word…") is overlong
+    assert (report.overlong_description == ["d.md"]) is overlong
 
 
-def test_untyped_memory_is_listed_and_flagged(mem: Path):
+def test_untyped_memory_is_flagged(mem: Path):
     (mem / "t.md").write_text("---\nname: T\ndescription: no type\n---\nbody\n")
     report = groom(mem)
     assert report.missing_type == ["t.md"]
-    assert "## Other\n- [T](t.md) — no type" in (mem / "MEMORY.md").read_text()
+    assert "- [T](t.md) — no type" in index(mem)
 
 
-def test_in_claude_md_files_are_omitted(mem: Path):
-    write_memory(mem, "c.md", frontmatter=memory("C", "feedback", in_claude_md="true"))
-    (mem / "MEMORY.md").write_text("- [C](c.md) — old hook\n")
-    report = groom(mem)
-    assert "c.md" not in (mem / "MEMORY.md").read_text()
-    assert report.unfiled == []
-
-
-def test_curated_titles_and_order_survive(mem: Path):
-    write_memory(mem, "a.md", frontmatter=memory("a-slug", "feedback", description="A"))
-    write_memory(mem, "b.md", frontmatter=memory("b-slug", "feedback", description="B"))
-    (mem / "MEMORY.md").write_text("- [Bee title](b.md) — old\n- [Ay title](a.md) — old\n")
-    groom(mem)
-    lines = [l for l in (mem / "MEMORY.md").read_text().splitlines() if l.startswith("- ")]
-    assert lines == ["- [Bee title](b.md) — B", "- [Ay title](a.md) — A"]
-
-
-@pytest.mark.parametrize(
-    "line",
-    [
-        "- Always use worktrees for team agents",
-        "- [Deep results](sub/RESULTS.md) — lives in a subdirectory",
-        "- [Gone](deleted.md) — file no longer exists",
-    ],
-)
-def test_unlinked_bullets_are_preserved_verbatim(mem: Path, line):
-    write_memory(mem, "f.md", frontmatter=memory("F", "feedback"))
-    (mem / "MEMORY.md").write_text(f"# Memory Index\n\n## Prefs\n{line}\n- [F](f.md) — x\n")
-    report = groom(mem)
-    index = (mem / "MEMORY.md").read_text()
-    assert report.unfiled == [line]
-    assert f"## Unfiled\n{line}\n" in index
-
-
-def test_missing_frontmatter_is_listed_and_flagged(mem: Path):
-    write_memory(mem, "raw.md", frontmatter=None, body="# just notes\n")
-    report = groom(mem)
-    assert report.missing_frontmatter == ["raw.md"]
-    assert "## Missing frontmatter\n- [raw](raw.md)" in (mem / "MEMORY.md").read_text()
+def test_unindexed_archive_file_is_added_to_archive_index(curated: Path):
+    write_memory(curated / "archive", "later.md", frontmatter=memory("Later", "project"))
+    groom(curated)
+    assert (curated / "archive" / "INDEX.md").read_text().endswith("- [Later](later.md) — a memory\n")
 
 
 def test_initializes_repo_and_commits(mem: Path):
@@ -220,36 +287,31 @@ def test_initializes_repo_and_commits(mem: Path):
 def test_archive_is_a_git_rename(mem: Path):
     write_memory(mem, "p.md", frontmatter=memory("P", "project"))
     groom(mem)
-    stamp = NOW - 60 * DAY
-    os.utime(mem / "p.md", (stamp, stamp))
-    later = NOW + 60 * DAY
-    mg.groom(mem, 21, False, now=later)
-    status = git(mem, "show", "--name-status", "--format=", "HEAD")
-    assert "R100\tp.md\tarchive/p.md" in status
+    os.utime(mem / "p.md", (NOW - 60 * DAY,) * 2)
+    groom(mem, now=NOW + 60 * DAY)
+    assert "R100\tp.md\tarchive/p.md" in git(mem, "show", "--name-status", "--format=", "HEAD")
 
 
 @pytest.mark.parametrize("repo_first", [True, False])
-def test_second_run_changes_nothing(mem: Path, repo_first):
+def test_second_run_changes_nothing(curated: Path, repo_first):
     if repo_first:
-        git(mem, "init", "-q")
-    write_memory(mem, "old.md", age_days=40, frontmatter=memory("Old", "project"))
-    write_memory(mem, "new.md", frontmatter=memory("New", "project"))
-    write_memory(mem, "raw.md", frontmatter=None)
-    (mem / "MEMORY.md").write_text("- loose note\n- [Old title](old.md) — hook\n")
-    groom(mem)
-    head = git(mem, "rev-parse", "HEAD")
-    snapshot = {p: p.read_text() for p in mem.rglob("*.md")}
-    report = groom(mem)
+        git(curated, "init", "-q")
+    write_memory(curated, "old.md", age_days=40, frontmatter=memory("Old", "project"))
+    write_memory(curated, "new.md", frontmatter=memory("New", "reference"))
+    write_memory(curated, "raw.md", frontmatter=None)
+    groom(curated)
+    head = git(curated, "rev-parse", "HEAD")
+    snapshot = {p: p.read_text() for p in curated.rglob("*.md")}
+    report = groom(curated)
     assert not report.changed
-    assert git(mem, "rev-parse", "HEAD") == head
-    assert {p: p.read_text() for p in mem.rglob("*.md")} == snapshot
-    assert "- [Old title](old.md) — a memory" in (mem / "archive" / "INDEX.md").read_text()
+    assert git(curated, "rev-parse", "HEAD") == head
+    assert {p: p.read_text() for p in curated.rglob("*.md")} == snapshot
 
 
 def test_dry_run_changes_nothing_and_prints_diff(mem: Path, capsys):
     write_memory(mem, "old.md", age_days=40, frontmatter=memory("Old", "project"))
     write_memory(mem, "f.md", frontmatter=memory("F", "feedback"))
-    before = {p: p.read_text() for p in mem.rglob("*")  if p.is_file()}
+    before = {p: p.read_text() for p in mem.rglob("*") if p.is_file()}
     mg.main(["--dry-run", "--dir", str(mem)])
     out = capsys.readouterr().out
     assert {p: p.read_text() for p in mem.rglob("*") if p.is_file()} == before
@@ -265,11 +327,7 @@ def test_over_budget_warning(mem: Path, capsys):
     assert "over the 6144-byte budget" in capsys.readouterr().out
 
 
-def test_root_scan_finds_only_dirs_with_index(tmp_path: Path, monkeypatch, capsys):
-    for key in ("GIT_AUTHOR_NAME", "GIT_COMMITTER_NAME"):
-        monkeypatch.setenv(key, "t")
-    for key in ("GIT_AUTHOR_EMAIL", "GIT_COMMITTER_EMAIL"):
-        monkeypatch.setenv(key, "t@example.com")
+def test_root_scan_finds_only_dirs_with_index(tmp_path: Path, capsys):
     (tmp_path / "a" / "memory").mkdir(parents=True)
     (tmp_path / "a" / "memory" / "MEMORY.md").write_text("")
     (tmp_path / "b" / "memory").mkdir(parents=True)
