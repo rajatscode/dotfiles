@@ -19,14 +19,27 @@ repositories directly under `~/dev` by default; set `WT_REAP_ROOTS` or use
 days for temporary worktrees and fourteen days elsewhere; override them with
 `WT_REAP_TMP_IDLE_DAYS` and `WT_REAP_IDLE_DAYS`.
 
-`memory-groom` keeps Claude Code auto-memory indexes trim. For each
-`~/.claude/projects/*/memory/` with a `MEMORY.md`, it moves project memories
-untouched for 21 days (`MEMORY_GROOM_DAYS`) into `archive/` unless their
-frontmatter sets `metadata.pinned: true`, rebuilds `MEMORY.md` from the
-remaining files' frontmatter, and commits the result in that directory's local
-Git repository. Bullets that point at no memory file are kept under
-`## Unfiled`. `--dry-run` prints the diff; `--dir PATH` limits it to one
-directory. Tests: `uv run --script tests/test_memory_groom.py`.
+`memory-groom` reconciles each Claude Code auto-memory `MEMORY.md` in place,
+preserving its existing text, headings, and order while adding unlisted memory
+files and removing links to archived files. It archives project memories idle
+for 21 days (`MEMORY_GROOM_DAYS`) unless their frontmatter sets
+`metadata.pinned: true`. Before changing a memory directory, it commits any
+existing local Git changes as a baseline, then commits its own changes locally;
+it never pushes. It requires `uv` and a configured Git identity.
+
+Install it without installing the rest of these dotfiles:
+
+```sh
+mkdir -p ~/.local/bin
+curl -fsSL https://raw.githubusercontent.com/rajatscode/dotfiles/main/dot_local/bin/executable_memory-groom -o ~/.local/bin/memory-groom
+chmod +x ~/.local/bin/memory-groom
+~/.local/bin/memory-groom --dry-run
+```
+
+Review the preview, then run `~/.local/bin/memory-groom` to apply changes.
+Pass `--dir PATH` to groom one directory containing `MEMORY.md`. The default
+root is `~/.claude/projects`; use `--root PATH` or `MEMORY_GROOM_ROOT` to
+select another root.
 
 On macOS, `chezmoi apply` also:
 
