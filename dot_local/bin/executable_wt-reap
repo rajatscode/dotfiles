@@ -75,6 +75,26 @@ file_mtime() {
     stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo "$now"
 }
 
+dirty_mtime() {
+    local wt="$1" last="$2" entry path mtime seen=0 old_path
+    while IFS= read -r -d '' entry; do
+        path="${entry:3}"
+        if [ -e "$wt/$path" ] || [ -L "$wt/$path" ]; then
+            mtime="$(file_mtime "$wt/$path")"
+            [ "$mtime" -gt "$last" ] && last=$mtime
+            seen=1
+        fi
+        case "${entry:0:2}" in
+            *R*|*C*) IFS= read -r -d '' old_path || true ;;
+        esac
+    done < <(git -C "$wt" status --porcelain=v1 -z --untracked-files=all)
+    if [ "$seen" = 0 ]; then
+        mtime="$(file_mtime "$wt/.git")"
+        [ "$mtime" -gt "$last" ] && last=$mtime
+    fi
+    echo "$last"
+}
+
 if [ ${#repos[@]} -eq 0 ]; then
     read -r -a root_list <<< "$roots"
     for root in "${root_list[@]}"; do
@@ -109,11 +129,6 @@ for repo in "${repos[@]}"; do
 
         branch="$(git -C "$wt" symbolic-ref --short HEAD 2>/dev/null || true)"
         dirty="$(git -C "$wt" status --porcelain --untracked-files=all 2>/dev/null | wc -l | tr -d ' ')"
-        if [ "$dirty" != 0 ]; then
-            say "keep  $wt (dirty: $dirty paths)"
-            kept=$((kept + 1))
-            continue
-        fi
 
         unpushed=0
         reason=""
@@ -144,21 +159,35 @@ for repo in "${repos[@]}"; do
             continue
         fi
 
-        if [ -z "$reason" ]; then
+        if [ "$dirty" != 0 ]; then
+            head_commit="$(git -C "$wt" log -1 --format=%ct 2>/dev/null || echo "$now")"
+            last="$(dirty_mtime "$wt" "$head_commit")"
+        elif [ -z "$reason" ]; then
             last="$(file_mtime "$wt/.git")"
             head_commit="$(git -C "$wt" log -1 --format=%ct 2>/dev/null || echo "$now")"
             [ "$head_commit" -gt "$last" ] && last=$head_commit
+        fi
+
+        if [ "$dirty" != 0 ] || [ -z "$reason" ]; then
             idle_days=$(( (now - last) / 86400 ))
             case "$(cd "$wt" && pwd -P)" in
                 "$tmp_prefix"/*) limit=$idle_tmp_days ;;
                 *) limit=$idle_other_days ;;
             esac
             if [ "$idle_days" -lt "$limit" ]; then
-                say "keep  $wt (idle ${idle_days}d < ${limit}d, ${branch:-detached})"
+                if [ "$dirty" != 0 ]; then
+                    say "keep  $wt (dirty: $dirty paths, idle ${idle_days}d < ${limit}d)"
+                else
+                    say "keep  $wt (idle ${idle_days}d < ${limit}d, ${branch:-detached})"
+                fi
                 kept=$((kept + 1))
                 continue
             fi
-            reason="idle ${idle_days}d"
+            if [ "$dirty" != 0 ]; then
+                reason="dirty: $dirty paths, idle ${idle_days}d"
+            else
+                reason="idle ${idle_days}d"
+            fi
         fi
 
         if [ "$apply" = 1 ]; then
