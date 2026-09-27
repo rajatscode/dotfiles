@@ -3,28 +3,49 @@
 # requires-python = ">=3.11"
 # dependencies = ["pyyaml>=6"]
 # ///
-"""Keep Claude Code auto-memory indexes trim.
+"""Trim file-based agent memory indexes without model calls.
 
-For every <root>/*/memory/ directory holding a MEMORY.md:
+With no paths, discover Claude project memories, Codex memories, and Gemini
+project memories. --dir PATH selects a folder for any agent; --index NAME
+selects a custom Markdown index. --root PATH scans a different memory tree.
+CLAUDE_CONFIG_DIR and CODEX_HOME override their respective home directories.
+
+Supported formats:
+  - Structured Markdown notes: archive stale project notes, keeping pinned,
+    user, feedback, and reference notes. Existing Claude metadata is supported.
+  - Plain Markdown indexes linking sibling notes: archive stale linked notes;
+    no YAML required. Optional metadata.pinned keeps a note. Unlinked notes
+    are left alone. Typed folders use the structured behavior above.
+  - Codex v1 memory_summary.md: archive old dated sections under What's in
+    Memory, retaining preferences, undated topics, and original source files.
+Unknown layouts are reported without modification. Archives remain linked
+from the index. The byte budget warns; it does not truncate text.
+
+Examples (requires uv and a configured Git identity):
+  memory-groom --dry-run
+  memory-groom --dir ~/.other-agent/memory --index NOTES.md --dry-run
+  memory-groom                 apply the previewed grooming locally
+
+For indexed memory folders:
   - ensure it is a local git repository (never adds remotes, never pushes),
     committing any uncommitted state as "memory-groom: baseline" first;
   - move project memories untouched for --days into archive/, carrying their
     index line into archive/INDEX.md (metadata.pinned: true keeps a file);
-  - reconcile MEMORY.md with the files: existing lines, headings, prose and
-    order stay as written; lines for archived files are removed; memory
-    files the index does not reach are added from their frontmatter, in the
-    section that holds their type (metadata.in_claude_md files are never
-    added, since CLAUDE.md already loads them);
+  - reconcile the index with the files: existing lines, headings, prose and
+    order stay as written; lines for archived files are removed;
+    structured files the index does not reach are added from their frontmatter,
+    in the section that holds their type (metadata.in_instructions and legacy
+    metadata.in_claude_md files are never added);
   - commit whatever changed.
 
 Each --snapshot repository (MEMORY_GROOM_SNAPSHOT, colon-separated) that is a
 git repository with uncommitted changes gets them committed as
 "memory-groom: snapshot". Paths that are not repositories are skipped.
 
-A file is reached when MEMORY.md links it, or when a listed memory file has a
+A file is reached when the index links it, or when a listed memory file has a
 bullet that starts with a link to it ("- [[name]]" or "- [title](name.md)").
 
-  memory-groom                 groom every memory dir under ~/.claude/projects
+  memory-groom                 groom discovered Claude, Codex, and Gemini memory
   memory-groom --dry-run       print the diff, change nothing
   memory-groom --dir PATH      groom one memory dir (repeatable)
   memory-groom --snapshot PATH also snapshot this repository (repeatable)
@@ -42,6 +63,7 @@ import re
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -116,6 +138,7 @@ class Section:
 @dataclass
 class Report:
     directory: Path
+    index_name: str = INDEX
     before: int = 0
     after: int = 0
     archived: list[str] = field(default_factory=list)
@@ -288,11 +311,24 @@ def section_for(sections: list[Section], memory: Memory, types_by_file: dict[str
     return created
 
 
-def groom(directory: Path, days: float, dry_run: bool, now: float | None = None) -> Report:
+def baseline(directory: Path) -> None:
+    if not is_repo_root(directory):
+        git(directory, "init", "-q")
+    git(directory, "add", "-A")
+    if git(directory, "status", "--porcelain"):
+        git(directory, "commit", "-q", "-m", f"{COMMIT_PREFIX}baseline")
+
+
+def in_instructions(memory: Memory) -> bool:
+    return memory.get("in_instructions") is True or memory.get("in_claude_md") is True
+
+
+def groom(directory: Path, days: float, dry_run: bool, now: float | None = None,
+          index_name: str = INDEX, plain: bool = False) -> Report:
     directory = directory.resolve()
     now = time.time() if now is None else now
-    report = Report(directory=directory)
-    index_path = directory / INDEX
+    report = Report(directory=directory, index_name=index_name)
+    index_path = directory / index_name
     old_index = index_path.read_text(encoding="utf-8") if index_path.exists() else ""
     report.before = len(old_index.encode())
     archive_dir = directory / ARCHIVE
@@ -300,21 +336,19 @@ def groom(directory: Path, days: float, dry_run: bool, now: float | None = None)
     old_archive = archive_path.read_text(encoding="utf-8") if archive_path.exists() else ""
 
     if not dry_run:
-        if not is_repo_root(directory):
-            git(directory, "init", "-q")
-        git(directory, "add", "-A")
-        if git(directory, "status", "--porcelain"):
-            git(directory, "commit", "-q", "-m", f"{COMMIT_PREFIX}baseline")
+        baseline(directory)
     times = commit_times(directory)
+    linked = {link_target(line) for line in old_index.splitlines()}
 
     live: dict[str, Memory] = {}
     to_archive: dict[str, Memory] = {}
     for path in sorted(directory.glob("*.md")):
-        if path.name == INDEX:
+        if path.name == index_name or path.is_symlink():
             continue
         memory = load_memory(path, path.name)
         stale = now - last_modified(directory, memory.file, times) > days * 86400
-        if memory.type == "project" and memory.get("pinned") is not True and stale:
+        eligible = memory.type == "project" or (plain and not memory.type and memory.file in linked)
+        if eligible and memory.get("pinned") is not True and not in_instructions(memory) and stale:
             to_archive[memory.file] = memory
         else:
             live[memory.file] = memory
@@ -332,7 +366,7 @@ def groom(directory: Path, days: float, dry_run: bool, now: float | None = None)
                 continue
             if target in live:
                 listed.add(target)
-                if live[target].get("in_claude_md") is True:
+                if in_instructions(live[target]):
                     report.listed_in_claude_md.append(target)
             elif target is None and BULLET.match(line):
                 report.unlinked.append(line.rstrip())
@@ -357,7 +391,7 @@ def groom(directory: Path, days: float, dry_run: bool, now: float | None = None)
 
     types_by_file = {f: m.type for f, m in live.items() if m.meta is not None}
     for memory in live.values():
-        if memory.get("in_claude_md") is True:
+        if in_instructions(memory) or (plain and memory.meta is None):
             continue
         if memory.meta is None:
             report.missing_frontmatter.append(memory.file)
@@ -375,7 +409,7 @@ def groom(directory: Path, days: float, dry_run: bool, now: float | None = None)
     archive_files = sorted(p.name for p in archive_dir.glob("*.md") if p.name != ARCHIVE_INDEX)
     archive_files = sorted(set(archive_files) | set(to_archive))
     if archive_files and not any(link_target(l) == ARCHIVE_LINK for s in sections for l in s.lines):
-        sections.append(Section("## Archive", [f"- [Archived projects]({ARCHIVE_LINK}) — archived project memories"]))
+        sections.append(Section("## Archive", [f"- [Archived memories]({ARCHIVE_LINK}) — archived memory notes"]))
     new_index = render_doc(sections)
     report.after = len(new_index.encode())
 
@@ -393,7 +427,7 @@ def groom(directory: Path, days: float, dry_run: bool, now: float | None = None)
     new_archive = render_doc(archive_doc) if archive_files else old_archive
 
     diffs = []
-    for name, old, new in ((INDEX, old_index, new_index), (ARCHIVE_LINK, old_archive, new_archive)):
+    for name, old, new in ((index_name, old_index, new_index), (ARCHIVE_LINK, old_archive, new_archive)):
         if old != new:
             diffs.append("".join(difflib.unified_diff(
                 old.splitlines(keepends=True), new.splitlines(keepends=True), f"a/{name}", f"b/{name}"
@@ -427,19 +461,19 @@ def summary(report: Report) -> str:
         parts.append(f"archive {len(report.archived)}")
     if report.added:
         parts.append(f"index {len(report.added)}")
-    parts.append(f"MEMORY.md {report.before}→{report.after} bytes")
+    parts.append(f"{report.index_name} {report.before}→{report.after} bytes")
     return ", ".join(parts)
 
 
 def print_report(report: Report, budget: int, dry_run: bool) -> None:
     print(f"== {report.directory}")
-    print(f"MEMORY.md: {report.before} → {report.after} bytes")
+    print(f"{report.index_name}: {report.before} → {report.after} bytes")
     if report.after > budget:
-        print(f"WARNING: MEMORY.md is {report.after} bytes, over the {budget}-byte budget")
+        print(f"WARNING: {report.index_name} is {report.after} bytes, over the {budget}-byte budget")
     for label, items in (
         ("archived", report.archived),
         ("added to index", report.added),
-        ("listed though metadata.in_claude_md, kept", report.listed_in_claude_md),
+        ("listed though marked in instructions, kept", report.listed_in_claude_md),
         ("lines without a file link, kept", report.unlinked),
         ("lines linking a missing file, kept", report.dangling),
         ("missing frontmatter", report.missing_frontmatter),
@@ -471,18 +505,169 @@ def snapshot(repo: Path, dry_run: bool) -> str:
     return f"== {repo}\n{verb} {len(changes.splitlines())} changed paths:\n{changes.rstrip()}"
 
 
-def memory_dirs(root: Path) -> list[Path]:
-    return sorted(p.parent for p in root.glob(f"*/memory/{INDEX}"))
+def memory_dirs(root: Path, index_name: str | None = None) -> list[Path]:
+    names = {index_name} if index_name else {INDEX, "memory_summary.md", "GEMINI.md"}
+    found = []
+    for directory, subdirs, files in os.walk(root.expanduser()):
+        subdirs[:] = [name for name in subdirs if name not in {ARCHIVE, ".git", "skills", "rollout_summaries"}]
+        if names.intersection(files):
+            found.append(Path(directory))
+            subdirs.clear()
+    return sorted(found)
+
+
+def default_memory_dirs() -> list[Path]:
+    home = Path.home()
+    claude = Path(os.environ.get("CLAUDE_CONFIG_DIR", home / ".claude")).expanduser()
+    codex = Path(os.environ.get("CODEX_HOME", home / ".codex")).expanduser()
+    directories = [p.parent for p in (claude / "projects").glob("*/memory/MEMORY.md")]
+    directories.extend(p for p in (home / ".gemini" / "tmp").glob("*/memory")
+                       if (p / INDEX).is_file() or (p / "GEMINI.md").is_file())
+    if (codex / "memories" / "memory_summary.md").is_file() or (codex / "memories" / INDEX).is_file():
+        directories.append(codex / "memories")
+    return sorted(set(p.resolve() for p in directories))
+
+
+def index_format(directory: Path, index_name: str) -> str | None:
+    path = directory / index_name
+    if not path.is_file() or path.is_symlink():
+        return None
+    text = path.read_text(encoding="utf-8")
+    if index_name == "memory_summary.md":
+        return "codex"
+    if re.search(r"^# Task Group:", text, re.MULTILINE):
+        return None
+    notes = [load_memory(p, p.name) for p in directory.glob("*.md")
+             if p.name != index_name and not p.is_symlink()]
+    if any(note.type in TYPE_ORDER for note in notes):
+        return "indexed"
+    linked = {link_target(line) for line in text.splitlines()}
+    if any(note.file in linked for note in notes) or ARCHIVE_LINK in linked:
+        return "plain"
+    if all(not line.strip() or line.startswith("#") for line in text.splitlines()):
+        return "plain"
+    return None
+
+
+def trim_codex_summary(text: str, days: float, now: float) -> tuple[str, str] | None:
+    if not text.startswith('v1\n'):
+        return None
+
+    headings = []
+    fences = []
+    offset = 0
+    for line in text.splitlines(keepends=True):
+        fence = re.match(r'^\s*(`{3,}|~{3,})', line)
+        if fence:
+            token = fence.group(1)
+            if fences:
+                char, length = fences[-1]
+                if token[0] == char and len(token) >= length and not line[fence.end():].strip():
+                    fences.pop()
+            else:
+                fences.append((token[0], len(token)))
+        elif not fences:
+            match = re.match(r'^(#{1,6})[ \t]+(.+?)[ \t]*\r?\n?$', line)
+            if match:
+                headings.append((offset, offset + len(line), len(match.group(1)), match.group(2)))
+        offset += len(line)
+
+    required = {'## User Profile', '## User preferences', '## General Tips', "## What's in Memory"}
+    present = {f'## {title}' for _, _, level, title in headings if level == 2}
+    if not required <= present:
+        return None
+
+    memory = next(i for i, h in enumerate(headings) if h[2] == 2 and h[3] == "What's in Memory")
+    memory_end = next((h[0] for h in headings[memory + 1:] if h[2] <= 2), len(text))
+    cutoff = now - days * 86400
+    spans = []
+
+    for index in range(memory + 1, len(headings)):
+        start, _, level, title = headings[index]
+        if start >= memory_end:
+            break
+        if spans and start < spans[-1][1]:
+            continue
+        if level not in (3, 4):
+            continue
+        try:
+            date = datetime.strptime(title, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        if date.timestamp() >= cutoff:
+            continue
+        end = next((h[0] for h in headings[index + 1:] if h[0] < memory_end and h[2] <= level), memory_end)
+        scope = None
+        if level == 4:
+            for prior in reversed(headings[memory + 1:index]):
+                if prior[0] < start and prior[2] == 3:
+                    try:
+                        datetime.strptime(prior[3], '%Y-%m-%d')
+                    except ValueError:
+                        scope = text[prior[0]:prior[1]]
+                    break
+        archived = text[start:end]
+        if scope:
+            archived = scope + archived
+        spans.append((start, end, archived))
+
+    if not spans:
+        return text, ''
+    retained_parts, archived_parts, cursor = [], [], 0
+    for start, end, archived in spans:
+        retained_parts.append(text[cursor:start])
+        archived_parts.append(archived)
+        cursor = end
+    retained_parts.append(text[cursor:])
+    retained = ''.join(retained_parts)
+    pointer = "- [Archived memory topics](archive/memory_summary.md)"
+    if pointer not in retained:
+        header_end = headings[memory][1]
+        retained = retained[:header_end] + "\n" + pointer + "\n" + retained[header_end:]
+    return retained, ''.join(archived_parts)
+
+
+def groom_summary(directory: Path, days: float, dry_run: bool, now: float | None = None) -> Report | None:
+    index_name = "memory_summary.md"
+    path = directory / index_name
+    old = path.read_text(encoding="utf-8")
+    result = trim_codex_summary(old, days, time.time() if now is None else now)
+    if result is None:
+        return None
+    new, archived = result
+    archive_rel = "archive/memory_summary.md"
+    archive_path = directory / archive_rel
+    old_archive = archive_path.read_text(encoding="utf-8") if archive_path.exists() else ""
+    new_archive = old_archive
+    if archived:
+        new_archive = (old_archive or "# Archived Codex memory\n\nSource paths are relative to the parent memory directory.\n\n").rstrip() + "\n\n" + archived
+    report = Report(directory=directory, index_name=index_name,
+                    before=len(old.encode()), after=len(new.encode()))
+    report.diff = "".join("".join(difflib.unified_diff(
+        before.splitlines(keepends=True), after.splitlines(keepends=True), f"a/{name}", f"b/{name}"
+    )) for name, before, after in ((index_name, old, new), (archive_rel, old_archive, new_archive)))
+    report.changed = bool(report.diff)
+    if not dry_run:
+        baseline(directory)
+        if report.changed:
+            archive_path.parent.mkdir(exist_ok=True)
+            archive_path.write_text(new_archive, encoding="utf-8")
+            path.write_text(new, encoding="utf-8")
+            git(directory, "add", "-A")
+            git(directory, "commit", "-q", "-m", f"{COMMIT_PREFIX}{summary(report)}")
+    return report
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="memory-groom", description=__doc__.split("\n\n")[0])
+    parser = argparse.ArgumentParser(prog="memory-groom", description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--dry-run", action="store_true", help="print the diff and change nothing")
     parser.add_argument("--dir", action="append", type=Path, default=[], help="groom only this memory dir")
+    parser.add_argument("--index", help="index filename for --dir or --root (default: detect known names)")
     parser.add_argument(
         "--root",
         type=Path,
-        default=Path(os.environ.get("MEMORY_GROOM_ROOT", Path.home() / ".claude" / "projects")),
+        default=os.environ.get("MEMORY_GROOM_ROOT"),
     )
     parser.add_argument("--days", type=float, default=float(os.environ.get("MEMORY_GROOM_DAYS", 21)))
     parser.add_argument("--budget", type=int, default=int(os.environ.get("MEMORY_GROOM_BUDGET", 6144)))
@@ -494,10 +679,30 @@ def main(argv: list[str] | None = None) -> int:
         help="commit uncommitted changes in this git repository (repeatable)",
     )
     args = parser.parse_args(argv)
+    if args.index and (Path(args.index).name != args.index or not args.index.endswith(".md")):
+        parser.error("--index must be a Markdown filename, without directories")
+    if args.index and not (args.dir or args.root):
+        parser.error("--index requires --dir or --root")
 
-    dirs = args.dir or memory_dirs(args.root.expanduser())
+    dirs = args.dir or (memory_dirs(Path(args.root), args.index) if args.root else default_memory_dirs())
+    seen = set()
     for directory in dirs:
-        report = groom(directory.expanduser(), args.days, args.dry_run)
+        directory = directory.expanduser().resolve()
+        if directory in seen:
+            continue
+        seen.add(directory)
+        index_name = args.index or next((name for name in ("memory_summary.md", INDEX, "GEMINI.md")
+                                        if (directory / name).is_file()), INDEX)
+        format_ = index_format(directory, index_name)
+        if format_ == "codex":
+            report = groom_summary(directory, args.days, args.dry_run)
+        elif format_:
+            report = groom(directory, args.days, args.dry_run, index_name=index_name, plain=format_ == "plain")
+        else:
+            report = None
+        if report is None:
+            print(f"== {directory}\nskipped: unrecognized memory format ({index_name})")
+            continue
         print_report(report, args.budget, args.dry_run)
     for repo in args.snapshot:
         print(snapshot(repo, args.dry_run))

@@ -415,5 +415,101 @@ def test_snapshot_skips_non_repository(tmp_path: Path, capsys):
     assert not (plain / ".git").exists()
 
 
+@pytest.mark.parametrize("index_name", ["MEMORY.md", "GEMINI.md", "NOTES.md"])
+def test_plain_index_archives_only_stale_linked_notes(tmp_path, index_name):
+    folder = tmp_path / "memory"
+    folder.mkdir()
+    (folder / index_name).write_text("# Notes\n\nKeep this fact.\n\n- [Old](old.md) — older work\n- [New](new.md)\n- [Pinned](pinned.md)\n")
+    write_memory(folder, "old.md", age_days=40, body="Old detail\n")
+    write_memory(folder, "new.md", body="Recent detail\n")
+    write_memory(folder, "unlinked.md", age_days=40, body="Keep unlinked\n")
+    write_memory(folder, "pinned.md", age_days=40, frontmatter={"metadata": {"pinned": True}})
+    before = {p.name: p.read_bytes() for p in folder.iterdir()}
+    args = ["--dir", str(folder), "--index", index_name]
+    mg.main([*args, "--dry-run"])
+    assert {p.name: p.read_bytes() for p in folder.iterdir()} == before
+    mg.main(args)
+    assert (folder / "archive" / "old.md").read_bytes() == before["old.md"]
+    assert "Keep this fact." in (folder / index_name).read_text()
+    assert "archive/INDEX.md" in (folder / index_name).read_text()
+    for name in ("new.md", "pinned.md", "unlinked.md"):
+        assert (folder / name).read_bytes() == before[name]
+    head = git(folder, "rev-parse", "HEAD")
+    mg.main(args)
+    assert git(folder, "rev-parse", "HEAD") == head
+
+
+def test_default_discovery_and_explicit_override(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude-custom"))
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex-custom"))
+    monkeypatch.delenv("MEMORY_GROOM_ROOT", raising=False)
+    files = [tmp_path / "claude-custom/projects/slug/memory/MEMORY.md",
+             tmp_path / "codex-custom/memories/memory_summary.md",
+             tmp_path / ".gemini/tmp/short-id/memory/GEMINI.md"]
+    for path in files:
+        path.parent.mkdir(parents=True)
+        path.write_text("# Empty\n")
+    assert set(mg.default_memory_dirs()) == {p.parent for p in files}
+    custom = tmp_path / "other/one/notes"
+    custom.mkdir(parents=True)
+    (custom / "NOTES.md").write_text("# Empty\n")
+    monkeypatch.setenv("MEMORY_GROOM_ROOT", str(tmp_path / "other"))
+    mg.main(["--dry-run", "--index", "NOTES.md"])
+    output = capsys.readouterr().out
+    assert str(custom) in output
+    assert all(str(p.parent) not in output for p in files)
+
+
+SUMMARY_PREFIX = "v1\n## User Profile\nKeep user.\n## User preferences\nKeep preferences.\n## General Tips\nKeep tips.\n## What's in Memory\nIntro prose.\n"
+
+
+@pytest.mark.parametrize("scope,level", [("### Some project\n", "####"), ("", "###")])
+def test_codex_archives_dated_sections_not_preferences_or_sources(tmp_path, scope, level):
+    folder = tmp_path / "memories"
+    folder.mkdir()
+    old = f"{level} 2020-01-01\n- rollout_summaries/exact.md\n##### Detail\nKeep detail.\n"
+    fresh = f"{level} 2099-01-01\nRecent topic.\n"
+    undated = "### Older Memory Topics\nUndated topic.\n"
+    content = SUMMARY_PREFIX + scope + old + fresh + undated
+    (folder / "memory_summary.md").write_text(content)
+    (folder / "MEMORY.md").write_text("# Task Group: source\nUnchanged.\n")
+    (folder / "raw_memories.md").write_text("raw evidence")
+    (folder / "rollout_summaries").mkdir()
+    (folder / "rollout_summaries/exact.md").write_text("evidence")
+    before = {p.relative_to(folder): p.read_bytes() for p in folder.rglob("*") if p.is_file()}
+    report = mg.groom_summary(folder, 21, True, NOW)
+    assert report.changed
+    assert {p.relative_to(folder): p.read_bytes() for p in folder.rglob("*") if p.is_file()} == before
+    mg.main(["--dir", str(folder)])
+    result = (folder / "memory_summary.md").read_text()
+    assert result.startswith(SUMMARY_PREFIX.split("## What's in Memory")[0])
+    assert "Intro prose." in result and fresh in result and undated in result
+    assert old not in result and "archive/memory_summary.md" in result
+    archive = (folder / "archive/memory_summary.md").read_text()
+    assert scope + old in archive
+    for path, data in before.items():
+        if str(path) != "memory_summary.md":
+            assert (folder / path).read_bytes() == data
+    head = git(folder, "rev-parse", "HEAD")
+    mg.main(["--dir", str(folder)])
+    assert git(folder, "rev-parse", "HEAD") == head
+
+
+def test_codex_ignores_fenced_dates_and_retains_other_sections():
+    text = SUMMARY_PREFIX + "```markdown\n~~~\n### 2020-01-01\nexample\n```\n### 2020-02-31\ninvalid date\n## Other\n### 2020-01-01\nother section\n"
+    assert mg.trim_codex_summary(text, 21, NOW) == (text, "")
+
+
+@pytest.mark.parametrize("name,text", [("memory_summary.md", "unknown summary\n"),
+                                      ("MEMORY.md", "# Task Group: native handbook\nscope: unchanged\n")])
+def test_unknown_formats_unchanged_without_git_init(tmp_path, name, text, capsys):
+    (tmp_path / name).write_text(text)
+    mg.main(["--dir", str(tmp_path)])
+    assert "skipped: unrecognized" in capsys.readouterr().out
+    assert list(tmp_path.iterdir()) == [tmp_path / name]
+    assert (tmp_path / name).read_text() == text
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q", "-p", "no:cacheprovider", *sys.argv[1:]]))
