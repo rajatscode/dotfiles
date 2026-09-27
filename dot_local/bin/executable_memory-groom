@@ -17,14 +17,20 @@ For every <root>/*/memory/ directory holding a MEMORY.md:
     added, since CLAUDE.md already loads them);
   - commit whatever changed.
 
+Each --snapshot repository (MEMORY_GROOM_SNAPSHOT, colon-separated) that is a
+git repository with uncommitted changes gets them committed as
+"memory-groom: snapshot". Paths that are not repositories are skipped.
+
 A file is reached when MEMORY.md links it, or when a listed memory file has a
 bullet that starts with a link to it ("- [[name]]" or "- [title](name.md)").
 
   memory-groom                 groom every memory dir under ~/.claude/projects
   memory-groom --dry-run       print the diff, change nothing
   memory-groom --dir PATH      groom one memory dir (repeatable)
+  memory-groom --snapshot PATH also snapshot this repository (repeatable)
 
-Environment: MEMORY_GROOM_ROOT, MEMORY_GROOM_DAYS (21), MEMORY_GROOM_BUDGET (6144).
+Environment: MEMORY_GROOM_ROOT, MEMORY_GROOM_DAYS (21), MEMORY_GROOM_BUDGET (6144),
+MEMORY_GROOM_SNAPSHOT (empty).
 """
 
 from __future__ import annotations
@@ -451,6 +457,20 @@ def print_report(report: Report, budget: int, dry_run: bool) -> None:
         print("no changes")
 
 
+def snapshot(repo: Path, dry_run: bool) -> str:
+    repo = repo.expanduser()
+    if not is_repo_root(repo):
+        return f"== {repo}\nsnapshot skipped: not a git repository"
+    changes = git(repo, "status", "--porcelain")
+    if not changes:
+        return f"== {repo}\nno changes"
+    if not dry_run:
+        git(repo, "add", "-A")
+        git(repo, "commit", "-q", "-m", f"{COMMIT_PREFIX}snapshot")
+    verb = "would snapshot" if dry_run else "snapshot"
+    return f"== {repo}\n{verb} {len(changes.splitlines())} changed paths:\n{changes.rstrip()}"
+
+
 def memory_dirs(root: Path) -> list[Path]:
     return sorted(p.parent for p in root.glob(f"*/memory/{INDEX}"))
 
@@ -466,12 +486,21 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--days", type=float, default=float(os.environ.get("MEMORY_GROOM_DAYS", 21)))
     parser.add_argument("--budget", type=int, default=int(os.environ.get("MEMORY_GROOM_BUDGET", 6144)))
+    parser.add_argument(
+        "--snapshot",
+        action="append",
+        type=Path,
+        default=[Path(p) for p in os.environ.get("MEMORY_GROOM_SNAPSHOT", "").split(":") if p],
+        help="commit uncommitted changes in this git repository (repeatable)",
+    )
     args = parser.parse_args(argv)
 
     dirs = args.dir or memory_dirs(args.root.expanduser())
     for directory in dirs:
         report = groom(directory.expanduser(), args.days, args.dry_run)
         print_report(report, args.budget, args.dry_run)
+    for repo in args.snapshot:
+        print(snapshot(repo, args.dry_run))
     return 0
 
 

@@ -372,5 +372,48 @@ def test_root_scan_finds_only_dirs_with_index(tmp_path: Path, capsys):
     assert not (tmp_path / "b" / "memory" / ".git").exists()
 
 
+@pytest.fixture
+def repo(tmp_path: Path) -> Path:
+    directory = tmp_path / "shared"
+    directory.mkdir()
+    git(directory, "init", "-q")
+    (directory / "RULES.md").write_text("one\n")
+    git(directory, "add", "-A")
+    git(directory, "commit", "-q", "-m", "start")
+    return directory
+
+
+@pytest.mark.parametrize(
+    ("dirty", "dry_run", "commits"),
+    [(True, False, 2), (True, True, 1), (False, False, 1)],
+)
+def test_snapshot_commits_only_real_changes(tmp_path: Path, repo: Path, dirty, dry_run, commits, capsys):
+    if dirty:
+        (repo / "RULES.md").write_text("two\n")
+        (repo / "NEW.md").write_text("new\n")
+    mg.main(["--root", str(tmp_path / "none"), "--snapshot", str(repo), *(["--dry-run"] if dry_run else [])])
+    assert len(git(repo, "log", "--format=%s").splitlines()) == commits
+    assert (git(repo, "status", "--porcelain") == "") is (not dirty or not dry_run)
+    if commits == 2:
+        assert git(repo, "log", "-1", "--format=%s").strip() == "memory-groom: snapshot"
+        assert git(repo, "remote") == ""
+
+
+def test_snapshot_repos_come_from_environment(tmp_path: Path, repo: Path, monkeypatch):
+    (repo / "RULES.md").write_text("two\n")
+    monkeypatch.setenv("MEMORY_GROOM_SNAPSHOT", f"{tmp_path / 'missing'}:{repo}")
+    mg.main(["--root", str(tmp_path / "none")])
+    assert git(repo, "log", "-1", "--format=%s").strip() == "memory-groom: snapshot"
+
+
+def test_snapshot_skips_non_repository(tmp_path: Path, capsys):
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    (plain / "a.md").write_text("a\n")
+    mg.main(["--root", str(tmp_path / "none"), "--snapshot", str(plain)])
+    assert "not a git repository" in capsys.readouterr().out
+    assert not (plain / ".git").exists()
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q", "-p", "no:cacheprovider", *sys.argv[1:]]))
