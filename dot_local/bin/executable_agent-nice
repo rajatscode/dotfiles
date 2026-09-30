@@ -5,15 +5,22 @@
 #   agent-nice            report processes that would be reniced
 #   agent-nice --apply    renice them
 #
-# An agent is a process whose command is one of $AGENT_NICE_COMMANDS (default:
-# claude codex), run directly or through node. Every descendant is included,
-# whichever shell, terminal, or IDE started the agent. Processes already at
-# $AGENT_NICE_LEVEL (10) or lower priority are left alone; niceness is only raised.
+# AGENT_NICE_COMMANDS selects agent roots (default: claude codex), run directly
+# or through node. AGENT_NICE_LEVEL sets their priority (default: 10).
+# AGENT_NICE_PATH_RULES is a semicolon-separated list of path=level rules. A
+# matching process and its descendants use that priority, even inside an agent
+# tree. Niceness is only raised and must be between 0 and 20.
 set -euo pipefail
 
 apply=0
 level="${AGENT_NICE_LEVEL:-10}"
 commands="${AGENT_NICE_COMMANDS:-claude codex}"
+path_rules="${AGENT_NICE_PATH_RULES:-$HOME/dev/rajat/telic=15;~/dev/rajat/telic=15}"
+
+if ! [[ "$level" =~ ^[0-9]+$ ]] || ((level > 20)); then
+    echo "agent-nice: priority must be between 0 and 20: $level" >&2
+    exit 2
+fi
 
 case "${1:-}" in
     --apply) apply=1 ;;
@@ -22,28 +29,54 @@ case "${1:-}" in
     *) echo "agent-nice: unknown argument $1" >&2; exit 2 ;;
 esac
 
-pids="$(ps -Ao pid=,ppid=,ni=,args= | awk -v level="$level" -v commands="$commands" '
+pids="$(ps -Ao pid=,ppid=,ni=,args= | awk -v level="$level" -v commands="$commands" -v path_rules="$path_rules" '
     function base(p) { sub(/.*\//, "", p); return p }
-    BEGIN { n = split(commands, c, " "); for (i = 1; i <= n; i++) agent[c[i]] = 1 }
+    BEGIN {
+        n = split(commands, c, " "); for (i = 1; i <= n; i++) agent[c[i]] = 1
+        nr = split(path_rules, rules, ";")
+        for (i = 1; i <= nr; i++) {
+            sep = index(rules[i], "=")
+            if (sep) {
+                rule_path = substr(rules[i], 1, sep - 1)
+                priority = substr(rules[i], sep + 1)
+                if (rule_path != "" && priority ~ /^[0-9]+$/ && priority >= level && priority <= 20) {
+                    path[++np] = rule_path
+                    path_level[np] = priority
+                } else {
+                    print "agent-nice: path rules require a path and a priority between the base level and 20" > "/dev/stderr"
+                    exit 2
+                }
+            }
+        }
+    }
     {
         pid = $1; ppid[pid] = $2; ni[pid] = $3
         cmd = base($4)
         if (cmd in agent || (cmd == "node" && base($5) in agent)) root[pid] = 1
+        for (i = 1; i <= np; i++) {
+            if (index($0, path[i]) && (!(pid in path_root) || path_level[i] > path_level[path_root[pid]])) path_root[pid] = i
+        }
     }
     END {
         for (pid in ppid) {
             p = pid
+            target = -1
             while (p != "" && p > 1) {
-                if (p in root) { if (ni[pid] < level) print pid; break }
+                if (p in root && level > target) target = level
+                if ((p in path_root) && path_level[path_root[p]] > target) target = path_level[path_root[p]]
                 p = ppid[p]
             }
+            if (target > ni[pid]) print pid, target
         }
     }')"
 
 [ -n "$pids" ] || exit 0
 if [ "$apply" = 1 ]; then
     # A process can exit between ps and renice; that is not an error.
-    renice -n "$level" -p $pids >/dev/null 2>&1 || true
+    for target in $(printf '%s\n' "$pids" | awk '{print $2}' | sort -un); do
+        matching="$(printf '%s\n' "$pids" | awk -v target="$target" '$2 == target { print $1 }')"
+        renice "$target" -p $matching >/dev/null 2>&1 || true
+    done
 else
-    echo "would renice to $level: $(echo $pids | wc -w | tr -d ' ') processes"
+    printf '%s\n' "$pids" | awk '{ count[$2]++ } END { for (priority in count) printf "would renice to %s: %d processes\n", priority, count[priority] }'
 fi

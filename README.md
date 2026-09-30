@@ -31,9 +31,15 @@ On macOS, `chezmoi apply` also:
   (`orb stop`, then reopen OrbStack, applies new limits);
 - loads LaunchAgents that run `wt-reap --apply` hourly over `~/dev/fira` and
   `orb-reap --apply` every two hours, and `agent-nice --apply` every 30
-  seconds, which renices `claude` and `codex` process trees to 10 however they
-  were launched. `orb-reap` removes containers whose
-  compose working directory is gone, stops containers up longer than
+  seconds. `agent-nice` renices `claude` and `codex` process trees to 10
+  however they were launched; commands run from `~/dev/rajat/telic` and their
+  descendants use nice 15. Configure `AGENT_NICE_COMMANDS` and
+  `AGENT_NICE_LEVEL` for agent roots, or `AGENT_NICE_PATH_RULES` for
+  project-specific higher niceness (`path=level`, separated by semicolons).
+  Set these in the `com.rajat.agent-nice.plist.tmpl` environment block.
+  Priority values range from the base level to 20, and the job only raises
+  niceness. `orb-reap` removes containers whose compose working directory is
+  gone, stops containers up longer than
   `ORB_REAP_MAX_HOURS` (48) unless their restart policy keeps them up, and
   prunes build cache older than a week plus dangling images. Below 80 GiB of
   host free space, it also prunes unused images older than one day and

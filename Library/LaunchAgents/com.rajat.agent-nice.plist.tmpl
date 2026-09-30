@@ -15,6 +15,12 @@
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>HOME</key>
         <string>{{ .chezmoi.homeDir }}</string>
+        <key>AGENT_NICE_COMMANDS</key>
+        <string>claude codex</string>
+        <key>AGENT_NICE_LEVEL</key>
+        <string>10</string>
+        <key>AGENT_NICE_PATH_RULES</key>
+        <string>{{ .chezmoi.homeDir }}/dev/rajat/telic=15;~/dev/rajat/telic=15</string>
     </dict>
     <key>StartInterval</key>
     <integer>30</integer>
