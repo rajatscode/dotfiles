@@ -18,6 +18,7 @@ repos=()
 roots="${WT_REAP_ROOTS:-$HOME/dev}"
 idle_tmp_days="${WT_REAP_TMP_IDLE_DAYS:-3}"
 idle_other_days="${WT_REAP_IDLE_DAYS:-14}"
+cache_idle_days="${WT_REAP_CACHE_IDLE_DAYS:-3}"
 log="${WT_REAP_LOG:-${XDG_STATE_HOME:-$HOME/.local/state}/wt-reap.log}"
 
 while [ $# -gt 0 ]; do
@@ -76,7 +77,7 @@ file_mtime() {
 }
 
 dirty_mtime() {
-    local wt="$1" last="$2" entry path mtime seen=0 old_path
+    local wt="$1" last="$2" entry path mtime seen=0
     while IFS= read -r -d '' entry; do
         path="${entry:3}"
         if [ -e "$wt/$path" ] || [ -L "$wt/$path" ]; then
@@ -85,7 +86,7 @@ dirty_mtime() {
             seen=1
         fi
         case "${entry:0:2}" in
-            *R*|*C*) IFS= read -r -d '' old_path || true ;;
+            *R*|*C*) IFS= read -r -d '' _ || true ;;
         esac
     done < <(git -C "$wt" status --porcelain=v1 -z --untracked-files=all)
     if [ "$seen" = 0 ]; then
@@ -93,6 +94,42 @@ dirty_mtime() {
         [ "$mtime" -gt "$last" ] && last=$mtime
     fi
     echo "$last"
+}
+
+trim_idle_cache() {
+    local wt="$1" last idle_days gitdir path rel active_cwds head_commit wt_real path_real
+    local -a candidates=()
+
+    gitdir="$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null)" || return 0
+    [ ! -e "$gitdir/locked" ] || return 0
+    last="$(file_mtime "$wt/.git")"
+    head_commit="$(git -C "$wt" log -1 --format=%ct 2>/dev/null || echo "$now")"
+    [ "$head_commit" -gt "$last" ] && last="$head_commit"
+    idle_days=$(( (now - last) / 86400 ))
+    [ "$idle_days" -ge "$cache_idle_days" ] || return 0
+    wt_real="$(cd "$wt" && pwd -P)"
+
+    for path in "$wt/node_modules" "$wt/.venv" "$wt"/*/.venv; do
+        [ -d "$path" ] && [ ! -L "$path" ] || continue
+        path_real="$(cd "$path" && pwd -P)"
+        case "$path_real" in "$wt_real"/*) ;; *) continue ;; esac
+        rel="${path#"$wt"/}"
+        git -C "$wt" check-ignore -q -- "$rel" || continue
+        candidates+=("$path")
+    done
+    [ "${#candidates[@]}" -gt 0 ] || return 0
+
+    command -v lsof >/dev/null 2>&1 || return 0
+    active_cwds="$(lsof -d cwd -Fn 2>/dev/null | sed -n 's/^n//p')" || return 0
+    if printf '%s\n' "$active_cwds" | awk -v wt="$wt" '$0 == wt || index($0, wt "/") == 1 { found=1 } END { exit !found }'; then
+        say "keep  cache $wt (process working in worktree)"
+        return 0
+    fi
+
+    for path in "${candidates[@]}"; do
+        [ "$apply" = 1 ] && rm -rf -- "$path"
+        say "$([ "$apply" = 1 ] && echo trim || echo would) cache $path (worktree idle ${idle_days}d)"
+    done
 }
 
 if [ ${#repos[@]} -eq 0 ]; then
@@ -154,6 +191,7 @@ for repo in "${repos[@]}"; do
         fi
 
         if [ "$unpushed" != 0 ]; then
+            [ "$dirty" != 0 ] || trim_idle_cache "$wt"
             say "keep  $wt ($unpushed unpushed commits on ${branch:-detached})"
             kept=$((kept + 1))
             continue
