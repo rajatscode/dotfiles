@@ -97,7 +97,7 @@ dirty_mtime() {
 }
 
 trim_idle_cache() {
-    local wt="$1" last idle_days gitdir path rel active_cwds head_commit wt_real path_real
+    local wt="$1" last idle_days gitdir path rel head_commit wt_real path_real
     local -a candidates=()
 
     gitdir="$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null)" || return 0
@@ -119,9 +119,7 @@ trim_idle_cache() {
     done
     [ "${#candidates[@]}" -gt 0 ] || return 0
 
-    command -v lsof >/dev/null 2>&1 || return 0
-    active_cwds="$(lsof -d cwd -Fn 2>/dev/null | sed -n 's/^n//p')" || return 0
-    if printf '%s\n' "$active_cwds" | awk -v wt="$wt" '$0 == wt || index($0, wt "/") == 1 { found=1 } END { exit !found }'; then
+    if worktree_in_use "$wt"; then
         say "keep  cache $wt (process working in worktree)"
         return 0
     fi
@@ -130,6 +128,14 @@ trim_idle_cache() {
         [ "$apply" = 1 ] && rm -rf -- "$path"
         say "$([ "$apply" = 1 ] && echo trim || echo would) cache $path (worktree idle ${idle_days}d)"
     done
+}
+
+worktree_in_use() {
+    local wt="$1" active_cwds
+    command -v lsof >/dev/null 2>&1 || return 0
+    active_cwds="$(lsof -d cwd -Fn 2>/dev/null | sed -n 's/^n//p')" || return 0
+    wt="$(cd "$wt" && pwd -P)"
+    printf '%s\n' "$active_cwds" | awk -v wt="$wt" '$0 == wt || index($0, wt "/") == 1 { found=1 } END { exit !found }'
 }
 
 if [ ${#repos[@]} -eq 0 ]; then
@@ -226,6 +232,12 @@ for repo in "${repos[@]}"; do
             else
                 reason="idle ${idle_days}d"
             fi
+        fi
+
+        if worktree_in_use "$wt"; then
+            say "keep  $wt (process working in worktree)"
+            kept=$((kept + 1))
+            continue
         fi
 
         if [ "$apply" = 1 ]; then

@@ -103,3 +103,48 @@ def test_wt_reap_trims_ignored_dependencies_but_keeps_unpublished_worktree(
     assert cache.is_dir() is (state != "idle")
     assert (outside / ".venv").is_dir()
     assert "unpushed commits" in result.stdout
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_wt_reap_keeps_merged_worktree_with_active_directory(tmp_path: Path, active: bool) -> None:
+    repo = tmp_path / "repo"
+    remote = tmp_path / "remote.git"
+    wt = tmp_path / "merged"
+    repo.mkdir()
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    executable(bin_dir / "pgrep", "#!/bin/sh\nexit 1\n")
+    executable(bin_dir / "lsof", f"#!/bin/sh\n{'echo n' + str(wt) if active else ':'}\n")
+    env = os.environ | {
+        "PATH": f"{bin_dir}:{os.environ['PATH']}",
+        "HOME": str(tmp_path),
+        "WT_REAP_LOG": str(tmp_path / "wt.log"),
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.com",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.com",
+    }
+
+    def git(*args: str, cwd: Path = repo) -> None:
+        subprocess.run(["git", *args], cwd=cwd, env=env, check=True, capture_output=True)
+
+    git("init", "--bare", "-b", "main", str(remote))
+    git("init", "-b", "main")
+    (repo / "file").write_text("committed")
+    git("add", "file")
+    git("commit", "-m", "initial")
+    git("remote", "add", "origin", str(remote))
+    git("push", "-u", "origin", "main")
+    git("worktree", "add", "-b", "merged", str(wt))
+
+    result = subprocess.run(
+        [BIN / "executable_wt-reap", "--repo", str(repo), "--apply"],
+        env=env,
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert wt.is_dir() is active
+    assert ("process working in worktree" in result.stdout) is active
