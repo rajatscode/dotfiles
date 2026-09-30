@@ -79,9 +79,9 @@ done < <(docker ps -aq | xargs -r docker inspect -f \
 
 if [ "$apply" = 1 ]; then
     if [ "$pressure" = 1 ]; then
-        cache="$(docker builder prune -a -f --filter 'until=24h' 2>/dev/null | tail -1)"
+        cache="$(docker builder prune -a -f 2>/dev/null | tail -1)"
         images="$(docker image prune -a -f --filter "until=$((image_days * 24))h" 2>/dev/null | tail -1)"
-        say "disk pressure: ${free_before_kib} KiB free below ${min_free_gib} GiB; pruned unused build cache older than 24h: ${cache:-none}; unused images older than ${image_days}d: ${images:-none}"
+        say "disk pressure: ${free_before_kib} KiB free below ${min_free_gib} GiB; pruned unused build cache: ${cache:-none}; unused images older than ${image_days}d: ${images:-none}"
     else
         cache="$(docker builder prune -f --filter "until=$((cache_days * 24))h" 2>/dev/null | tail -1)"
         images="$(docker image prune -f 2>/dev/null | tail -1)"
@@ -90,7 +90,7 @@ if [ "$apply" = 1 ]; then
     volumes="$(docker volume prune -f 2>/dev/null | tail -1)"
     say "pruned anonymous volumes: ${volumes:-none}; host free: ${free_before_kib} -> $(df -Pk "$HOME" | awk 'END {print $4}') KiB"
 elif [ "$pressure" = 1 ]; then
-    say "would prune unused images older than ${image_days}d and unused build cache older than 24h (${free_before_kib} KiB free below ${min_free_gib} GiB)"
+    say "would prune unused images older than ${image_days}d and unused build cache (${free_before_kib} KiB free below ${min_free_gib} GiB)"
 fi
 
 say "done: $removed to remove, $stopped to stop$([ "$apply" = 1 ] || echo ' (dry run; --apply to act)')"

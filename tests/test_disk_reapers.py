@@ -43,7 +43,7 @@ def test_orb_reap_prunes_unused_images_only_under_pressure(
     calls = commands.read_text()
     if pressure:
         assert "image prune -a -f --filter until=24h" in calls
-        assert "builder prune -a -f --filter until=24h" in calls
+        assert "builder prune -a -f" in calls
     else:
         assert "image prune -f" in calls
         assert "image prune -a" not in calls

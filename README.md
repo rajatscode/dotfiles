@@ -37,7 +37,7 @@ On macOS, `chezmoi apply` also:
   `ORB_REAP_MAX_HOURS` (48) unless their restart policy keeps them up, and
   prunes build cache older than a week plus dangling images. Below 80 GiB of
   host free space, it also prunes unused images older than one day and
-  unused build cache older than 24 hours; override the image age with
+  unused build cache; override the image age with
   `ORB_REAP_IMAGE_DAYS` and the free-space threshold with
   `ORB_REAP_MIN_FREE_GIB`;
 - adds `~/dev`, `~/tmp`, `~/Library/pnpm`, and `~/.cache` to the Spotlight
