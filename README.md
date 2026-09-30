@@ -13,8 +13,10 @@ Machine-specific package lists live in `macos/` and `linux/`; they are source
 repo material and are not copied into `$HOME`.
 
 `wt-reap` is installed at `~/.local/bin/wt-reap`. Run it without arguments to
-preview eligible worktrees, or pass `--apply` to remove them. It scans Git
-repositories directly under `~/dev` by default; set `WT_REAP_ROOTS` or use
+preview eligible worktrees, or pass `--apply` to remove them. It reads scan
+roots from `~/.config/wt-reap/roots`, one repository or repository-container
+path per line. This machine-local file is not managed by chezmoi. Set
+`WT_REAP_ROOTS` to override it with space-separated paths, or use
 `--repo /path/to/repo` to select repositories. The default idle limits are three
 days for temporary worktrees and fourteen days elsewhere; override them with
 `WT_REAP_TMP_IDLE_DAYS` and `WT_REAP_IDLE_DAYS`. The macOS job uses one day
@@ -29,7 +31,7 @@ On macOS, `chezmoi apply` also:
 
 - caps OrbStack at two thirds of the cores and a third of the memory
   (`orb stop`, then reopen OrbStack, applies new limits);
-- loads LaunchAgents that run `wt-reap --apply` hourly over `~/dev/fira` and
+- loads LaunchAgents that run `wt-reap --apply` hourly over configured roots,
   `orb-reap --apply` every two hours, and `agent-nice --apply` every 30
   seconds. `agent-nice` renices `claude` and `codex` process trees to 10
   however they were launched; commands run from `~/dev/rajat/telic` and their
@@ -49,3 +51,7 @@ On macOS, `chezmoi apply` also:
 - adds `~/dev`, `~/tmp`, `~/Library/pnpm`, and `~/.cache` to the Spotlight
   Privacy list through `spotlight-exclude`, which needs root and Full Disk
   Access for the terminal.
+
+`agent-slot -- command [args...]` runs CPU or memory-heavy commands through a
+machine-wide two-slot limit. Agents should use it for test suites, builds, and
+other expensive jobs; lightweight commands do not need a slot.

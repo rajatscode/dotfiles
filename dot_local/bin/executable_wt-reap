@@ -8,14 +8,15 @@
 #   wt-reap --apply         remove candidates
 #   wt-reap --repo ~/src/x  inspect one repository
 #
-# By default, repositories directly under $WT_REAP_ROOTS are inspected.
-# Set WT_REAP_ROOTS to a space-separated list of roots, or use --repo.
+# Roots are listed one per line in ~/.config/wt-reap/roots. Each root may be
+# a repository or a directory containing repositories. WT_REAP_ROOTS remains
+# available as a space-separated override; --repo inspects explicit repos.
 
 set -euo pipefail
 
 apply=0
 repos=()
-roots="${WT_REAP_ROOTS:-$HOME/dev}"
+roots_file="${WT_REAP_ROOTS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/wt-reap/roots}"
 idle_tmp_days="${WT_REAP_TMP_IDLE_DAYS:-3}"
 idle_other_days="${WT_REAP_IDLE_DAYS:-14}"
 cache_idle_days="${WT_REAP_CACHE_IDLE_DAYS:-3}"
@@ -45,6 +46,44 @@ mkdir -p "$(dirname "$log")"
 say() {
     printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$log"
 }
+
+if [ ${#repos[@]} -eq 0 ]; then
+    if [ -n "${WT_REAP_ROOTS:-}" ]; then
+        read -r -a root_list <<< "$WT_REAP_ROOTS"
+    elif [ -f "$roots_file" ]; then
+        root_list=()
+        while IFS= read -r root || [ -n "$root" ]; do
+            root="${root%%#*}"
+            root="${root#"${root%%[![:space:]]*}"}"
+            root="${root%"${root##*[![:space:]]}"}"
+            [ -n "$root" ] || continue
+            case "$root" in
+                '~/'*) root="$HOME/${root#\~/}" ;;
+                '$HOME/'*) root="$HOME/${root#\$HOME/}" ;;
+            esac
+            root_list+=("$root")
+        done < "$roots_file"
+    elif [ -n "${WT_REAP_ROOTS_FILE:-}" ]; then
+        say "roots file missing; no repositories scanned: $roots_file"
+        root_list=()
+    else
+        root_list=()
+    fi
+
+    for root in "${root_list[@]}"; do
+        if [ -d "$root/.git" ]; then
+            repos+=("$root")
+        else
+            while IFS= read -r -d '' gitdir; do
+                d="${gitdir%/.git}"
+                [ -d "$gitdir" ] && repos+=("$d")
+            done < <(find "$root" -maxdepth 4 \
+                \( -name .git -prune -print0 \) -o \
+                \( -type d \( -name node_modules -o -name .venv -o -name .cache -o -name vendor -o -name dist -o -name build -o -name target \) -prune \) 2>/dev/null)
+        fi
+    done
+    [ "${#repos[@]}" -gt 0 ] || say "no repositories found in configured roots"
+fi
 
 reap_orphan_fsmonitors() {
     command -v pgrep >/dev/null 2>&1 || return 0
@@ -137,15 +176,6 @@ worktree_in_use() {
     wt="$(cd "$wt" && pwd -P)"
     printf '%s\n' "$active_cwds" | awk -v wt="$wt" '$0 == wt || index($0, wt "/") == 1 { found=1 } END { exit !found }'
 }
-
-if [ ${#repos[@]} -eq 0 ]; then
-    read -r -a root_list <<< "$roots"
-    for root in "${root_list[@]}"; do
-        for d in "$root"/*/; do
-            [ -d "$d/.git" ] && repos+=("${d%/}")
-        done
-    done
-fi
 
 # launchd does not set TMPDIR. On macOS, use the per-user temporary directory
 # so its shorter idle limit also applies when the scheduled job runs.
