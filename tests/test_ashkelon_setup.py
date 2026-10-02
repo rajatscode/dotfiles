@@ -131,3 +131,31 @@ def test_shell_environment_reaches_child_processes(tmp_path, shell):
     result = subprocess.run([shell, "-c", command], capture_output=True, text=True, env=os.environ, check=False)
     assert result.returncode == 0, result.stderr
     assert result.stdout == setup.ENVIRONMENT["ORI_OPENROUTER_BASE_URL"]
+
+
+def test_login_environment_restores_gui_routing(tmp_path):
+    import subprocess
+
+    setup.configure(tmp_path)
+    login = tmp_path / ".config/ashkelon/login.sh"
+    result = subprocess.run(["sh", "-n", str(login)], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+    commands = []
+    for line in login.read_text().splitlines():
+        if line.startswith("/bin/launchctl "):
+            commands.append(line.replace("/bin/launchctl ", "printf '%s\\n' ", 1))
+    result = subprocess.run(["sh", "-c", "\n".join(commands)], capture_output=True, text=True, check=True)
+    args = result.stdout.splitlines()
+    restored = dict(zip(args[1::3], args[2::3]))
+    assert restored["CODE_ASSIST_ENDPOINT"] == "http://127.0.0.1:8484/google-code-assist"
+    assert restored["ORI_OPENROUTER_BASE_URL"] == "http://127.0.0.1:8484/openrouter/api/v1"
+
+
+def test_binary_replacement_keeps_existing_open_executable(tmp_path):
+    old = existing(tmp_path, ".local/bin/ashkelon", "old executable")
+    replacement = existing(tmp_path, "replacement", "new executable")
+    with old.open() as opened:
+        setup.install_binary(tmp_path, replacement)
+        assert opened.read() == "old executable"
+    assert old.read_text() == "new executable"
+    assert old.stat().st_mode & 0o777 == 0o755

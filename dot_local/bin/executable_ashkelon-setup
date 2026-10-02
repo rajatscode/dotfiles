@@ -193,6 +193,8 @@ def configure(home):
     fish_env = "".join(f"set -gx {key} '{value}'\n" for key, value in ENVIRONMENT.items())
     write(home, home / ".config/ashkelon/env.sh", shell_env)
     write(home, home / ".config/ashkelon/env.fish", fish_env)
+    login_env = "".join(f"/bin/launchctl setenv {key} '{value}'\n" for key, value in ENVIRONMENT.items())
+    write(home, home / ".config/ashkelon/login.sh", "#!/bin/sh\nset -eu\n" + login_env)
     return hermes_changed
 
 
@@ -201,7 +203,10 @@ def install_binary(home, binary=None):
     marker = home / ".local/state/ashkelon-setup/revision"
     if binary:
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(binary, destination)
+        with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as temp:
+            temporary = Path(temp.name)
+        shutil.copy2(binary, temporary)
+        temporary.replace(destination)
     elif not destination.exists() or not marker.exists() or marker.read_text().strip() != REVISION:
         subprocess.run([
             "agent-slot", "--", "cargo", "install", "--locked", "--git",
@@ -220,6 +225,9 @@ def activate(home, hermes_changed):
     subprocess.run(["launchctl", "bootstrap", target, str(home / f"Library/LaunchAgents/{label}.plist")], check=True)
     for key, value in ENVIRONMENT.items():
         subprocess.run(["launchctl", "setenv", key, value], check=True)
+    env_label = "com.rajat.ashkelon-environment"
+    subprocess.run(["launchctl", "bootout", f"{target}/{env_label}"], capture_output=True, check=False)
+    subprocess.run(["launchctl", "bootstrap", target, str(home / f"Library/LaunchAgents/{env_label}.plist")], check=True)
     if hermes_changed:
         service = f"{target}/ai.hermes.gateway"
         if subprocess.run(["launchctl", "print", service], capture_output=True, check=False).returncode == 0:
