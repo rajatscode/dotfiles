@@ -1,0 +1,6 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+# {{ include "dot_local/bin/executable_ashkelon-setup" | sha256sum }} {{ include "dot_config/ashkelon/config.toml" | sha256sum }} {{ include "Library/LaunchAgents/com.ashkelon.serve.plist.tmpl" | sha256sum }}
+set -euo pipefail
+"$HOME/.local/bin/ashkelon-setup"
+{{ end -}}

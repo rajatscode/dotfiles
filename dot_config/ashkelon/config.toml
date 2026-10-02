@@ -1,0 +1,13 @@
+listen = "127.0.0.1:8484"
+log_bodies = false
+
+[pings]
+wake_idle = false
+
+[[routes]]
+name = "google"
+upstream = "https://generativelanguage.googleapis.com"
+
+[[routes]]
+name = "google-code-assist"
+upstream = "https://cloudcode-pa.googleapis.com"

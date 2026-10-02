@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.ashkelon.serve</string>
+  <key>ProgramArguments</key><array>
+    <string>{{ .chezmoi.homeDir }}/.local/bin/ashkelon</string>
+    <string>--config</string><string>{{ .chezmoi.homeDir }}/.config/ashkelon/config.toml</string>
+    <string>serve</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>EnvironmentVariables</key><dict>
+    <key>HOME</key><string>{{ .chezmoi.homeDir }}</string>
+  </dict>
+  <key>StandardOutPath</key><string>{{ .chezmoi.homeDir }}/Library/Application Support/ashkelon/logs/serve.stdout.log</string>
+  <key>StandardErrorPath</key><string>{{ .chezmoi.homeDir }}/Library/Application Support/ashkelon/logs/serve.stderr.log</string>
+</dict></plist>

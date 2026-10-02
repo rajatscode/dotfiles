@@ -8,6 +8,7 @@ LICENSE
 macos/
 linux/
 tests/
+justfile
 
 .config/fish/fish_variables
 .config/fish/personal.fish

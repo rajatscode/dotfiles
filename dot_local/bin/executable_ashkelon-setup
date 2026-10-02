@@ -1,0 +1,245 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["json5>=0.9", "ruamel.yaml>=0.18", "tomlkit>=0.13"]
+# ///
+
+import argparse
+import io
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+import json5
+import tomlkit
+from ruamel.yaml import YAML
+
+REVISION = "08e123938137b59f3e4e7631f5d24cda0199866a"
+RELAY = "http://127.0.0.1:8484"
+ENVIRONMENT = {
+    "ANTHROPIC_BASE_URL": f"{RELAY}/anthropic",
+    "ANTHROPIC_API_BASE": f"{RELAY}/anthropic",
+    "ANTHROPIC_HOST": f"{RELAY}/anthropic",
+    "OPENAI_BASE_URL": f"{RELAY}/openai/v1",
+    "OPENAI_API_BASE": f"{RELAY}/openai/v1",
+    "OPENAI_HOST": f"{RELAY}/openai",
+    "OPENROUTER_BASE_URL": f"{RELAY}/openrouter/api/v1",
+    "OPENROUTER_API_BASE": f"{RELAY}/openrouter/api/v1",
+    "ORI_OPENROUTER_BASE_URL": f"{RELAY}/openrouter/api/v1",
+    "GOOGLE_HOST": f"{RELAY}/google",
+    "GEMINI_API_BASE": f"{RELAY}/google",
+    "CODE_ASSIST_ENDPOINT": f"{RELAY}/google-code-assist",
+    "OLLAMA_HOST": f"{RELAY}/ollama",
+}
+PROVIDERS = {
+    "anthropic": f"{RELAY}/anthropic/v1",
+    "openai": f"{RELAY}/openai/v1",
+    "openrouter": f"{RELAY}/openrouter/api/v1",
+    "opencode": f"{RELAY}/opencode/zen/v1",
+    "google": f"{RELAY}/google/v1beta",
+}
+
+
+def write(home, path, text):
+    old = path.read_text() if path.exists() else None
+    if old == text:
+        return False
+    if old is not None:
+        backup = home / ".local/state/ashkelon-setup/backups" / path.relative_to(home)
+        if not backup.exists():
+            backup.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            backup.write_text(old)
+            backup.chmod(0o600)
+    mode = path.stat().st_mode & 0o777 if path.exists() else 0o600
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as temp:
+        temp.write(text)
+        temporary = Path(temp.name)
+    temporary.chmod(mode)
+    temporary.replace(path)
+    print(f"configured {path.relative_to(home)}")
+    return True
+
+
+def update_json(home, relative, update):
+    path = home / relative
+    document = json5.loads(path.read_text()) if path.exists() else {}
+    update(document)
+    return write(home, path, json.dumps(document, indent=2) + "\n")
+
+
+def update_toml(home, relative, update):
+    path = home / relative
+    document = tomlkit.parse(path.read_text()) if path.exists() else tomlkit.document()
+    update(document)
+    return write(home, path, tomlkit.dumps(document))
+
+
+def update_yaml(home, relative, update):
+    path = home / relative
+    yaml = YAML()
+    document = yaml.load(path.read_text()) if path.exists() else {}
+    update(document)
+    output = io.StringIO()
+    yaml.dump(document, output)
+    return write(home, path, output.getvalue())
+
+
+def configure(home):
+    def claude(document):
+        document.setdefault("env", {})["ANTHROPIC_BASE_URL"] = ENVIRONMENT["ANTHROPIC_BASE_URL"]
+
+    update_json(home, ".claude/settings.json", claude)
+
+    def codex(document):
+        providers = document.setdefault("model_providers", {})
+        providers["ashkelon"] = {
+            "name": "Ashkelon",
+            "base_url": f"{RELAY}/chatgpt/backend-api/codex",
+            "wire_api": "responses",
+            "requires_openai_auth": True,
+        }
+        providers["ashkelon-api"] = {
+            "name": "Ashkelon API",
+            "base_url": PROVIDERS["openai"],
+            "wire_api": "responses",
+            "env_key": "OPENAI_API_KEY",
+        }
+        prior = document.get("model_provider", "openai")
+        if prior == "openai":
+            document["model_provider"] = "ashkelon"
+        document["openai_base_url"] = PROVIDERS["openai"]
+        document.setdefault("shell_environment_policy", {}).setdefault("set", {}).update(ENVIRONMENT)
+
+    update_toml(home, ".codex/config.toml", codex)
+
+    def opencode(document):
+        providers = document.setdefault("provider", {})
+        for provider, url in PROVIDERS.items():
+            providers.setdefault(provider, {}).setdefault("options", {})["baseURL"] = url
+
+    opencode_name = ".config/opencode/opencode.json"
+    if (home / ".config/opencode/opencode.jsonc").exists():
+        opencode_name += "c"
+    update_json(home, opencode_name, opencode)
+
+    def omp(document):
+        providers = document.setdefault("providers", {})
+        urls = {
+            "anthropic": ENVIRONMENT["ANTHROPIC_BASE_URL"],
+            "openai": PROVIDERS["openai"],
+            "openrouter": PROVIDERS["openrouter"],
+            "openai-codex": f"{RELAY}/chatgpt/backend-api",
+            "ollama": f"{RELAY}/ollama/v1",
+            "google": f"{RELAY}/google",
+        }
+        for provider, url in urls.items():
+            providers.setdefault(provider, {})["baseUrl"] = url
+        providers["ollama"].setdefault("discovery", {})["type"] = "ollama"
+
+    update_yaml(home, ".omp/agent/models.yml", omp)
+
+    def goose(document):
+        document.update({
+            "ANTHROPIC_HOST": ENVIRONMENT["ANTHROPIC_HOST"],
+            "OPENAI_HOST": ENVIRONMENT["OPENAI_HOST"],
+            "OPENAI_BASE_URL": ENVIRONMENT["OPENAI_BASE_URL"],
+            "GOOGLE_HOST": ENVIRONMENT["GOOGLE_HOST"],
+            "OLLAMA_HOST": ENVIRONMENT["OLLAMA_HOST"],
+        })
+
+    update_yaml(home, ".config/goose/config.yaml", goose)
+
+    def aider(document):
+        configured = document.setdefault("set-env", [])
+        configured[:] = [item for item in configured if item.split("=", 1)[0].strip() not in ENVIRONMENT]
+        configured.extend(f"{key}={value}" for key, value in ENVIRONMENT.items())
+
+    update_yaml(home, ".aider.conf.yml", aider)
+
+    hermes_path = home / ".hermes/config.yaml"
+    hermes_changed = False
+    if hermes_path.exists():
+        def hermes(document):
+            provider = document.get("model", {}).get("provider", "auto")
+            if provider == "ashkelon-relay":
+                return
+            if provider not in ("anthropic", "openrouter"):
+                raise ValueError(f"Hermes provider {provider!r} needs an explicit relay route")
+            credentials = {}
+            env_file = home / ".hermes/.env"
+            if env_file.exists():
+                for line in env_file.read_text().splitlines():
+                    if "=" in line and not line.lstrip().startswith("#"):
+                        key, value = line.split("=", 1)
+                        credentials[key.strip()] = value.strip().strip("\"'")
+            key = "ANTHROPIC_API_KEY" if provider == "anthropic" else "OPENROUTER_API_KEY"
+            if not os.environ.get(key) and not credentials.get(key):
+                raise ValueError(f"Hermes requires {key} to keep subscription logins untouched")
+            document.setdefault("providers", {})["ashkelon-relay"] = {
+                "api": ENVIRONMENT["ANTHROPIC_BASE_URL"] if provider == "anthropic" else PROVIDERS["openrouter"],
+                "key_env": key,
+                "api_mode": "anthropic_messages" if provider == "anthropic" else "chat_completions",
+            }
+            document.setdefault("model", {})["provider"] = "ashkelon-relay"
+
+        hermes_changed = update_yaml(home, ".hermes/config.yaml", hermes)
+
+    shell_env = "".join(f"export {key}='{value}'\n" for key, value in ENVIRONMENT.items())
+    fish_env = "".join(f"set -gx {key} '{value}'\n" for key, value in ENVIRONMENT.items())
+    write(home, home / ".config/ashkelon/env.sh", shell_env)
+    write(home, home / ".config/ashkelon/env.fish", fish_env)
+    return hermes_changed
+
+
+def install_binary(home, binary=None):
+    destination = home / ".local/bin/ashkelon"
+    marker = home / ".local/state/ashkelon-setup/revision"
+    if binary:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(binary, destination)
+    elif not destination.exists() or not marker.exists() or marker.read_text().strip() != REVISION:
+        subprocess.run([
+            "agent-slot", "--", "cargo", "install", "--locked", "--git",
+            "https://github.com/project-kikkuli/ashkelon", "--rev", REVISION,
+            "--root", str(home / ".local"), "--force",
+        ], check=True)
+    destination.chmod(0o755)
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(REVISION + "\n")
+
+
+def activate(home, hermes_changed):
+    target = f"gui/{os.getuid()}"
+    label = "com.ashkelon.serve"
+    subprocess.run(["launchctl", "bootout", f"{target}/{label}"], capture_output=True, check=False)
+    subprocess.run(["launchctl", "bootstrap", target, str(home / f"Library/LaunchAgents/{label}.plist")], check=True)
+    for key, value in ENVIRONMENT.items():
+        subprocess.run(["launchctl", "setenv", key, value], check=True)
+    if hermes_changed:
+        service = f"{target}/ai.hermes.gateway"
+        if subprocess.run(["launchctl", "print", service], capture_output=True, check=False).returncode == 0:
+            subprocess.run(["launchctl", "kickstart", "-k", service], check=True)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--binary", type=Path)
+    args = parser.parse_args()
+    if sys.platform != "darwin":
+        parser.error("persistent Ashkelon routing requires macOS launchd")
+    home = Path.home()
+    install_binary(home, args.binary)
+    log_dir = home / "Library/Application Support/ashkelon/logs"
+    log_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    hermes_changed = configure(home)
+    activate(home, hermes_changed)
+    print(f"Ashkelon {REVISION[:12]} relays at {RELAY}; call logs: {log_dir}")
+
+
+if __name__ == "__main__":
+    main()
