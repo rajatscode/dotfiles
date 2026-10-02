@@ -33,7 +33,7 @@ ENVIRONMENT = {
     "GOOGLE_HOST": f"{RELAY}/google",
     "GEMINI_API_BASE": f"{RELAY}/google",
     "CODE_ASSIST_ENDPOINT": f"{RELAY}/google-code-assist",
-    "OLLAMA_HOST": f"{RELAY}/ollama",
+    "OLLAMA_HOST": RELAY,
 }
 PROVIDERS = {
     "anthropic": f"{RELAY}/anthropic/v1",
@@ -134,12 +134,14 @@ def configure(home):
             "openai": PROVIDERS["openai"],
             "openrouter": PROVIDERS["openrouter"],
             "openai-codex": f"{RELAY}/chatgpt/backend-api",
-            "ollama": f"{RELAY}/ollama/v1",
+            "ollama": f"{RELAY}/v1",
             "google": f"{RELAY}/google",
         }
         for provider, url in urls.items():
             providers.setdefault(provider, {})["baseUrl"] = url
         providers["ollama"].setdefault("discovery", {})["type"] = "ollama"
+        providers["ollama"].setdefault("api", "openai-responses")
+        providers["ollama"].setdefault("auth", "none")
 
     update_yaml(home, ".omp/agent/models.yml", omp)
 

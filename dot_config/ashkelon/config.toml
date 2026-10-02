@@ -5,6 +5,14 @@ log_bodies = false
 wake_idle = false
 
 [[routes]]
+name = "api"
+upstream = "http://127.0.0.1:11434/api"
+
+[[routes]]
+name = "v1"
+upstream = "http://127.0.0.1:11434/v1"
+
+[[routes]]
 name = "google"
 upstream = "https://generativelanguage.googleapis.com"
 
