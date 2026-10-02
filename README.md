@@ -53,5 +53,15 @@ On macOS, `chezmoi apply` also:
   Access for the terminal.
 
 `agent-slot -- command [args...]` runs CPU or memory-heavy commands through a
-machine-wide two-slot limit. Agents should use it for test suites, builds, and
+machine-wide limit derived from device resources. The CPU budget reserves two
+physical cores and allows one job per two remaining cores. The memory budget
+reserves the larger of 4 GiB or a quarter of RAM and allows one job per 4 GiB
+remaining. The smaller budget sets the capacity, with a minimum of one slot.
+Linux falls back to logical cores when CPU topology is unavailable.
+`agent-slot --status` shows the detected capacity. Slots cover whole commands;
+the runner does not pin cores or limit their internal parallelism.
+
+The shared skill lives at `~/.agents/skills/agent-slot`. Codex and Claude use
+symlinks in their skill directories; OpenCode and OMP discover the shared
+location directly. Agents should use the runner for test suites, builds, and
 other expensive jobs; lightweight commands do not need a slot.
