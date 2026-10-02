@@ -1,0 +1,16 @@
+name: Tests
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: sudo apt-get update && sudo apt-get install -y fish zsh
+      - run: uv run --with pytest --with pyyaml --with json5 --with ruamel.yaml --with tomlkit python -m pytest tests
+      - run: just lint
