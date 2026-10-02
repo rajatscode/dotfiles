@@ -18,7 +18,7 @@ import json5
 import tomlkit
 from ruamel.yaml import YAML
 
-REVISION = "08e123938137b59f3e4e7631f5d24cda0199866a"
+REVISION = "9317a4cb871f60ec9ef53d32675f0143c8484004"
 RELAY = "http://127.0.0.1:8484"
 ENVIRONMENT = {
     "ANTHROPIC_BASE_URL": f"{RELAY}/anthropic",
@@ -34,6 +34,8 @@ ENVIRONMENT = {
     "GEMINI_API_BASE": f"{RELAY}/google",
     "CODE_ASSIST_ENDPOINT": f"{RELAY}/google-code-assist",
     "OLLAMA_HOST": RELAY,
+    "CURSOR_API_ENDPOINT": "http://localhost:8484/cursor",
+    "CURSOR_API_BASE_URL": "http://localhost:8484/cursor",
 }
 PROVIDERS = {
     "anthropic": f"{RELAY}/anthropic/v1",
@@ -127,6 +129,11 @@ def configure(home):
         opencode_name += "c"
     update_json(home, opencode_name, opencode)
 
+    def cursor(document):
+        document.setdefault("network", {})["useHttp1ForAgent"] = True
+
+    update_json(home, ".cursor/cli-config.json", cursor)
+
     def omp(document):
         providers = document.setdefault("providers", {})
         urls = {
@@ -191,11 +198,35 @@ def configure(home):
 
         hermes_changed = update_yaml(home, ".hermes/config.yaml", hermes)
 
-    shell_env = "".join(f"export {key}='{value}'\n" for key, value in ENVIRONMENT.items())
-    fish_env = "".join(f"set -gx {key} '{value}'\n" for key, value in ENVIRONMENT.items())
+    shim_dir = home / ".config/ashkelon/bin"
+    ori = shim_dir / "ori"
+    write(home, ori, '''#!/bin/sh
+skip_value=false
+for argument do
+    if $skip_value; then
+        skip_value=false
+        continue
+    fi
+    case "$argument" in
+        --log-level|--completions) skip_value=true ;;
+        -*) ;;
+        *)
+            if [ "$argument" = omp ]; then
+                unset ORI_OPENROUTER_BASE_URL
+            fi
+            break
+            ;;
+    esac
+done
+exec "$HOME/.local/bin/ori" "$@"
+''')
+    ori.chmod(0o700)
+    shell_env = f'case ":$PATH:" in *":{shim_dir}:"*) ;; *) export PATH="{shim_dir}:$PATH" ;; esac\n' + "".join(f"export {key}='{value}'\n" for key, value in ENVIRONMENT.items())
+    fish_env = f"fish_add_path --global --move '{shim_dir}'\n" + "".join(f"set -gx {key} '{value}'\n" for key, value in ENVIRONMENT.items())
     write(home, home / ".config/ashkelon/env.sh", shell_env)
     write(home, home / ".config/ashkelon/env.fish", fish_env)
     login_env = "".join(f"/bin/launchctl setenv {key} '{value}'\n" for key, value in ENVIRONMENT.items())
+    login_env += f'current_path=$(/bin/launchctl getenv PATH) || current_path=$PATH\ncurrent_path=${{current_path:-$PATH}}\ncase ":$current_path:" in *":{shim_dir}:"*) ;; *) /bin/launchctl setenv PATH "{shim_dir}:$current_path" ;; esac\n'
     write(home, home / ".config/ashkelon/login.sh", "#!/bin/sh\nset -eu\n" + login_env)
     return hermes_changed
 

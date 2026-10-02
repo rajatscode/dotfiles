@@ -13,6 +13,10 @@ name = "v1"
 upstream = "http://127.0.0.1:11434/v1"
 
 [[routes]]
+name = "cursor"
+upstream = "https://api2.cursor.sh"
+
+[[routes]]
 name = "google"
 upstream = "https://generativelanguage.googleapis.com"
 

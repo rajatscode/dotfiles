@@ -102,6 +102,7 @@ def test_native_configs_preserve_existing_tools_models_and_original_backup(tmp_p
     omp = existing(tmp_path, ".omp/agent/models.yml", "providers:\n  ollama:\n    models:\n      - id: local-model\n")
     goose = existing(tmp_path, ".config/goose/config.yaml", "active_provider: ollama\nGOOSE_MODE: auto\n")
     aider = existing(tmp_path, ".aider.conf.yml", "model: chosen-model\nset-env:\n  - EXISTING=kept\n")
+    cursor = existing(tmp_path, ".cursor/cli-config.json", '{"network":{"useHttp1ForAgent":false,"existing":true},"selectedModel":{"modelId":"chosen-model"}}')
     setup.configure(tmp_path)
     setup.configure(tmp_path)
     assert json.loads(claude.read_text())["permissions"]["allow"] == ["Read"]
@@ -113,6 +114,9 @@ def test_native_configs_preserve_existing_tools_models_and_original_backup(tmp_p
     assert aider_result["model"] == "chosen-model"
     assert "EXISTING=kept" in aider_result["set-env"]
     assert "ANTHROPIC_API_BASE=http://127.0.0.1:8484/anthropic" in aider_result["set-env"]
+    cursor_result = json.loads(cursor.read_text())
+    assert cursor_result["network"] == {"useHttp1ForAgent": True, "existing": True}
+    assert cursor_result["selectedModel"]["modelId"] == "chosen-model"
     backup = tmp_path / ".local/state/ashkelon-setup/backups/.claude/settings.json"
     assert backup.read_text() == original
     assert backup.stat().st_mode & 0o777 == 0o600
@@ -159,3 +163,57 @@ def test_binary_replacement_keeps_existing_open_executable(tmp_path):
         assert opened.read() == "old executable"
     assert old.read_text() == "new executable"
     assert old.stat().st_mode & 0o777 == 0o755
+
+
+@pytest.mark.parametrize("arguments,uses_native_endpoint", [
+    (["omp", "prompt with spaces"], True),
+    (["--json", "omp", "$(literal)"], True),
+    (["--log-level", "debug", "omp"], True),
+    (["hermes", "omp"], False),
+    (["--human", "codex"], False),
+    ([], False),
+])
+def test_ori_omp_uses_native_provider_settings_without_changing_other_launches(tmp_path, arguments, uses_native_endpoint):
+    import subprocess
+    import sys
+
+    native = existing(tmp_path, ".local/bin/ori", f'''#!{sys.executable}
+import json, os, sys
+print(json.dumps({{"arguments":sys.argv[1:],"endpoint":os.environ.get("ORI_OPENROUTER_BASE_URL"),"provider_endpoint":os.environ.get("OPENROUTER_BASE_URL")}}))
+''')
+    native.chmod(0o700)
+    setup.configure(tmp_path)
+    env = dict(os.environ, HOME=str(tmp_path))
+    source = tmp_path / ".config/ashkelon/env.sh"
+    result = subprocess.run(["sh", "-c", f'. "{source}"; exec ori "$@"', "test", *arguments], env=env, capture_output=True, text=True, check=True)
+    result = json.loads(result.stdout)
+    assert result["arguments"] == arguments
+    assert result["endpoint"] == (None if uses_native_endpoint else setup.ENVIRONMENT["ORI_OPENROUTER_BASE_URL"])
+    assert result["provider_endpoint"] == setup.ENVIRONMENT["OPENROUTER_BASE_URL"]
+
+
+@pytest.mark.parametrize("gui_path", ["", "/custom/bin:/usr/bin:/bin"])
+def test_login_adapter_path_preserves_existing_or_default_launch_environment(tmp_path, gui_path):
+    import subprocess
+    import sys
+
+    setup.configure(tmp_path)
+    commands = tmp_path / "launchctl-calls.jsonl"
+    tool = existing(tmp_path, "launchctl", f'''#!{sys.executable}
+import json, os, sys
+if sys.argv[1] == "getenv":
+    if not os.environ["TEST_GUI_PATH"]:
+        sys.exit(1)
+    print(os.environ["TEST_GUI_PATH"])
+else:
+    with open({str(commands)!r}, "a") as out:
+        out.write(json.dumps(sys.argv[1:]) + "\\n")
+''')
+    tool.chmod(0o700)
+    login = tmp_path / ".config/ashkelon/login.sh"
+    login.write_text(login.read_text().replace("/bin/launchctl", str(tool)))
+    env = dict(os.environ, TEST_GUI_PATH=gui_path)
+    subprocess.run(["sh", str(login)], env=env, capture_output=True, text=True, check=True)
+    calls = [json.loads(line) for line in commands.read_text().splitlines()]
+    path = next(call[2] for call in calls if call[1] == "PATH")
+    assert path == str(tmp_path / ".config/ashkelon/bin") + ":" + (gui_path or env["PATH"])
